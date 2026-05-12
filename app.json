@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "agri-snap",
+    "name": "Agrisnap",
     "slug": "agri-snap",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,7 +15,8 @@
       },
       "infoPlist": {
         "NSMicrophoneUsageDescription": "రైతులకు వాయిస్ సెర్చ్ కోసం మైక్రోఫోన్ అనుమతి అవసరం.",
-        "NSSpeechRecognitionUsageDescription": "వాయిస్ కమాండ్స్ ద్వారా యంత్రాలను వెతకడానికి అనుమతి ఇవ్వండి."
+        "NSSpeechRecognitionUsageDescription": "వాయిస్ కమాండ్స్ ద్వారా యంత్రాలను వెతకడానికి అనుమతి ఇవ్వండి.",
+        "NSContactsUsageDescription": "రైతులు, మేస్త్రీలు లేదా డ్రైవర్ల పేర్లు మరియు ఫోన్ నంబర్లను మీ కాంటాక్ట్స్ నుండి సులభంగా ఎంచుకోవడానికి ఈ అనుమతి అవసరం."
       }
     },
     "android": {
@@ -37,7 +38,8 @@
         "RECORD_AUDIO",
         "CAMERA",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "READ_CONTACTS"
       ],
       "blockedPermissions": []
     },
@@ -63,7 +65,8 @@
         {
           "microphonePermission": "రైతులకు వాయిస్ సెర్చ్ కోసం మైక్రోఫోన్ అనుమతి అవసరం."
         }
-      ]
+      ],
+      "expo-contacts"
     ],
     "experiments": {
       "typedRoutes": true,

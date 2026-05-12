@@ -88,7 +88,7 @@ export default function SplashScreen() {
       <Animated.View style={[styles.topCurve, topCurveStyle]} />
       <Animated.View style={[styles.bottomCurve, bottomCurveStyle]} />
       <Animated.View style={titleStyle}>
-        <AppText style={styles.title} language={language}>AgriLog</AppText>
+        <AppText style={styles.title} language={language}>Agrisnap</AppText>
       </Animated.View>
       <Animated.View style={[styles.underline, underlineStyle]} />
       <Animated.View style={taglineStyle}>

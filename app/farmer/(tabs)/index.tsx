@@ -13,22 +13,23 @@ import * as Location from "expo-location";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated, AppState, Dimensions,
+  Animated, AppState,
+  BackHandler,
+  Dimensions,
   FlatList,
   Image,
+  InteractionManager,
   Modal,
   RefreshControl, SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  BackHandler,
-  InteractionManager
+  View
 } from "react-native";
+import ShimmerPlaceholder from "react-native-shimmer-placeholder";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
-import ShimmerPlaceholder from "react-native-shimmer-placeholder";
 
 const { width } = Dimensions.get("window");
 
@@ -37,18 +38,18 @@ const { width } = Dimensions.get("window");
 const translations = {
   te:{
     morning:"శుభోదయం", afternoon:"శుభ మధ్యాహ్నం", evening:"శుభ సాయంత్రం", night:"శుభ రాత్రి",
-    quick:"స్మార్ట్ సూచనలు", all:"అన్ని సేవలు", attendance:"హాజరు", payments:"పేమెంట్స్",
-    sales:"అమ్మకాలు", expenses:"ఖర్చులు", crops:"సారాంశం", schemes:"పథకాలు",
-    market:"మార్కెట్", forecast:"వాతావరణం చూడండి", weather: "వాతావరణం",
-    machine: "యంత్ర పని", calculator:"కాలిక్యులేటర్", booking: "అగ్రి కనెక్ట్",
-    fields: "పొలాలు", owners: "యంత్ర యజమానులు"
+    quick:"స్మార్ట్ సూచనలు", all:"అన్ని సేవలు", attendance:"కూలీల హాజరు", payments:"కూలీల చెల్లింపులు",
+    sales:"పంట అమ్మకాలు", expenses:"పెట్టుబడి లెక్కలు", crops:"వ్యవసాయ నివేదిక", schemes:"ప్రభుత్వ పథకాలు",
+    market:"మార్కెట్ ధరలు", forecast:"వాతావరణం చూడండి", weather: "వాతావరణం",
+    machine: "యంత్రాల లెక్కలు", calculator:"క్యాలిక్యులేటర్", booking: "అగ్రి కనెక్ట్",
+    fields: "నా పొలాలు", owners: "నా వాహనాలు"
   },
   en:{
     morning:"Good Morning", afternoon:"Good Afternoon", evening:"Good Evening", night:"Good Night",
-    quick:"Smart Suggestions", all:"All Services", calculator:"Calculator", attendance:"Attendance",
-    payments:"Payments", forecast:"See Forecast", sales:"Sales", expenses:"Expenses",
-    crops:"Summary", schemes:"Schemes", market:"Market", weather: "Weather",
-    machine: "Machines", booking: "AgriConnect", fields: "Fields", owners: "Machine Owners"
+    quick:"Smart Suggestions", all:"All Services", calculator:"Smart Calculators", attendance:"Workers Attendance",
+    payments:"Workers Payment", forecast:"See Forecast", sales:"Crop Sales", expenses:"Farm Expenses",
+    crops:"Farm Report", schemes:"Govt Schemes", market:"Market Prices", weather: "Weather",
+    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles"
   }
 };
 
@@ -294,22 +295,30 @@ export default function Dashboard() {
   }, []);
 
   /* ---------------- QUICK SERVICES ---------------- */
-  const getServices = () => [
-    { service: "attendance", title: t.attendance, icon: icons.attendance, screen: "/farmer/attendance" },
-    { service: "weather", title: t.weather, icon: icons.weather, screen: "/farmer/weather" },
-    { service: "expenses", title: t.expenses, icon: icons.expenses, screen: "/farmer/expenses" },
+const getServices = () => [
+    // 1. పొలం & కూలీల నిర్వహణ (Farm & Labour)
     { service: "fields", title: t.fields, icon: icons.fields, screen: "/farmer/fields" },
-    { service: "crops", title: t.crops, icon: icons.crops, screen: "/farmer/summary" },
-    { service: "sales", title: t.sales, icon: icons.sales, screen: "/farmer/sales" },
-    { service: "payments", title: t.payments, icon: icons.payments, screen: "/farmer/payments" },
-    { service: "market", title: t.market, icon: icons.market, screen: "/farmer/market" },
-    { service: "machine", title: t.machine, icon: icons.machine, screen: "/farmer/owners" },
-    { service: "owners", title: t.owners, icon: icons.owners, screen: "/farmer/vehicles" },
-    { service: "booking", title: t.booking, icon: icons.booking, screen: "/farmer/bookings" },
-    { service: "schemes", title: t.schemes, icon: icons.schemes, screen: "/farmer/schemes" },
-    { service: "calculator", title: t.calculator, icon: icons.calculator, screen: "/farmer/calculator" },
-  ];
+    { service: "attendance", title: t.attendance, icon: icons.attendance, screen: "/farmer/mestri" },
+    { service: "payments", title: t.payments, icon: icons.payments, screen: "/farmer/mestripayments" },
 
+    // 2. ఫైనాన్స్ & రిపోర్ట్స్ (Finance & Reports)
+    { service: "expenses", title: t.expenses, icon: icons.expenses, screen: "/farmer/expenses" },
+    { service: "sales", title: t.sales, icon: icons.sales, screen: "/farmer/sales" },
+    { service: "crops", title: t.crops, icon: icons.crops, screen: "/farmer/summary" },
+
+    // 3. యంత్రాలు & కనెక్ట్ (Machinery Ecosystem)
+    { service: "machine", title: t.machine, icon: icons.machine, screen: "/farmer/owners" },
+    { service: "owners", title: t.owners, icon: icons.owners, screen: "/farmer/vechiles" },
+    { service: "booking", title: t.booking, icon: icons.booking, screen: "/farmer/bookings" },
+
+    // 4. రోజువారీ సమాచారం & టూల్స్ (Daily Info & Tools)
+    { service: "market", title: t.market, icon: icons.market, screen: "/farmer/market" },
+    { service: "weather", title: t.weather, icon: icons.weather, screen: "/farmer/weather" },
+    { service: "calculator", title: t.calculator, icon: icons.calculator, screen: "/farmer/calculators" },
+
+    // 5. ప్రభుత్వ సమాచారం (Govt Info)
+    { service: "schemes", title: t.schemes, icon: icons.schemes, screen: "/farmer/schemes" },
+  ];
   const services = useMemo(() => getServices(), [language]);
   
   const calculateQuick = async () => {
@@ -525,6 +534,7 @@ export default function Dashboard() {
     return { text: raw, type: "default" };
   };
 
+/* ---------------- WEATHER & LOCATION PERMISSION ---------------- */
   const getLocationWeather = async () => {
     if (!isOnline) {
       const cached = await AsyncStorage.getItem(CACHE_KEY);
@@ -534,7 +544,9 @@ export default function Dashboard() {
       }
       return;
     }
+
     try {
+      // 1. Cache Check (ఫాస్ట్ గా లోడ్ చేయడానికి)
       const cached = await AsyncStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -545,6 +557,8 @@ export default function Dashboard() {
       }
 
       let latitude; let longitude;
+      
+      // 2. Location Cache Check
       const locCache = await AsyncStorage.getItem(LOCATION_CACHE_KEY);
       if (locCache) {
         const parsed = JSON.parse(locCache);
@@ -553,13 +567,28 @@ export default function Dashboard() {
         }
       }
 
+      // 3. 🔥 అసలైన లాజిక్: పర్మిషన్ అడిగి కొత్త లొకేషన్ తీసుకోవడం (క్యాష్ లేకపోతే)
       if (!latitude || !longitude) {
-        const location = await Location.getCurrentPositionAsync({});
-        latitude = location.coords.latitude; longitude = location.coords.longitude;
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        
+        if (status !== 'granted') {
+          // ఒకవేళ పర్మిషన్ ఇవ్వకపోతే, డీఫాల్ట్ గా ఒక మెసేజ్ చూపించడం బెటర్ (లేదా loading తీసేయడం)
+          setCity(language === "te" ? "లొకేషన్ అనుమతి లేదు" : "Location Denied");
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced, // మరీ హై క్యూరసీ పెడితే లేట్ అవుతుంది, Balanced బెస్ట్
+        });
+        
+        latitude = location.coords.latitude; 
+        longitude = location.coords.longitude;
+        
         await AsyncStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({ latitude, longitude, timestamp: Date.now() }));
       }
-      const res = await fetch(`https://getweather-pdetykgfaq-uc.a.run.app?lat=${latitude}&lon=${longitude}`);
 
+      // 4. API Call
+      const res = await fetch(`https://getweather-pdetykgfaq-uc.a.run.app?lat=${latitude}&lon=${longitude}`);
       if (!res.ok) throw new Error("Weather API failed");
       const data = await res.json();
 
@@ -573,17 +602,22 @@ export default function Dashboard() {
 
       setWeather(result.text); setWeatherType(result.type); setHumidity(data.main.humidity); setWind(data.wind.speed);
 
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ city: finalCity, temp: Math.round(data.main.temp), weather: result.text, humidity: data.main.humidity, wind: data.wind.speed, timestamp: Date.now(), language: language }));
+      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ 
+        city: finalCity, temp: Math.round(data.main.temp), weather: result.text, 
+        humidity: data.main.humidity, wind: data.wind.speed, timestamp: Date.now(), language: language 
+      }));
 
-    }catch (e) {
+    } catch (e) {
+      console.log("Weather Error:", e);
       const cached = await AsyncStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
         setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
+      } else {
+        setCity(language === "te" ? "డేటా రాలేదు" : "Data Failed");
       }
     }
   };
-
   const fetchPrices = async () => {
     if (!isOnline) {
       const cached = await AsyncStorage.getItem(PRICE_CACHE_KEY);
@@ -945,16 +979,21 @@ export default function Dashboard() {
       </Text>
     </View>
 
-    {/* 🔥 FIXED GRID CARDS */}
+   {/* 🔥 FIXED GRID CARDS */}
     <View style={styles.grid}>
       {getServices().map((item, index) => (
         <TouchableOpacity key={item.service} style={styles.gridCard} onPress={() => handleServiceClick(item.screen,item.service,index)} activeOpacity={0.75}>
           <View style={styles.iconWrapper}>
             <Image source={item.icon} style={styles.cardIcon} />
           </View>
-          <AppText style={styles.cardText} language={language}>
-            {item.title}
-          </AppText>
+          
+          {/* 🔥 టెక్స్ట్ కి పర్ఫెక్ట్ సెంటరింగ్ ఇవ్వడానికి కొత్త కంటైనర్ */}
+          <View style={styles.cardTextContainer}>
+            <AppText style={styles.cardText} language={language} numberOfLines={2}>
+              {item.title}
+            </AppText>
+          </View>
+          
         </TouchableOpacity>
       ))}
     </View>
@@ -1084,10 +1123,43 @@ const styles = StyleSheet.create({
   swipeText:{ fontSize:12, color:"#6B7280", fontWeight:"500", marginHorizontal:4 },
   swipeIcon:{ justifyContent:"center", alignItems:"center" },
   quickScroll:{ paddingLeft:20, paddingRight:10, paddingTop:15 },
+  gridCard: { 
+    width: (width - 70) / 3, 
+    height: 135, 
+    backgroundColor: "#F8FAF9", 
+    borderColor: "#E5E7EB", 
+    borderRadius: 18, 
+    paddingTop: 16, 
+    paddingHorizontal: 8, // 🔥 4 నుంచి 8 కి పెంచాను (లెఫ్ట్, రైట్ బ్రీతింగ్ స్పేస్)
+    paddingBottom: 10, 
+    alignItems: "center", 
+    borderWidth: 1 
+  },
+  iconWrapper: { 
+    backgroundColor: "#E8F5E9", 
+    padding: 12, 
+    borderRadius: 16, 
+    marginBottom: 2, // 🔥 టెక్స్ట్ కి మరింత ప్లేస్ ఇవ్వడానికి కొద్దిగా తగ్గించాను
+    justifyContent: "center", 
+    alignItems: "center" 
+  },
+  cardTextContainer: {
+    flex: 1, 
+    justifyContent: "center", 
+    alignItems: "center",
+    width: "100%",
+    paddingHorizontal: 2, // 🔥 టెక్స్ట్ మరీ ఎడ్జ్ కి వెళ్లకుండా అదనపు లాక్ 
+  },
+  cardText: { 
+    fontFamily: "Mandali", // 🔥 మండలి ఫాంట్ పక్కాగా అప్లై అవ్వడానికి
+    fontSize: 14, // 🔥 14 పెడితే తెలుగు పదాలు ఇరుకు అవుతాయి, 13 పర్ఫెక్ట్!
+    fontWeight: "600", 
+    color: "#1F2937", 
+    textAlign: "center", 
+    includeFontPadding: false, 
+    lineHeight: 24 // 🔥 24 అయితే మరీ ఎక్కువ గ్యాప్ వస్తుంది, 20 అయితే నీట్ గా రెండు లైన్లు సెట్ అవుతాయి
+  },
   grid:{ flexDirection:"row", flexWrap:"wrap", justifyContent:"flex-start", paddingHorizontal:20, paddingBottom: 60, marginBottom: 60, gap:14 },
-  gridCard: { width: (width - 70) / 3, height: 120, backgroundColor: "#F8FAF9", borderColor: "#E5E7EB", borderRadius: 18, paddingTop: 16, paddingHorizontal: 4, alignItems: "center", justifyContent: "flex-start", borderWidth: 1 },
-  iconWrapper: { backgroundColor: "#E8F5E9", padding: 12, borderRadius: 16, marginBottom: 8, justifyContent: "center", alignItems: "center" },
-  cardText: { fontSize: 14, fontWeight: "600", color: "#1F2937", textAlign: "center", includeFontPadding: false, lineHeight: 24 },
   cardIcon:{ width:22, height:22, tintColor:"#2E7D32", resizeMode:"contain" },
   smartCard:{ flexDirection:"row", alignItems:"center", paddingVertical:12, paddingHorizontal:16, borderTopColor:"rgba(255,255,255,0.6)", borderRadius:20, marginRight:12, marginBottom:10, borderWidth:1, borderColor:"rgba(255,255,255,0.35)", shadowColor:"#000", shadowOpacity:0.12, shadowRadius:10, elevation:5 },
   smartChip:{ flexDirection:"row", alignItems:"center", backgroundColor:"#F8F9FA", paddingVertical:9, paddingHorizontal:14, borderRadius:20, minHeight: 36, marginRight:12, marginBottom:8, borderWidth:1, borderColor:"#E5E7EB" },

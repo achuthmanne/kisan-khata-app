@@ -256,7 +256,7 @@ export default function PaymentsScreen() {
               activeOpacity={0.8}
               onPress={() => {
                 router.push({
-                  pathname: "/farmer/payment-details",
+                  pathname: "/farmer/mestripayments/payment-details",
                   params: {
                     id: item.id,
                     name: item.name,

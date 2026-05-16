@@ -205,7 +205,7 @@ export default function PaymentDetails() {
                         style={[styles.work, { borderLeftColor: workColor }]}
                         onPress={() => {
                           router.push({
-                            pathname: "/farmer/payment-main",
+                            pathname: "/farmer/mestripayments/payment-main",
                             params: {
                               id,
                               crop: item,

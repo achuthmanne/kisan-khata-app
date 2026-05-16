@@ -354,7 +354,7 @@ export default function PaymentWorkHistory() {
           activeOpacity={0.8}
           onPress={() => {
             router.push({
-              pathname: "/farmer/payment-summary",
+              pathname: "/farmer/mestripayments/payment-summary",
               params: {
                 ids: JSON.stringify(selected),
                 crop,

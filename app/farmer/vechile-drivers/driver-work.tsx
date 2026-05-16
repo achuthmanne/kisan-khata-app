@@ -1,6 +1,6 @@
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
-import AppEmptyState from "@/components/AppEmptyState"; // 🔥 మన గ్లోబల్ కాంపోనెంట్
+import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
@@ -18,16 +18,9 @@ import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 
 type WorkItem = {
   id: string;
-  crop: string;
   work: string;
   date: string;
-  workType?: string;
   acres?: string;
-  saalluCount?: string;
-  ratePerSaalu?: string;
-  ratePerHour?: string;
-  hrs?: string;
-  mins?: string;
   payableAmount?: string;
   advanceAmount?: string;
   finalAmount?: string;
@@ -36,16 +29,16 @@ type WorkItem = {
   createdAt?: any;
 };
 
-export default function FarmerHistory() {
+export default function DriverHistory() {
 
   const router = useRouter();
-  const { vehicleId, farmerId, name, phone } = useLocalSearchParams();
+  const { vehicleId, driverId, name, phone } = useLocalSearchParams();
 
-  // URL Params Array లాగా వస్తే క్రాష్ అవ్వకుండా
-  const fName = Array.isArray(name) ? name[0] : name;
-  const fPhone = Array.isArray(phone) ? phone[0] : phone;
+  // 🔥 URL Params Array లాగా వస్తే క్రాష్ అవ్వకుండా
+  const dName = Array.isArray(name) ? name[0] : name;
+  const dPhone = Array.isArray(phone) ? phone[0] : phone;
   const vId = Array.isArray(vehicleId) ? vehicleId[0] : vehicleId;
-  const fId = Array.isArray(farmerId) ? farmerId[0] : farmerId;
+  const dId = Array.isArray(driverId) ? driverId[0] : driverId;
 
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
@@ -68,9 +61,9 @@ export default function FarmerHistory() {
         if (lang) setLanguage(lang as any);
 
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
-        if (!userPhone || !vId || !fId) return;
+        if (!userPhone || !vId || !dId) return;
 
-        // 🔥 FETCH ACTIVE SESSION
+        // 🔥 1. FETCH ACTIVE SESSION
         const userDoc = await firestore().collection("users").doc(userPhone).get();
         const activeSession = userDoc.data()?.activeSession;
 
@@ -79,16 +72,16 @@ export default function FarmerHistory() {
           return;
         }
 
-        // 🔥 REALTIME SNAPSHOT WITH SESSION FILTER
+        // 🔥 2. SESSION BASED QUERY WITH CLIENT SORTING
         unsub = firestore()
           .collection("users")
           .doc(userPhone)
           .collection("vehicles")
           .doc(vId)
-          .collection("works")
-          .doc(fId)
+          .collection("drivers")
+          .doc(dId)
           .collection("entries")
-          .where("session", "==", activeSession) // సెషన్ బేస్డ్ ఫిల్టర్
+          .where("session", "==", activeSession)
           .onSnapshot(snap => {
             if (!snap || !snap.docs) {
               setLoading(false);
@@ -98,7 +91,7 @@ export default function FarmerHistory() {
             const list: WorkItem[] = [];
             snap.forEach(doc => list.push({ id: doc.id, ...(doc.data() as any) }));
 
-            // 🔥 Pro Trick: Firebase Index Error రాకుండా క్లయింట్ సైడ్ సార్టింగ్ (Latest first)
+            // 🔥 Index ఎర్రర్ రాకుండా సార్టింగ్
             list.sort((a, b) => {
               const timeA = a.createdAt?.toMillis() || 0;
               const timeB = b.createdAt?.toMillis() || 0;
@@ -114,20 +107,20 @@ export default function FarmerHistory() {
       return () => {
         if (unsub) unsub();
       };
-    }, [vId, fId])
+    }, [vId, dId])
   );
 
   const handleDelete = async () => {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
-    if (!userPhone || !deleteId || !vId || !fId) return;
+    if (!userPhone || !deleteId || !vId || !dId) return;
 
     await firestore()
       .collection("users")
       .doc(userPhone)
       .collection("vehicles")
       .doc(vId)
-      .collection("works")
-      .doc(fId)
+      .collection("drivers")
+      .doc(dId)
       .collection("entries")
       .doc(deleteId)
       .delete();
@@ -137,15 +130,15 @@ export default function FarmerHistory() {
 
   const handleStatusUpdate = async () => {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
-    if (!userPhone || !statusId || !vId || !fId) return;
+    if (!userPhone || !statusId || !vId || !dId) return;
 
     await firestore()
       .collection("users")
       .doc(userPhone)
       .collection("vehicles")
       .doc(vId)
-      .collection("works")
-      .doc(fId)
+      .collection("drivers")
+      .doc(dId)
       .collection("entries")
       .doc(statusId)
       .update({
@@ -155,25 +148,25 @@ export default function FarmerHistory() {
     setStatusId(null);
   };
 
-  /* ---------------- GROUP BY CROP ---------------- */
+  /* ---------------- GROUP BY WORK ---------------- */
   const grouped = Object.values(
-    data.reduce<Record<string, { crop: string; list: WorkItem[] }>>((acc, item) => {
-      if (!acc[item.crop]) acc[item.crop] = { crop: item.crop, list: [] };
-      acc[item.crop].list.push(item);
+    data.reduce<Record<string, { work: string; list: WorkItem[] }>>((acc, item) => {
+      const w = item.work || "Unknown";
+      if (!acc[w]) acc[w] = { work: w, list: [] };
+      acc[w].list.push(item);
       return acc;
     }, {})
   );
-
+  
   const cropColors = [
     "#16A34A", "#2563EB", "#F59E0B", "#DC2626",
     "#8B5CF6", "#14B8A6", "#F97316"
   ];
 
-  const getCropColor = (crop: string) => {
-    if (!crop) return cropColors[0];
+  const getCropColor = (work: string) => {
     let hash = 0;
-    for (let i = 0; i < crop.length; i++) {
-      hash = crop.charCodeAt(i) + ((hash << 5) - hash);
+    for (let i = 0; i < work.length; i++) {
+      hash = work.charCodeAt(i) + ((hash << 5) - hash);
     }
     return cropColors[Math.abs(hash) % cropColors.length];
   };
@@ -199,11 +192,10 @@ export default function FarmerHistory() {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
 
-      {/* 🔥 CLEAR HEADER (Screen Related) */}
       <AppHeader
         title={language === "te" ? "పనుల చరిత్ర" : "Work History"}
         subtitle={language === "te" ? "ఖాతా వివరాలు" : "Account Details"}
-        language={language}
+                language={language}
       />
 
       {/* 🔥 INFO BOX (ONLY SHOWS IF THERE IS DATA) */}
@@ -217,7 +209,7 @@ export default function FarmerHistory() {
           </AppText>
         </View>
       )}
-
+ 
       {loading ? (
         <View style={{ paddingTop: 10 }}>
           <ShimmerCard />
@@ -227,14 +219,12 @@ export default function FarmerHistory() {
       ) : (
         <FlatList
           data={grouped}
-          keyExtractor={(item: any) => item.crop}
+          keyExtractor={(item: any) => item.work} 
           contentContainerStyle={[
             { padding: 16, paddingBottom: 120 },
-            // 🔥 సెంటర్ లో రావడానికి ఫ్లెక్స్ లాజిక్
             grouped.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
-          
-          /* 🔥 OUR NEW GLOBAL EMPTY STATE COMPONENT */
+
           ListEmptyComponent={
             <AppEmptyState
               iconName="clipboard-outline"
@@ -245,23 +235,25 @@ export default function FarmerHistory() {
           }
 
           renderItem={({ item }: any) => {
-            const isOpen = expanded === item.crop;
+            const isOpen = expanded === item.work;
 
             return (
               <View style={styles.cropCard}>
 
-                {/* CROP HEADER */}
+                {/* WORK HEADER */}
                 <TouchableOpacity activeOpacity={0.7}
                   style={[styles.cropHeader, { alignItems: "center" }]}
-                  onPress={() => setExpanded(isOpen ? null : item.crop)}
+                  onPress={() => setExpanded(isOpen ? null : item.work)}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
                     <View style={{
                       width: 4, height: 50, borderRadius: 4,
-                      backgroundColor: getCropColor(item.crop), marginRight: 10
+                      backgroundColor: getCropColor(item.work), marginRight: 10
                     }} />
                     <View style={{ flex: 1 }}>
-                      <AppText style={styles.cropTitle}>{item.crop}</AppText>
+                      <AppText style={styles.cropTitle}>
+                        {item.work}
+                      </AppText>
                       <AppText style={styles.cropCount}>
                         {language === "te" ? `${item.list.length} పనులు` : `${item.list.length} Works`}
                       </AppText>
@@ -277,10 +269,9 @@ export default function FarmerHistory() {
 
                   return (
                     <View key={work.id} style={[styles.workCard]}>
-                      
+
                       {/* TOP */}
-                      <View style={styles.rowBetween}>
-                        <AppText style={styles.workTitle}>{work.work}</AppText>
+                      <View style={[styles.rowBetween, { justifyContent:'center'}]}>
                         <AppText style={styles.date}>{work.date}</AppText>
                       </View>
 
@@ -288,8 +279,8 @@ export default function FarmerHistory() {
                       <View style={styles.statusRow}>
                         <AppText style={[styles.statusText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
                           {isPaid
-                            ? (language === "te" ? "చెల్లింపు పూర్తైంది (లాక్)" : "Payment Done (Locked)")
-                            : (language === "te" ? "చెల్లింపు పెండింగ్" : "Pending")}
+                            ? (language === "te" ? "చెల్లింపు పూర్తైంది" : "Payment Done")
+                            : (language === "te" ? "చెల్లింపు పెండింగ్" : "Payment Pending")}
                         </AppText>
                         <TouchableOpacity
                           activeOpacity={isPaid ? 1 : 0.8}
@@ -305,53 +296,8 @@ export default function FarmerHistory() {
                         </TouchableOpacity>
                       </View>
 
-                      {/* 🔥 DETAILED GRID EXACTLY LIKE OWNER WORK */}
+                      {/* DETAILS */}
                       <View style={styles.detailsGrid}>
-                        
-                        {/* ACRES (If available) */}
-                        {work.acres ? (
-                          <View style={styles.detailItem}>
-                            <View style={styles.leftPart}>
-                              <Ionicons name="resize-outline" size={14} color="#6B7280" />
-                              <AppText style={styles.label}>{language === "te" ? "ఎకరాలు:" : "Acres:"}</AppText>
-                            </View>
-                            <AppText style={styles.value}>{work.acres}</AppText>
-                          </View>
-                        ) : null}
-
-                        {/* TIME / SAALLU DYNAMIC */}
-                        {work.workType === "time" ? (
-                          <View style={styles.detailItem}>
-                            <View style={styles.leftPart}>
-                              <Ionicons name="time-outline" size={14} color="#6B7280" />
-                              <AppText style={styles.label}>{language === "te" ? "సమయం:" : "Time:"}</AppText>
-                            </View>
-                            <AppText style={styles.value}>{work.hrs || 0}h {work.mins || 0}m</AppText>
-                          </View>
-                        ) : (
-                          <View style={styles.detailItem}>
-                            <View style={styles.leftPart}>
-                              <Ionicons name="list-outline" size={14} color="#6B7280" />
-                              <AppText style={styles.label}>{language === "te" ? "సాళ్లు:" : "Saallu:"}</AppText>
-                            </View>
-                            <AppText style={styles.value}>{work.saalluCount || 0}</AppText>
-                          </View>
-                        )}
-
-                        {/* RATE */}
-                        <View style={styles.detailItem}>
-                          <View style={styles.leftPart}>
-                            <Ionicons name="pricetag-outline" size={14} color="#6B7280" />
-                            <AppText style={styles.label}>{language === "te" ? "ధర:" : "Rate:"}</AppText>
-                          </View>
-                          <AppText style={styles.value}>
-                            ₹ {work.workType === "time"
-                              ? `${Number(work.ratePerHour || 0).toLocaleString("en-IN")}${language === "te" ? " / గం" : " / hr"}`
-                              : `${Number(work.ratePerSaalu || 0).toLocaleString("en-IN")}${language === "te" ? " / సాలు" : " / saalu"}`}
-                          </AppText>
-                        </View>
-
-                        {/* PAYABLE */}
                         <View style={styles.detailItem}>
                           <View style={styles.leftPart}>
                             <Ionicons name="cash-outline" size={14} color="#6B7280" />
@@ -360,7 +306,6 @@ export default function FarmerHistory() {
                           <AppText style={styles.value}>₹ {Number(work.payableAmount || 0).toLocaleString("en-IN")}</AppText>
                         </View>
 
-                        {/* ADVANCE */}
                         <View style={styles.detailItem}>
                           <View style={styles.leftPart}>
                             <Ionicons name="wallet-outline" size={14} color="#6B7280" />
@@ -370,7 +315,7 @@ export default function FarmerHistory() {
                         </View>
                       </View>
 
-                      {/* FINAL + DELETE (🔥 LOGIC APPLIED HERE) */}
+                      {/* FINAL + DELETE */}
                       <View style={styles.bottomRow}>
                         <AppText style={[styles.finalAmount, isPaid && {color: "#16A34A"}]}>₹ {amount.toLocaleString("en-IN")}</AppText>
                         
@@ -407,16 +352,16 @@ export default function FarmerHistory() {
         style={styles.addBtn}
         onPress={() =>
           router.push({
-            pathname: "/farmer/add-farmer-work",
-            params: { vehicleId: vId, farmerId: fId }
+            pathname: "/farmer/vechile-drivers/add-driverwork",    
+            params: { vehicleId: vId, driverId: dId }
           })
         }
       >
-        <LinearGradient colors={["#16A34A", "#166534"]} style={styles.addGradient}>
+        <LinearGradient colors={["#16A34A","#166534"]} style={styles.addGradient}>
           <Ionicons name="add" size={30} color="#fff" />
         </LinearGradient>
       </TouchableOpacity>
-
+      
       {/* DELETE MODAL */}
       <Modal visible={!!deleteId} transparent animationType="fade">
         <View style={styles.overlay}>
@@ -440,7 +385,7 @@ export default function FarmerHistory() {
         </View>
       </Modal>
 
-      {/* PAYMENT MODAL */}
+      {/* STATUS MODAL */}
       <Modal visible={!!statusId} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modalBox}>
@@ -472,12 +417,11 @@ export default function FarmerHistory() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F6F7F6" },  
-
-  // 🔥 NEW INFO BANNER STYLE
+  safe: { flex: 1, backgroundColor: "#F6F7F6" },
+  
   infoBanner: {
     flexDirection: "row",
-    backgroundColor: "#DBEAFE", // Light blue
+    backgroundColor: "#DBEAFE", 
     padding: 12,
     marginHorizontal: 16,
     marginTop: 12,
@@ -511,7 +455,6 @@ const styles = StyleSheet.create({
   notesText: { fontSize: 12, color: "#374151", flex: 1, lineHeight: 18 },
   workCard: { padding: 14, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between" },
-  workTitle: { fontSize: 14, fontWeight: "600" },
   date: { fontSize: 12, color: "#6B7280" },
   addBtn: { position: "absolute", bottom: 30, right: 20 },
   addGradient: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center" },
@@ -528,5 +471,5 @@ const styles = StyleSheet.create({
   iconBg1: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#e2fef3", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   cancelBtn: { flex: 1, padding: 12, backgroundColor: "#F3F4F6", borderRadius: 10, alignItems: "center" },
   deleteConfirmBtn: { flex: 1, padding: 12, backgroundColor: "#0c652f", borderRadius: 10, alignItems: "center" },
-  deleteConfirmBtn1: { flex: 1, padding: 12, backgroundColor: "#DC2626", borderRadius: 10, alignItems: "center" }
+  deleteConfirmBtn1: { flex: 1, padding: 12, backgroundColor: "#DC2626", borderRadius: 10, alignItems: "center" },
 });

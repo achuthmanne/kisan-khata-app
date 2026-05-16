@@ -450,7 +450,7 @@ export default function PaymentSummary() {
                 onPress={() => {
                   setShowModal(false);
                   router.push({
-                    pathname: "/farmer/payment-success",
+                    pathname: "/farmer/mestripayments/payment-success",
                     params: {
                       ids,        
                       id,         

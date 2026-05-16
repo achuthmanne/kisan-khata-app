@@ -1,5 +1,5 @@
-//vechile details
-import AppEmptyState from "@/components/AppEmptyState";
+//drivers list
+import AppEmptyState from "@/components/AppEmptyState"; 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -32,6 +32,7 @@ export default function VehicleDetails() {
 
   const vehicleNumber = Array.isArray(number) ? number[0] : number;
   const vehicleType = Array.isArray(type) ? type[0] : type;
+  const vId = Array.isArray(id) ? id[0] : id;
 
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,12 +46,12 @@ export default function VehicleDetails() {
   const [isListening, setIsListening] = useState(false);
   const isScreenFocused = useIsFocused();
 
-  // 🔥 NEW STATES FOR LOGIC
+  // 🔥 NEW STATES FOR LOCK LOGIC & MODERN UI
   const [actionLoading, setActionLoading] = useState(false);
   const [showCannotDeleteModal, setShowCannotDeleteModal] = useState(false);
 
   useSpeechRecognitionEvent("result", (event) => {
-    if (!isScreenFocused) return;
+    if (!isScreenFocused || !isListening) return;
     if (event.results && event.results.length > 0) {
       setSearch(event.results[0].transcript);
     }
@@ -75,24 +76,25 @@ export default function VehicleDetails() {
     };
   }, []);
 
-  /* ---------------- LOAD ---------------- */
+  useEffect(() => {
+    AsyncStorage.getItem("APP_LANG").then(l => {
+      if (l) setLanguage(l as any);
+    });
+  }, []);
 
+  /* ---------------- LOAD DATA ---------------- */
   useFocusEffect(
     useCallback(() => {
       let unsub: any;
 
-      const load = async () => {
+      const loadData = async () => {
         try {
           const phone = await AsyncStorage.getItem("USER_PHONE");
-          if (!phone) return;
+          if (!phone || !vId) return;
 
           setLoading(true);
 
-          const userDoc = await firestore()
-            .collection("users")
-            .doc(phone)
-            .get();
-
+          const userDoc = await firestore().collection("users").doc(phone).get();
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
@@ -101,14 +103,14 @@ export default function VehicleDetails() {
             return;
           }
           
-          setActiveSession(session); // స్టేట్ లో స్టోర్ చేసాం
+          setActiveSession(session);
 
           unsub = firestore()
             .collection("users")
             .doc(phone)
             .collection("vehicles")
-            .doc(id as string)
-            .collection("farmers")
+            .doc(vId as string)
+            .collection("drivers")
             .where("session", "==", session)
             .onSnapshot(
               (snap) => {
@@ -145,17 +147,17 @@ export default function VehicleDetails() {
         }
       };
 
-      load();
+      loadData();
 
       return () => {
         if (unsub) unsub();
       };
-    }, [id])
+    }, [vId])
   );
 
   /* ---------------- FILTER ---------------- */
   const filtered = data.filter(item =>
-    item.farmerName?.toLowerCase().includes(search.toLowerCase())
+    item.driverName?.toLowerCase().includes(search.toLowerCase())
   );
 
   /* ---------------- COLORS ---------------- */
@@ -171,41 +173,49 @@ export default function VehicleDetails() {
     Linking.openURL(`tel:${phone}`);
   };
 
-  // 🔥 CORE LOGIC: Check if Farmer has Work Records
-  const checkHasRecords = async (farmerId: string) => {
+  // 🔥 THE FIX: CORRECT CHECK LOGIC FOR DRIVERS
+  const checkHasRecords = async (driverId: string) => {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession || !id) return false;
+      if (!phone || !vId || !activeSession) return false;
 
-      // చెక్ వర్క్స్ కల్లెక్షన్
-      const workSnap = await firestore()
+      // నీ డేటాబేస్ స్ట్రక్చర్: users -> phone -> vehicles -> vId -> drivers -> dId -> entries
+      const entriesSnap = await firestore()
         .collection("users").doc(phone)
-        .collection("vehicles").doc(id as string)
-        .collection("works").doc(farmerId)
+        .collection("vehicles").doc(vId as string)
+        .collection("drivers").doc(driverId)
         .collection("entries")
-        .where("session", "==", activeSession)
-        .limit(1) // ఒక్కటి ఉన్నా చాలు
+        .where("session", "==", activeSession) // ఆక్టివ్ సెషన్ లో ఏమైనా వర్క్ ఉందా
+        .limit(1) // ఒక్కటి దొరికినా చాలు
         .get();
 
-      return !workSnap.empty;
+      // entries కలెక్షన్ ఎంప్టీ కాకపోతే రికార్డ్స్ ఉన్నట్టే
+      if (!entriesSnap.empty) {
+        return true;
+      }
+
+      // ఏ రికార్డ్స్ లేకపోతే false
+      return false;
+      
     } catch (error) {
       console.log("Error checking records", error);
-      return true; // సేఫ్టీ కోసం
+      // ఎర్రర్ వస్తే సేఫ్టీ కోసం true పంపి లాక్ చేస్తాం
+      return true; 
     }
   };
 
-  // 🔥 Edit Action
+  // 🔥 Edit Action (With Lock Flag)
   const handleEditClick = async (item: any) => {
     setActionLoading(true);
     const hasRecords = await checkHasRecords(item.id);
     setActionLoading(false);
 
     router.push({
-      pathname: "/farmer/vehicle-farmers",
+      pathname: "/farmer/vehicle-drivers",
       params: {
-        vehicleId: id,
+        vehicleId: vId,
         editId: item.id,
-        name: item.farmerName,
+        name: item.driverName,
         phone: item.phone,
         village: item.village,
         hasRecords: hasRecords ? "true" : "false" // 🔥 Flag పంపుతున్నాం
@@ -213,17 +223,17 @@ export default function VehicleDetails() {
     });
   };
 
-  // 🔥 Delete Action
+  // 🔥 Delete Action (With Validation)
   const handleDeleteClick = async (item: any) => {
     setActionLoading(true);
     const hasRecords = await checkHasRecords(item.id);
     setActionLoading(false);
 
     if (hasRecords) {
-      setShowCannotDeleteModal(true); // రికార్డ్స్ ఉంటే వార్నింగ్
+      setShowCannotDeleteModal(true); // రికార్డ్స్ ఉంటే వార్నింగ్ 🔒
     } else {
       setDeleteItem(item);
-      setShowDeleteModal(true); // లేకపోతే డిలీట్
+      setShowDeleteModal(true); // లేకపోతే డిలీట్ మోడల్ 🗑️
     }
   };
 
@@ -233,6 +243,7 @@ export default function VehicleDetails() {
     const phone = await AsyncStorage.getItem("USER_PHONE");
     if (!phone) return;
 
+    // 🔥 INSTANT UI REMOVE
     setData(prev => prev.filter(item => item.id !== deleteItem.id));
     setShowDeleteModal(false);
 
@@ -241,12 +252,12 @@ export default function VehicleDetails() {
         .collection("users")
         .doc(phone)
         .collection("vehicles")
-        .doc(id as string)
-        .collection("farmers")
+        .doc(vId as string)
+        .collection("drivers")
         .doc(deleteItem.id)
         .delete();
     } catch (e) {
-      console.log(e);
+      console.log("Delete Error:", e);
     }
 
     setDeleteItem(null);
@@ -292,11 +303,11 @@ export default function VehicleDetails() {
       )}
 
       <AppHeader
-        title={language === "te" ? "రైతుల జాబితా" : "Farmers List"}
+        title={language === "te" ? "డ్రైవర్ల జాబితా" : "Drivers List"}
         subtitle={
           vehicleNumber && vehicleNumber.trim() !== ""
-            ? `${name || vehicleType} | ${vehicleNumber}` 
-            : `${name || vehicleType || (language === "te" ? "వాహన వివరాలు" : "Vehicle Details")}`
+            ? `${Array.isArray(name) ? name[0] : name || vehicleType} | ${vehicleNumber}`
+            : `${Array.isArray(name) ? name[0] : name || vehicleType || (language === "te" ? "వాహన వివరాలు" : "Vehicle Details")}`
         }
         language={language}
       />
@@ -308,7 +319,7 @@ export default function VehicleDetails() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder={language === "te" ? "రైతును వెతకండి..." : "Search farmer..."}
+            placeholder={language === "te" ? "డ్రైవర్ను వెతకండి..." : "Search driver..."}
             placeholderTextColor="#9CA3AF"
             cursorColor="#16A34A"
             selectionColor="#16A34A40"
@@ -343,7 +354,7 @@ export default function VehicleDetails() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="handled" 
           contentContainerStyle={[
             { padding: 20, paddingBottom: 100 },
             filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }
@@ -353,13 +364,13 @@ export default function VehicleDetails() {
               iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
               title={
                 search.trim().length > 0
-                  ? (language === "te" ? "ఏమి దొరకలేదు" : "Not Found")
-                  : (language === "te" ? "రైతులు లేరు" : "No Farmers Added")
+                  ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
+                  : language === "te" ? "డ్రైవర్లు లేరు" : "No Drivers Added"
               }
               subtitle={
                 search.trim().length > 0
-                  ? (language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search")
-                  : (language === "te" ? "+ బటన్ నొక్కి రైతులను చేర్చండి" : "Tap + button to add farmers")
+                  ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
+                  : language === "te" ? "+ బటన్ నొక్కి డ్రైవర్లను చేర్చండి" : "Tap + button to add drivers"
               }
               language={language}
             />
@@ -375,11 +386,11 @@ export default function VehicleDetails() {
                   activeOpacity={0.8}
                   onPress={() => {
                     router.push({
-                      pathname: "/farmer/vfarmer-work",
+                      pathname: "/farmer/vechile-drivers/driver-work",
                       params: {
-                        vehicleId: id,
-                        farmerId: item.id,
-                        name: item.farmerName,
+                        vehicleId: vId,
+                        driverId: item.id,
+                        name: item.driverName,
                         phone: item.phone,
                         village: item.village
                       }
@@ -388,12 +399,12 @@ export default function VehicleDetails() {
                 >
                   <View style={[styles.avatar, { backgroundColor: color }]}>
                     <AppText style={styles.avatarText}>
-                      {item.farmerName?.charAt(0)?.toUpperCase()}
+                      {item.driverName?.charAt(0)?.toUpperCase()}
                     </AppText>
                   </View>
 
                   <View style={styles.details}>
-                    <AppText style={styles.name}>{item.farmerName}</AppText>
+                    <AppText style={styles.name}>{item.driverName}</AppText>
                     <AppText style={styles.phone}>+91 - {item.phone || "----"}</AppText>
                     <AppText style={styles.sub}>{item.village || "----"}</AppText>
                   </View>
@@ -444,8 +455,8 @@ export default function VehicleDetails() {
         style={styles.addBtn}
         onPress={() =>
           router.push({
-            pathname: "/farmer/vehicle-farmers",
-            params: { vehicleId: id }
+            pathname: "/farmer/vechile-drivers/add-drivers",
+            params: { vehicleId: vId }
           })
         }
       >
@@ -465,7 +476,7 @@ export default function VehicleDetails() {
               {language === "te" ? "తొలగించాలా?" : "Delete Entry?"}
             </AppText>
             <AppText style={styles.modalSub} language={language}>
-              {language === "te" ? "ఈ వివరాన్ని తొలగించాలా?" : "Are you sure you want to delete this record?"}
+              {language === "te" ? "ఈ డ్రైవర్ ని పూర్తిగా తొలగించాలా?" : "Are you sure you want to delete this record?"}
             </AppText>
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowDeleteModal(false)}>
@@ -493,8 +504,8 @@ export default function VehicleDetails() {
             </AppText>
             <AppText style={[styles.modalSub, { lineHeight: 22 }]} language={language}>
               {language === "te"
-                ? "ఈ రైతుకి సంబంధించి పని వివరాలు ఇప్పటికే రికార్డ్ అయ్యాయి. కావున వారిని తొలగించడం కుదరదు."
-                : "This farmer has existing work records. Therefore, they cannot be deleted."}
+                ? "ఈ డ్రైవర్ కి సంబంధించి పని వివరాలు ఇప్పటికే రికార్డ్ అయ్యాయి. కావున వీరిని తొలగించడం కుదరదు."
+                : "This driver has existing work records. Therefore, they cannot be deleted."}
             </AppText>
             <View style={styles.modalBtns}>
               <TouchableOpacity activeOpacity={0.8}

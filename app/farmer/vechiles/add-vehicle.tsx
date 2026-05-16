@@ -279,7 +279,7 @@ export default function AddVehicle() {
             <View style={styles.inputWrapper}>
               {!name && activeInput !== "name" && (
                 <AppText style={{ color: "#9CA3AF", fontFamily: "Mandali" }}>
-                  {language === "te" ? "వాహనం పేరు (ముద్దు పేరు)*" : "Vehicle Name (Nickname)*"}
+                  {language === "te" ? "వాహనం పేరు*" : "Vehicle Name (Nickname)*"}
                 </AppText>
               )}
               <TextInput
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   },
   dragIndicator: { width: 40, height: 5, backgroundColor: "#D1D5DB", borderRadius: 3, alignSelf: "center", marginBottom: 10 },
   modalHeader: { flexDirection: "row", justifyContent: "center", paddingVertical: 10, paddingHorizontal: 20 },
-  sheetTitleText: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  sheetTitleText: { fontSize: 18, fontWeight: "600", color: "#111827" },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",

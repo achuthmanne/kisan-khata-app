@@ -66,12 +66,12 @@ export default function CustomTabBar({ state, navigation, language }: any) {
         <TabItem
           icon={
             <MaterialCommunityIcons
-              name="calendar-check-outline"
+              name="calendar-clock-outline"
               size={24}
               color={state.index === 1 ? "#14532D" : "#9CA3AF"}
             />
           }
-          label={language === "te" ? "హాజరు" : "Attendance"}
+          label={language === "te" ? "పని చరిత్ర" : "Work History"}
           isFocused={state.index === 1}
           onPress={() => navigation.navigate("attendance-history")}
         />
@@ -115,12 +115,12 @@ export default function CustomTabBar({ state, navigation, language }: any) {
         <TabItem
           icon={
             <MaterialCommunityIcons
-              name="wallet-outline"
+              name="receipt-text-outline"
               size={24}
               color={state.index === 2 ? "#14532D" : "#9CA3AF"}
             />
           }
-          label={language === "te" ? "పేమెంట్స్" : "Payments"}
+          label={language === "te" ? "చెల్లింపుల చరిత్ర" : "Pay History"}
           isFocused={state.index === 2}
           onPress={() => navigation.navigate("history")}
         />

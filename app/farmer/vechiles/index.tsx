@@ -463,7 +463,7 @@ export default function VehiclesScreen() {
                     onPress={() => {
                       setTypeModalVisible(false);
                       router.push({
-                        pathname: "/farmer/vehicle-details", // (Change this to vehicle-farmers if renamed)
+                        pathname: "/farmer/vechile-farmers/farmers", // (Change this to vehicle-farmers if renamed)
                         params: {
                           id: selectedVehicle.id,
                           name: selectedVehicle.nickname,
@@ -495,7 +495,7 @@ export default function VehiclesScreen() {
                       onPress={() => {
                         setTypeModalVisible(false);
                         router.push({
-                          pathname: "/farmer/driver-list",
+                          pathname: "/farmer/vechile-drivers/drivers",
                           params: {
                             id: selectedVehicle.id,
                             name: selectedVehicle.nickname,
@@ -531,7 +531,7 @@ export default function VehiclesScreen() {
       {/* ADD BUTTON */}
       <TouchableOpacity activeOpacity={0.8}
         style={styles.addBtn}
-        onPress={() => router.push("/farmer/add-vehicle")}
+        onPress={() => router.push("/farmer/vechiles/add-vehicle")}
       >
         <LinearGradient
           colors={["#16A34A","#166534"]}

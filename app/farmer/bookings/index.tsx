@@ -6,227 +6,232 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { useEffect, useState } from "react";
 import {
-  Modal,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   TouchableOpacity,
   View
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function BookingEntry() {
   const router = useRouter();
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const [hasMachines, setHasMachines] = useState(false);
   const [machineCount, setMachineCount] = useState(0);
 
-     useEffect(() => {
-        AsyncStorage.getItem("APP_LANG").then(l => { if (l) setLanguage(l as any); });
-    }, []);
+  useEffect(() => {
+    AsyncStorage.getItem("APP_LANG").then(l => { if (l) setLanguage(l as any); });
+  }, []);
 
   useEffect(() => {
-  const load = async () => {
-    const phone = await AsyncStorage.getItem("USER_PHONE");
-    if (!phone) return;
+    let unsubscribe: any;
+    const load = async () => {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone) return;
 
-    return firestore()
-      .collection("machines")
-      .where("userId", "==", phone)
-      .onSnapshot((snap) => {
-        setMachineCount(snap.size); // 🔥 COUNT
-      });
-  };
+      unsubscribe = firestore()
+        .collection("machines")
+        .where("userId", "==", phone)
+        .onSnapshot((snap) => {
+          setMachineCount(snap.size); 
+        });
+    };
+    load();
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
 
-  let unsubscribe: any;
-
-  load().then((unsub) => {
-    unsubscribe = unsub;
-  });
-
-  return () => {
-    if (unsubscribe) unsubscribe();
-  };
-}, []);
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
       <AppHeader
-  title={language === "te" ? "అగ్రి కనెక్ట్" : "AgriConnect"}
-  subtitle={language === "te" ? "మరింత చేరువగా వ్యవసాయం" : "Connecting Agriculture"}
-  language={language}
-/>
+        title={language === "te" ? "అగ్రి కనెక్ట్" : "AgriConnect"}
+        subtitle={language === "te" ? "మరింత చేరువగా వ్యవసాయం" : "Connecting Agriculture"}
+        language={language}
+      />
 
-<View style={styles.container}>
+      <View style={styles.container}>
+        {/* TITLE */}
+        <View style={styles.titleContainer}>
+          <AppText style={styles.title}>
+            {language === "te" ? "వ్యవసాయ పనులకు స్వాగతం!" : "Welcome to AgriConnect!"}
+          </AppText>
+          <AppText style={styles.subtitle}>
+            {language === "te" ? "మీ అవసరాన్ని బట్టి కింద ఉన్న ఆప్షన్ ఎంచుకోండి" : "Select an option based on your requirement"}
+          </AppText>
+        </View>
 
-  {/* TITLE */}
-  <AppText style={styles.title}>
-    {language === "te" ? "మీరు ఎవరు?" : "Who are you?"}
-  </AppText>
+        {/* OWNER CARD */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={[styles.card, { borderColor: "#A7F3D0", backgroundColor: "#F0FDF4" }]}
+          onPress={() => router.push("/farmer/bookings/add-machine")}
+        >
+          <View style={[styles.iconBox, { backgroundColor: "#DCFCE7" }]}>
+            <MaterialCommunityIcons name="tractor" size={30} color="#16A34A" />
+          </View>
+          <View style={styles.cardContent}>
+            <AppText style={[styles.cardTitle, { color: "#166534" }]}>
+              {language === "te" ? "యంత్ర యజమాని" : "Machine Owner"}
+            </AppText>
+            <AppText style={styles.cardDesc}>
+              {language === "te"
+                ? "మీ యంత్రాన్ని అద్దెకు ఇవ్వండి లేదా నేరుగా రైతుల పొలాల్లో పనులు చేసి ఆదాయం పొందండి."
+                : "Add your machine to rent it out, or accept requests to complete farm work directly."}
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward-circle" size={24} color="#16A34A" />
+        </TouchableOpacity>
 
-  <AppText style={styles.subtitle}>
-    {language === "te" ? "మీ పాత్రను ఎంచుకోండి" : "Select your role"}
-  </AppText>
+        {/* VIEW MACHINES BUTTON (Only shows if they added machines) */}
+        {machineCount > 0 && (
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={styles.viewBtn}
+            onPress={() => router.push("/farmer/bookings/my-machines")}
+          >
+            <LinearGradient colors={["#2563EB", "#1D4ED8"]} style={styles.viewBtnGradient}>
+              <Ionicons name="eye" size={18} color="#fff" />
+              <AppText style={styles.viewBtnText}>
+                {language === "te"
+                  ? `మీరు జోడించిన యంత్రాలు చూడండి (${machineCount})`
+                  : `View Your Added Machines (${machineCount})`}
+              </AppText>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
-  {/* OWNER */}
-<TouchableOpacity
-  activeOpacity={0.85}
-  style={styles.card}
-  onPress={() => router.push("/farmer/bookings/add-machine")}
->
-  <View style={styles.iconBoxGreen}>
-    <MaterialCommunityIcons name="tractor-variant" size={28} color="#16A34A" />
-  </View>
+        <View style={styles.dividerBox}>
+          <View style={styles.dividerLine} />
+          <AppText style={styles.dividerText}>{language === "te" ? "లేదా" : "OR"}</AppText>
+          <View style={styles.dividerLine} />
+        </View>
 
-  <View style={{ flex: 1 }}>
-    <AppText style={styles.cardTitle}>
-      {language === "te" ? "యజమాని" : "Owner"}
-    </AppText>
-
-    <AppText style={styles.cardSub}>
-      {language === "te"
-        ? "మీ యంత్రాన్ని జోడించండి"
-        : "Add your machine"}
-    </AppText>
-  </View>
-
-  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-</TouchableOpacity>
-{machineCount > 0 && (
-  <TouchableOpacity activeOpacity={0.7}
-    style={styles.viewBtn}
-    onPress={() => router.push("/farmer/bookings/my-machines")}
-  >
-    <Ionicons name="eye-outline" size={18} color="#2563EB" />
-
-    <AppText style={styles.viewBtnText}>
-      {language === "te"
-        ? `మీ యంత్రాలు చూడండి (${machineCount})`
-        : `View My Machines (${machineCount})`}
-    </AppText>
-  </TouchableOpacity>
-)}
-  {/* FARMER */}
-  <TouchableOpacity
-    activeOpacity={0.85}
-    style={styles.card}
-    onPress={() => router.push("/farmer/bookings/find-machines")}
-  >
-    <View style={styles.iconBoxOrange}>
-      <Ionicons name="person-outline" size={26} color="#F59E0B" />
-    </View>
-
-    <View style={{ flex: 1 }}>
-      <AppText style={styles.cardTitle}>
-        {language === "te" ? "రైతు" : "Farmer"}
-      </AppText>
-      <AppText style={styles.cardSub}>
-        {language === "te" ? "సమీప యంత్రాలను కనుగొనండి" : "Find nearby machines"}
-      </AppText>
-    </View>
-
-    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-  </TouchableOpacity>
-
-</View>
+        {/* FARMER CARD */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={[styles.card, { borderColor: "#FED7AA", backgroundColor: "#FFFBEB" }]}
+          onPress={() => router.push("/farmer/bookings/find-machines")}
+        >
+          <View style={[styles.iconBox, { backgroundColor: "#FEF3C7" }]}>
+            <MaterialCommunityIcons name="magnify-scan" size={30} color="#D97706" />
+          </View>
+          <View style={styles.cardContent}>
+            <AppText style={[styles.cardTitle, { color: "#B45309" }]}>
+              {language === "te" ? "రైతు" : "Farmer"}
+            </AppText>
+            <AppText style={styles.cardDesc}>
+              {language === "te" 
+                ? "మీ పొలం పనుల కోసం చుట్టుపక్కల ఉన్న యంత్రాలను వెతికి ఫోన్ చేయండి." 
+                : "Find and contact available machinery nearby for your farm work."}
+            </AppText>
+          </View>
+          <Ionicons name="chevron-forward-circle" size={24} color="#D97706" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#F4F6F5"
+    backgroundColor: "#F6F7F6"
   },
-container: {
-  flex: 1,
-  marginTop: 50,
-  padding: 20
-},
-  
-
+  container: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 30
+  },
+  titleContainer: {
+    alignItems: "center",
+    marginBottom: 30
+  },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "600",
-    textAlign: "center",
-    marginBottom: 4
+    color: "#1F2937",
+    marginBottom: 8,
+    textAlign: "center"
   },
-
   subtitle: {
-    textAlign: "center",
+    fontSize: 14,
     color: "#6B7280",
-    marginBottom: 20
+    textAlign: "center",
+    paddingHorizontal: 10,
+    lineHeight: 26
   },
-
   card: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 12
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.05,
+    shadowRadius: 8
   },
-viewBtn: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  paddingVertical: 12,
-  borderRadius: 14,
-  borderWidth: 1,
-  borderColor: "#DBEAFE",
-  backgroundColor: "#EFF6FF",
-  marginBottom: 16
-},
-
-viewBtnText: {
-  marginLeft: 6,
-  color: "#2563EB",
-  fontWeight: "600"
-},
-  iconBoxGreen: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#DCFCE7",
+  iconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12
+    marginRight: 16
   },
-
-  iconBoxOrange: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#FEF3C7",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12
+  cardContent: {
+    flex: 1,
+    marginRight: 10
   },
-
   cardTitle: {
-    fontSize: 15,
-    fontWeight: "600"
-  },
-  // పాత స్టైల్స్ కింద ఇవి యాడ్ చెయ్యి
-  cancelBtn: {
-    marginTop: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 14,
-    // కావాలనుకుంటే బోర్డర్ ఇవ్వొచ్చు లేదా ప్లెయిన్ గా ఉంచొచ్చు
-    backgroundColor: "#bf0505", 
-  },
-
-  cancelText: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#ffffff", // Grey color for cancel
+    marginBottom: 6
+  },
+  cardDesc: {
+    fontSize: 13,
+    color: "#4B5563",
+    lineHeight: 22,
     fontFamily: "Mandali"
   },
-
-  cardSub: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 2
+  viewBtn: {
+    borderRadius: 16,
+    overflow: "hidden",
+    marginBottom: 20,
+    marginTop: 5,
+    elevation: 4,
+    shadowColor: "#2563EB",
+    shadowOpacity: 0.3,
+    shadowRadius: 8
+  },
+  viewBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    gap: 8
+  },
+  viewBtnText: {
+    color: "#ffffff",
+    fontWeight: "600",
+    fontSize: 14,
+    fontFamily: "Mandali"
+  },
+  dividerBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 15,
+    paddingHorizontal: 20
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E5E7EB"
+  },
+  dividerText: {
+    marginHorizontal: 15,
+    color: "#9CA3AF",
+    fontSize: 13,
+    fontWeight: "600"
   }
 });

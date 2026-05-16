@@ -9,8 +9,9 @@ import {
   ExpoSpeechRecognitionModule,
   useSpeechRecognitionEvent
 } from "expo-speech-recognition";
-import React, { useCallback, useEffect, useState } from "react";
-import MapView from "react-native-maps";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+// 🔥 MapView & Region Imports
+import MapView, { Region } from "react-native-maps";
 
 import {
   FlatList,
@@ -28,7 +29,7 @@ import {
 import AgriLoader from "@/components/AgriLoader";
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
-import AppEmptyState from "@/components/AppEmptyState"; // 🔥 మన గ్లోబల్ కాంపోనెంట్
+import AppEmptyState from "@/components/AppEmptyState";
 
 const getLocalImage = (type: string) => {
   if (!type) return require("@/assets/images/John-deere-Tractors..jpg");
@@ -88,6 +89,9 @@ export default function FindMachines() {
   const [loading, setLoading] = useState(true);
   const [translatedData, setTranslatedData] = useState<any>({});
   
+  // 🔥 Map Reference for Zomato style animation
+  const mapRef = useRef<MapView>(null);
+
   const [equipment, setEquipment] = useState("");
   const [searchText, setSearchText] = useState("");
   const [selectedEq, setSelectedEq] = useState(""); 
@@ -164,23 +168,44 @@ export default function FindMachines() {
     }
   }, []);
 
+  /* ---------------- ZOMATO LEVEL LOCATION LOGIC ---------------- */
   const fetchAddressFromCoords = async (lat: number, lon: number) => {
     try {
       setLocationText(language === "te" ? "లొకేషన్ వెతుకుతోంది..." : "Fetching...");
       const address = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
       
-      if (address.length > 0) {
-        const place = address[0];
-        const village = place.name || place.subregion || place.city || "";
-        const district = place.district || place.region || "";
-        const fullLocation = `${village}, ${district}`;
+      if (!address || address.length === 0) {
+        setLocationText(language === "te" ? "లొకేషన్ వివరాలు దొరకలేదు" : "Location details not found");
+        return;
+      }
 
-        if (language === "te") {
+      const place = address[0];
+      
+      // 🔥 అల్ట్రా లాజిక్: "2x 2u u+" లాంటి Plus Codes ని డిలీట్ చేయడం కోసం Regex
+      const isPlusCode = (text: string) => /\+/.test(text || "") && /[0-9]/.test(text || "");
+
+      let parts = [];
+      if (place.name && !isPlusCode(place.name)) parts.push(place.name);
+      else if (place.street && !isPlusCode(place.street)) parts.push(place.street);
+
+      if (place.subregion) parts.push(place.subregion);
+      else if (place.city) parts.push(place.city);
+      else if (place.district) parts.push(place.district);
+
+      parts = [...new Set(parts)].filter(Boolean);
+      let fullLocation = parts.join(", ");
+
+      if (!fullLocation) fullLocation = language === "te" ? "లొకేషన్ దొరకలేదు" : "Location not found";
+
+      if (language === "te") {
+        try {
           const translated = await translateToTelugu(fullLocation);
-          setLocationText(translated);
-        } else {
+          setLocationText(translated || fullLocation);
+        } catch {
           setLocationText(fullLocation);
         }
+      } else {
+        setLocationText(fullLocation);
       }
     } catch (error) {
       setLocationText(language === "te" ? "లొకేషన్ దొరకలేదు" : "Location not found");
@@ -200,8 +225,17 @@ export default function FindMachines() {
         return;
       }
       
-      const loc = await Location.getCurrentPositionAsync({});
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       setCoords(loc.coords);
+      
+      // 🔥 Zomato Style Map Fly Animation
+      mapRef.current?.animateToRegion({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.002,
+        longitudeDelta: 0.002,
+      }, 1000);
+
       fetchAddressFromCoords(loc.coords.latitude, loc.coords.longitude); 
       
     } catch (error) {
@@ -295,6 +329,35 @@ export default function FindMachines() {
     return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
   };
 
+  // 🔥 DYNAMIC SERVICE MESSAGES LOGIC 🔥
+  const getServiceDetails = (type: string, lang: string) => {
+    if (type === "Rent") {
+      return {
+        text: lang === "te" ? "కేవలం అద్దెకు మాత్రమే అందుబాటులో ఉంది" : "Available for Rent Only",
+        icon: "key-outline",
+        color: "#D97706", // Amber
+        bg: "#FFFBEB"
+      };
+    }
+    if (type === "Work") {
+      return {
+        text: lang === "te" ? "పొలం పనులు చేసిపెట్టబడును" : "Available for Farm Services",
+        icon: "cog-outline",
+        color: "#2563EB", // Blue
+        bg: "#EFF6FF"
+      };
+    }
+    if (type === "Both") {
+      return {
+        text: lang === "te" ? "అద్దెకు మరియు పనులకు అందుబాటులో ఉంది" : "Available for Rent & Farm Services",
+        icon: "swap-horizontal-outline",
+        color: "#7C3AED", // Purple
+        bg: "#F5F3FF"
+      };
+    }
+    return null; 
+  };
+
   const ShimmerCard = () => (
     <View style={[styles.card, { height: 400, opacity: 0.6 }]}>
       <View style={{ width: '100%', height: 280, backgroundColor: '#E5E7EB' }} />
@@ -310,78 +373,91 @@ export default function FindMachines() {
     </View>
   );
 
-  const renderItem = ({ item }: any) => (
-    <View style={styles.card}>
-      <View style={styles.imageWrapper}>
-        <Image source={getLocalImage(item.equipment)} style={styles.image} />
-        <View style={styles.distBadge}>
-          <Ionicons name="navigate" size={12} color="#fff" />
-          <AppText style={styles.distText}>
-            {item.distance.toFixed(1)} {language === "te" ? "కి.మీ దూరంలో" : "KM Away"}
-          </AppText>
+  const renderItem = ({ item }: any) => {
+    const serviceInfo = getServiceDetails(item.serviceType, language);
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.imageWrapper}>
+          <Image source={getLocalImage(item.equipment)} style={styles.image} />
+          <View style={styles.distBadge}>
+            <Ionicons name="navigate" size={12} color="#fff" />
+            <AppText style={styles.distText}>
+              {item.distance.toFixed(1)} {language === "te" ? "కి.మీ దూరంలో" : "KM Away"}
+            </AppText>
+          </View>
         </View>
-      </View>
-      <View style={[styles.content, { borderWidth: 1, borderBottomEndRadius: 20, borderColor: "#E5E7EB" }]}>
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <AppText style={styles.cardTitle}>{item.equipment}</AppText>
-            <View style={styles.ownerRow}>
-              <Ionicons name="person-circle" size={16} color="#6B7280" />
-              <AppText style={styles.ownerText}>
-                {language === "te" ? translatedData[item.id]?.ownerName || item.ownerName : item.ownerName}
+        <View style={[styles.content, { borderWidth: 1, borderBottomEndRadius: 20, borderColor: "#E5E7EB" }]}>
+          <View style={styles.headerRow}>
+            <View style={{ flex: 1 }}>
+              <AppText style={styles.cardTitle}>{item.equipment}</AppText>
+              <View style={styles.ownerRow}>
+                <Ionicons name="person-circle" size={16} color="#6B7280" />
+                <AppText style={styles.ownerText}>
+                  {language === "te" ? translatedData[item.id]?.ownerName || item.ownerName : item.ownerName}
+                </AppText>
+              </View>
+            </View>
+          </View>
+
+          {/* 🔥 DYNAMIC SERVICE TYPE MESSAGE 🔥 */}
+          {serviceInfo && (
+            <View style={[styles.serviceRow, { backgroundColor: serviceInfo.bg, borderColor: serviceInfo.color + '40' }]}>
+              <Ionicons name={serviceInfo.icon as any} size={16} color={serviceInfo.color} />
+              <AppText style={[styles.serviceText, { color: serviceInfo.color }]}>
+                {serviceInfo.text}
               </AppText>
             </View>
-          </View>
-        </View>
-        <View style={styles.infoRow}>
-          <Ionicons name="location-sharp" size={16} color="#16A34A" />
-          <AppText style={styles.infoText}>
-            {language === "te" ? translatedData[item.id]?.village || item.village : item.village}
-          </AppText>
-        </View>
-        <View style={styles.tagWrapper}>
-          {item.operations?.slice(0, 3).map((op: string, i: number) => (
-            <View key={i} style={styles.tag}>
-              <AppText style={styles.tagText}>{op}</AppText>
-            </View>
-          ))}
-        </View>
-        <View style={styles.divider} />
-        
-        {/* 🔥 FOOTER ROW */}
-        <View style={styles.footerActionRow}>
-          <View style={styles.phoneContainer}>
-            <AppText style={styles.phoneLabel}>
-              {language === "te" ? "ఫోన్ నంబర్" : "Contact Number"}
-            </AppText>
-            <AppText style={styles.phoneValue}>{item.phone}</AppText>
-          </View>
-          
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            {/* Directions Icon */}
-            <TouchableOpacity 
-              activeOpacity={0.8} 
-              style={styles.iconBtn} 
-              onPress={() => handleGetDirections(item.latitude, item.longitude)}
-            >
-              <MaterialCommunityIcons name="directions-fork" size={22} color="#2563EB" />
-            </TouchableOpacity>
+          )}
 
-            {/* Call Icon */}
-            <TouchableOpacity 
-              activeOpacity={0.8} 
-              style={styles.callIconBtn} 
-              onPress={() => Linking.openURL(`tel:${item.phone}`)}
-            >
-              <LinearGradient colors={["#16A34A", "#15803D"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.callGradientIcon}>
-                <Ionicons name="call-outline" size={20} color="#fff" />
-              </LinearGradient>
-            </TouchableOpacity>
+          <View style={styles.infoRow}>
+            <Ionicons name="location-sharp" size={16} color="#16A34A" />
+            <AppText style={styles.infoText}>
+              {language === "te" ? translatedData[item.id]?.village || item.village : item.village}
+            </AppText>
+          </View>
+          <View style={styles.tagWrapper}>
+            {item.operations?.slice(0, 3).map((op: string, i: number) => (
+              <View key={i} style={styles.tag}>
+                <AppText style={styles.tagText}>{op}</AppText>
+              </View>
+            ))}
+          </View>
+          <View style={styles.divider} />
+          
+          {/* 🔥 FOOTER ROW */}
+          <View style={styles.footerActionRow}>
+            <View style={styles.phoneContainer}>
+              <AppText style={styles.phoneLabel}>
+                {language === "te" ? "ఫోన్ నంబర్" : "Contact Number"}
+              </AppText>
+              <AppText style={styles.phoneValue}>{item.phone}</AppText>
+            </View>
+            
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={styles.iconBtn} 
+                onPress={() => handleGetDirections(item.latitude, item.longitude)}
+              >
+                <MaterialCommunityIcons name="directions-fork" size={22} color="#2563EB" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={styles.callIconBtn} 
+                onPress={() => Linking.openURL(`tel:${item.phone}`)}
+              >
+                <LinearGradient colors={["#16A34A", "#15803D"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.callGradientIcon}>
+                  <Ionicons name="call-outline" size={20} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -481,6 +557,7 @@ export default function FindMachines() {
         <View style={{ flex: 1, backgroundColor: '#fff' }}>
           {coords && (
             <MapView
+              ref={mapRef}
               style={StyleSheet.absoluteFillObject}
               initialRegion={{ latitude: coords.latitude, longitude: coords.longitude, latitudeDelta: 0.005, longitudeDelta: 0.005 }}
               showsUserLocation={true} showsMyLocationButton={false} onRegionChangeComplete={handleRegionChangeComplete} 
@@ -559,16 +636,18 @@ export default function FindMachines() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
 
+  // 🔥 ZOMATO MAP STYLES
   mapTopArea: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 50, left: 20 },
-  simpleBackBtn: { width: 40, height: 40, backgroundColor: '#fff', borderRadius: 20, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
-  simpleLocateBtn: { position: 'absolute', bottom: 160, right: 20, width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
+  simpleBackBtn: { width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
+  simpleLocateBtn: { position: 'absolute', bottom: 160, right: 20, width: 48, height: 48, backgroundColor: '#fff', borderRadius: 24, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
   minimalBottomCard: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+  centerPinWrapper: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -23, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5 },
+
   blueMapBtn: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 10, marginLeft: 10 },
   addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
   minimalAddress: { flex: 1, fontSize: 15, color: '#374151', lineHeight: 22, fontFamily: "Mandali" },
   minimalConfirmBtn: { backgroundColor: '#16A34A', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   minimalConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: "Mandali" },
-  centerPinWrapper: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -23, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5 },
   
   filterContainer: { padding: 16, backgroundColor: '#fff', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, zIndex: 10 },
   locationWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 52, borderRadius: 15, borderWidth: 1.5, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
@@ -594,6 +673,25 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 19, fontWeight: "600", color: "#1F2937" },
   ownerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 5 },
   ownerText: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
+
+  // 🔥 NEW SERVICE ROW STYLES
+  serviceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+    gap: 6,
+    alignSelf: 'flex-start'
+  },
+  serviceText: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: "Mandali",
+  },
+
   infoRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
   infoText: { fontSize: 14, color: "#4B5563", fontWeight: '500' },
   tagWrapper: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },

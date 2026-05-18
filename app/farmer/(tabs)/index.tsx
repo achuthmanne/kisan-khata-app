@@ -138,7 +138,7 @@ const DashboardSkeleton = ({ width }: { width: number }) => (
 
 export default function Dashboard() {
   const router = useRouter();
-  const quickRef = useRef<any>(null);
+  const quickRef = useRef<FlatList>(null); // 🔥 Changed typing for safety
   const scrollY = useRef(new Animated.Value(0)).current; 
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -711,6 +711,7 @@ export default function Dashboard() {
     };
   }, [language]);
   
+  // 🔥 FIX 1: Prevent crash by checking bounds before scrolling
   const handleServiceClick = async (screen:string,service:string,index:number)=>{
     try{
       const usage = await AsyncStorage.getItem("SERVICE_USAGE");
@@ -719,7 +720,7 @@ export default function Dashboard() {
       await AsyncStorage.setItem("SERVICE_USAGE",JSON.stringify(data));
     }catch(e){console.log(e);}
 
-    if(index < quickServices.length){
+    if(quickServices && quickServices.length > 0 && index >= 0 && index < quickServices.length){
       quickRef.current?.scrollToIndex({ index, animated:true });
     }
     router.push(screen as any);
@@ -822,6 +823,13 @@ export default function Dashboard() {
               onMomentumScrollEnd={(e)=>{
                 const index = Math.round(e.nativeEvent.contentOffset.x / (width - 40));
                 setActiveHeaderCard(index);
+              }}
+              // 🔥 FIX 2: Added to Header FlatList just in case
+              onScrollToIndexFailed={(info) => {
+                const wait = new Promise(resolve => setTimeout(resolve, 500));
+                wait.then(() => {
+                  headerCardRef.current?.scrollToIndex({ index: info.index, animated: true });
+                });
               }}
               renderItem={({item})=>{
                 if(item.type==="weather"){
@@ -944,7 +952,13 @@ export default function Dashboard() {
     {/* QUICK SERVICES */}
     <View style={styles.sectionHeader}>
       <Text style={[styles.sectionTitle, { fontFamily: "Mandali" }]}>{t.quick}</Text>
-      <TouchableOpacity style={styles.swipeContainer} onPress={()=>{ quickRef.current?.scrollToIndex({ index: scrollForward ? 3 : 0, animated: true }); setScrollForward(!scrollForward); }}>
+      <TouchableOpacity style={styles.swipeContainer} onPress={()=>{ 
+          if(quickServices && quickServices.length > 0) {
+            const targetIndex = scrollForward ? Math.min(3, quickServices.length - 1) : 0;
+            quickRef.current?.scrollToIndex({ index: targetIndex, animated: true }); 
+            setScrollForward(!scrollForward); 
+          }
+        }}>
         <Text style={[styles.swipeText, { fontFamily: "Mandali" }]}>{language === "te" ? "స్వైప్" : "Swipe"}</Text>
         <Animated.View style={[styles.swipeIcon, { transform:[{translateX:swipeAnim}] }]}>
           <Ionicons name={scrollForward ? "chevron-forward-outline" : "chevron-back-outline"} size={16} color="#9CA3AF" />
@@ -962,6 +976,13 @@ export default function Dashboard() {
       snapToAlignment="start"
       decelerationRate="fast"
       snapToInterval={(width - 60) / 3 + 10}
+      // 🔥 THE MAIN FIX FOR THE ERROR
+      onScrollToIndexFailed={(info) => {
+        const wait = new Promise(resolve => setTimeout(resolve, 500));
+        wait.then(() => {
+          quickRef.current?.scrollToIndex({ index: info.index, animated: true });
+        });
+      }}
       renderItem={({item,index}: any)=>(
         <TouchableOpacity style={styles.smartChip} onPress={()=>handleServiceClick(item.screen,item.service,index)} activeOpacity={0.85}>
           <View style={styles.smartIconCircle}>
@@ -988,7 +1009,6 @@ export default function Dashboard() {
           </View>
           
           <View style={styles.cardTextContainer}>
-            {/* 🔥 PRO FIX 4: Perfect Typographic Alignment (Size 13, LineHeight 20) */}
             <AppText style={styles.cardText} language={language} numberOfLines={2}>
               {item.title}
             </AppText>
@@ -1149,12 +1169,12 @@ const styles = StyleSheet.create({
   },
   cardText: { 
     fontFamily: "Mandali", 
-    fontSize: 13, // 🔥 PERFECT ALIGNMENT FIX
+    fontSize: 13, 
     fontWeight: "600", 
     color: "#1F2937", 
     textAlign: "center", 
     includeFontPadding: false, 
-    lineHeight: 24 // 🔥 2-LINES PERFECTLY FITTED
+    lineHeight: 24 
   },
   grid:{ flexDirection:"row", flexWrap:"wrap", justifyContent:"flex-start", paddingHorizontal:20, paddingBottom: 60, marginBottom: 60, gap:14 },
   cardIcon:{ width:22, height:22, tintColor:"#2E7D32", resizeMode:"contain" },

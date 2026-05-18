@@ -31,6 +31,9 @@ const { width } = Dimensions.get("window");
 export default function ProfileScreen() {
   const router = useRouter();
 
+  // 🔥 APP VERSION (నువ్వు అప్‌డేట్ ఇచ్చిన ప్రతిసారీ ఇక్కడ మార్చుకో బ్రో)
+  const APP_VERSION = "1.0.0";
+
   // --- STATE ---
   const [loading, setLoading] = useState(true);
   const [phone, setPhone] = useState("");
@@ -55,7 +58,7 @@ export default function ProfileScreen() {
   // Backup state for cancelling edits
   const [backupData, setBackupData] = useState({ name: "", state: "", language: "" });
 
-  // 🔥 REFS FOR CLEANUP (స్క్రీన్ మారినప్పుడు పాత డేటా ఫెచ్ చేయడం కోసం)
+  // 🔥 REFS FOR CLEANUP
   const isEditingRef = useRef(isEditing);
   const backupDataRef = useRef(backupData);
 
@@ -67,14 +70,12 @@ export default function ProfileScreen() {
     backupDataRef.current = backupData;
   }, [backupData]);
 
-  // 🔥 SILENTLY CLOSE EDIT MODE ON LEAVING SCREEN (నువ్వు అడిగిన మెయిన్ లాజిక్ ఇదే బ్రో)
+  // 🔥 SILENTLY CLOSE EDIT MODE ON LEAVING SCREEN
   useFocusEffect(
     useCallback(() => {
       return () => {
-        // యూజర్ స్క్రీన్ నుంచి బయటికి వెళ్ళగానే ఇది రన్ అవుతుంది
         if (isEditingRef.current) {
           const backup = backupDataRef.current;
-          // ఫస్ట్ టైమ్ యూజర్ కాకపోతే (పాత డేటా ఉంటే) సైలెంట్ గా క్లోజ్ చేసేయ్
           if (backup.name && backup.name.trim().length >= 3) {
             setIsEditing(false);
             setName(backup.name);
@@ -458,6 +459,13 @@ export default function ProfileScreen() {
             </View>
           )}
 
+          {/* 📱 APP VERSION DISPLAY */}
+          <View style={styles.versionContainer}>
+            <AppText style={styles.versionText} language={language}>
+              {language === "te" ? `యాప్ వెర్షన్: ${APP_VERSION}` : `App Version: ${APP_VERSION}`}
+            </AppText>
+          </View>
+
           <View style={{ height: 100 }} />
         </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
@@ -500,12 +508,12 @@ export default function ProfileScreen() {
               {language === "te" ? "మీరు నిజంగా నిష్క్రమించాలనుకుంటున్నారా?" : "Are you sure you want to sign out?"}
             </AppText>
             <View style={styles.modalActionRow}>
-              <TouchableOpacity onPress={() => setShowLogoutModal(false)} style={styles.modalSecondaryBtn}>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => setShowLogoutModal(false)} style={styles.modalSecondaryBtn}>
                 <AppText style={styles.modalSecondaryBtnText} language={language}>
                   {language === "te" ? "వద్దు" : "No"}
                 </AppText>
               </TouchableOpacity>
-              <TouchableOpacity onPress={confirmLogout} style={[styles.modalPrimaryBtn, { backgroundColor: '#EF4444', flex: 1 }]}>
+              <TouchableOpacity activeOpacity={0.8} onPress={confirmLogout} style={[styles.modalPrimaryBtn, { backgroundColor: '#EF4444', flex: 1 }]}>
                 <AppText style={styles.modalPrimaryBtnText} language={language}>
                   {language === "te" ? "అవును" : "Yes"}
                 </AppText>
@@ -783,6 +791,16 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // 🔥 VERSION STYLES ADDED HERE
+  versionContainer: {
+    alignItems: "center",
+    marginTop: 30,
+  },
+  versionText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
   modalOverlay: {
     flex: 1,

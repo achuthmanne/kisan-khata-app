@@ -22,6 +22,7 @@ import {
   InteractionManager,
   Modal,
   RefreshControl, SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -138,7 +139,7 @@ const DashboardSkeleton = ({ width }: { width: number }) => (
 
 export default function Dashboard() {
   const router = useRouter();
-  const quickRef = useRef<FlatList>(null); // 🔥 Changed typing for safety
+  const quickRef = useRef<FlatList>(null); 
   const scrollY = useRef(new Animated.Value(0)).current; 
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -214,7 +215,7 @@ export default function Dashboard() {
     return () => unsubscribe();
   }, []);
 
-  // 🔥 PRO FIX 3: Safe Firebase Snapshot Listener
+  // 🔥 PRO FIX: Safe Firebase Snapshot Listener
   useEffect(() => {
     let isMounted = true;
 
@@ -358,15 +359,16 @@ export default function Dashboard() {
     },[])
   );
 
-  // 🔥 PRO FIX 1: Performance fix for Clock (Runs every 10 seconds instead of 1 sec)
+  // 🔥 PRO FIX 1: Performance fix for Clock & FIXED Weekday issue (Short names)
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setTime(now.toLocaleTimeString(language === "te" ? "te-IN" : "en-IN", { hour: "2-digit", minute: "2-digit" }));
-      setDate(now.toLocaleDateString(language === "te" ? "te-IN" : "en-IN", { weekday: "long", day: "numeric", month: "short" }));
+      // 🔥 Changed "long" to "short" to prevent overlap issues
+      setDate(now.toLocaleDateString(language === "te" ? "te-IN" : "en-IN", { weekday: "short", day: "numeric", month: "short" }));
     };
     
-    updateTime(); // Initial call
+    updateTime(); 
     const interval = setInterval(updateTime, 10000); 
     return () => clearInterval(interval);
   }, [language]);
@@ -590,7 +592,6 @@ export default function Dashboard() {
 
       setCity(finalCity);
       
-      // 🔥 PRO FIX 2: Safe Optional Chaining for API Data
       const tempVal = data?.main?.temp;
       if (tempVal !== undefined) setTemp(Math.round(tempVal));
       
@@ -711,7 +712,6 @@ export default function Dashboard() {
     };
   }, [language]);
   
-  // 🔥 FIX 1: Prevent crash by checking bounds before scrolling
   const handleServiceClick = async (screen:string,service:string,index:number)=>{
     try{
       const usage = await AsyncStorage.getItem("SERVICE_USAGE");
@@ -824,7 +824,6 @@ export default function Dashboard() {
                 const index = Math.round(e.nativeEvent.contentOffset.x / (width - 40));
                 setActiveHeaderCard(index);
               }}
-              // 🔥 FIX 2: Added to Header FlatList just in case
               onScrollToIndexFailed={(info) => {
                 const wait = new Promise(resolve => setTimeout(resolve, 500));
                 wait.then(() => {
@@ -839,7 +838,8 @@ export default function Dashboard() {
                         <View style={styles.weatherLeft}>
                           <View style={styles.locationRow}>
                             <Ionicons name="location-outline" size={16} color="white"/>
-                            <AppText style={styles.city} language={language}>{city}</AppText>
+                            {/* 🔥 PRO FIX 2: Truncate long city names to prevent overflow */}
+                            <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
                           </View>
                           <AppText style={styles.date} language={language}>{date} | {time}</AppText>
                           <View style={styles.weatherRow}>
@@ -891,8 +891,9 @@ export default function Dashboard() {
                                 return(
                                   <View key={index} style={styles.marketRow}>
                                     <View style={styles.marketLeft}>
-                                      <AppText style={styles.crop} language={language}>{item.commodity.replace(/\(.*?\)/g,"")}</AppText>
-                                      <AppText style={styles.marketName} language={language }>{item.market} | {item.arrival_date.slice(0,5)}</AppText>
+                                      {/* 🔥 PRO FIX 4: Safe undefined check for commodity API gaps */}
+                                      <AppText style={styles.crop} language={language}>{(item.commodity || "").replace(/\(.*?\)/g,"")}</AppText>
+                                      <AppText style={styles.marketName} language={language }>{item.market} | {item.arrival_date?.slice(0,5) || ""}</AppText>
                                     </View>
                                     <View style={styles.marketRight}>
                                       <AppText style={styles.price} language={language}>₹{item.modal_price}</AppText>
@@ -976,7 +977,6 @@ export default function Dashboard() {
       snapToAlignment="start"
       decelerationRate="fast"
       snapToInterval={(width - 60) / 3 + 10}
-      // 🔥 THE MAIN FIX FOR THE ERROR
       onScrollToIndexFailed={(info) => {
         const wait = new Promise(resolve => setTimeout(resolve, 500));
         wait.then(() => {
@@ -993,14 +993,13 @@ export default function Dashboard() {
       )}
     />
     
-   {/* ALL SERVICES 🔥 FIXED HEADING */}
+   {/* ALL SERVICES */}
     <View style={styles.sectionHeader}>
       <Text style={[styles.sectionTitle, { fontFamily: "Mandali" }]}>
         {t.all}
       </Text>
     </View>
 
-   {/* 🔥 FIXED GRID CARDS */}
     <View style={styles.grid}>
       {getServices().map((item, index) => (
         <TouchableOpacity key={item.service} style={styles.gridCard} onPress={() => handleServiceClick(item.screen,item.service,index)} activeOpacity={0.75}>
@@ -1055,16 +1054,19 @@ export default function Dashboard() {
               <Ionicons name="close" size={16} color="#1F2937" />
             </TouchableOpacity>
           </View>
-          {oldSessions.map((s)=>(
-            <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor:"#F3F4F6", marginBottom:10 }} onPress={async ()=>{
-                const phone = await AsyncStorage.getItem("USER_PHONE");
-                await firestore().collection("users").doc(phone!).update({ activeSession: s });
-                setActiveSession(s);
-                setOldSessionModal(false);
-              }}>
-              <AppText style={{fontSize:16,fontWeight:"600"}}>{s}</AppText>
-            </TouchableOpacity>
-          ))}
+          {/* 🔥 PRO FIX 3: ScrollView for many old sessions preventing off-screen modal issues */}
+          <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
+            {oldSessions.map((s)=>(
+              <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor:"#F3F4F6", marginBottom:10 }} onPress={async ()=>{
+                  const phone = await AsyncStorage.getItem("USER_PHONE");
+                  await firestore().collection("users").doc(phone!).update({ activeSession: s });
+                  setActiveSession(s);
+                  setOldSessionModal(false);
+                }}>
+                <AppText style={{fontSize:16,fontWeight:"600"}}>{s}</AppText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       </View>
     </Modal>
@@ -1093,7 +1095,7 @@ const styles = StyleSheet.create({
   drawerText:{ fontSize:15, fontWeight:"600", color:"#1F2937" },
   openText:{ color:"white", fontSize:12, opacity:0.9 },
   weatherCard:{ marginTop:30, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, padding:18, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
-  locationRow:{ flexDirection:"row", alignItems:"center" },
+  locationRow:{ flexDirection:"row", alignItems:"center", paddingRight: 40 },
   city:{ color:"white", fontSize:16, fontWeight:"600", marginLeft:6, marginBottom: 5, lineHeight:22 },
   date:{ color:"rgba(255,255,255,0.8)", fontSize:14, marginTop:5 },
   greetRow:{ flexDirection:"row", alignItems:"center", gap:6 },

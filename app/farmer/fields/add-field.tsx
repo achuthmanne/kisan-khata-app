@@ -24,9 +24,10 @@ const getStr = (val: string | string[] | undefined) => (Array.isArray(val) ? val
 export default function AddField() {
   const router = useRouter();
   const params = useLocalSearchParams(); 
-  const isScreenFocused = useIsFocused(); // 🔥 Added to track screen focus
+  const isScreenFocused = useIsFocused(); 
 
   const editId = getStr(params.editId);
+  const isUsed = getStr(params.isUsed) === "true"; // 🔥 NEW: Check if crop is locked
 
   // 🔥 INSTANT DATA LOAD FROM PARAMS
   const [crop, setCrop] = useState(getStr(params.crop));
@@ -253,7 +254,6 @@ const soilOptions = [
   });
   useSpeechRecognitionEvent("end", () => setIsListening(false));
 
-  // 🔥 PRO FIX 3: Stop mic if screen loses focus or unmounts
   useEffect(() => {
     if (!isScreenFocused) {
       ExpoSpeechRecognitionModule.stop();
@@ -276,7 +276,7 @@ const soilOptions = [
       setSearchText("");
       setModalType(null);
       setActiveInput(null);
-      ExpoSpeechRecognitionModule.stop(); // 🔥 Stop mic when closing modal
+      ExpoSpeechRecognitionModule.stop(); 
       setIsListening(false);
     }
   };
@@ -290,28 +290,47 @@ const soilOptions = [
         language={language}
       />
 
-      {/* 🔥 PRO FIX 2: Added KeyboardAvoidingView so keyboard doesn't hide rent inputs */}
       <KeyboardAvoidingView 
         behavior={Platform.OS === "ios" ? "padding" : undefined} 
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 
-          {/* 🌾 CROP BOX */}
+          {/* 🌾 CROP BOX (🔥 WITH LOCK LOGIC) */}
           <TouchableOpacity 
-            activeOpacity={1}
-            style={[styles.inputBox, activeInput === "crop" && styles.inputFocused, errors.crop && styles.inputError]} 
-            onPress={() => { setModalType("crop"); setActiveInput("crop"); if (errors.crop) setErrors({...errors, crop: ""}); }}
+            activeOpacity={isUsed ? 1 : 0.7} 
+            style={[
+              styles.inputBox, 
+              activeInput === "crop" && !isUsed && styles.inputFocused, 
+              errors.crop && styles.inputError,
+              isUsed && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" } // 🔥 Disabled Style
+            ]} 
+            onPress={() => { 
+              if (isUsed) return; // 🔥 LOCK EDITING IF CROP IS IN USE
+              setModalType("crop"); setActiveInput("crop"); if (errors.crop) setErrors({...errors, crop: ""}); 
+            }}
           >
-            <Ionicons name="leaf-outline" size={20} color={crop ? "#16A34A" : "#9CA3AF"} />
+            <Ionicons name={isUsed ? "lock-closed" : "leaf-outline"} size={20} color={isUsed ? "#D97706" : (crop ? "#16A34A" : "#9CA3AF")} />
             <View style={styles.inputWrapper}>
-              <AppText style={{ color: crop ? "#1F2937" : "#9CA3AF", fontSize: 16, fontFamily: "Mandali" }}>
+              <AppText style={{ color: isUsed ? "#4B5563" : (crop ? "#1F2937" : "#9CA3AF"), fontSize: 16, fontFamily: "Mandali" }}>
                 {crop || (language === "te" ? "పంటను ఎంచుకోండి*" : "Select Crop*")}
               </AppText>
             </View>
-            <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+            {!isUsed && <Ionicons name="chevron-down" size={18} color="#9CA3AF" />}
           </TouchableOpacity>
-          {errors.crop && <AppText style={styles.errorText} language={language}>{errors.crop}</AppText>}
+          {errors.crop && !isUsed && <AppText style={styles.errorText} language={language}>{errors.crop}</AppText>}
+          
+          {/* 🔥 INFO NOTE FOR LOCKED CROP */}
+          {isUsed && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: -10, marginBottom: 16, marginLeft: 4 }}>
+              <Ionicons name="information-circle" size={14} color="#D97706" />
+              <AppText style={{ fontSize: 12, color: "#D97706", marginLeft: 4, fontFamily: 'Mandali' }}>
+                {language === "te" 
+                  ? "ఈ పంటపై ఇప్పటికే పనులు లేదా ఖర్చులు ఉన్నందున, పంట పేరు మార్చలేరు." 
+                  : "Crop name cannot be changed as it already has linked works or expenses."}
+              </AppText>
+            </View>
+          )}
 
           {/* 🪨 SOIL TYPE BOX */}
           <TouchableOpacity 
@@ -370,7 +389,7 @@ const soilOptions = [
               style={[styles.pill, type === "own" && styles.activePill, errors.type && !type && { borderColor: "#EF4444" }]} 
               onPress={() => { 
                 setType("own"); 
-                setRent(""); // 🔥 PRO FIX 1: Clear rent if switched to own
+                setRent(""); 
                 setActiveInput(null); 
                 if (errors.type) setErrors({ ...errors, type: "", rent: "" }); 
               }}
@@ -453,7 +472,7 @@ const soilOptions = [
       {/* 🔥 MODAL WRAPPER */}
       <Modal visible={modalType !== null} transparent animationType="slide" onRequestClose={() => {
         setModalType(null);
-        ExpoSpeechRecognitionModule.stop(); // 🔥 Mic Stop Safety
+        ExpoSpeechRecognitionModule.stop(); 
         setIsListening(false);
       }}>
         <View style={styles.modalOverlay}>
@@ -466,7 +485,7 @@ const soilOptions = [
                 setModalType(null); 
                 setActiveInput(null); 
                 setSearchText(""); 
-                ExpoSpeechRecognitionModule.stop(); // 🔥 Mic Stop
+                ExpoSpeechRecognitionModule.stop(); 
                 setIsListening(false);
               }}>
                 <Ionicons name="close-circle" size={30} color="#9CA3AF" />
@@ -496,7 +515,7 @@ const soilOptions = [
 
             <FlatList
               data={filteredData}
-              keyboardShouldPersistTaps="handled" // 🔥 Better UX for search
+              keyboardShouldPersistTaps="handled" 
               ListEmptyComponent={() => (
                 searchText.length > 0 ? (
                   <TouchableOpacity style={styles.item} onPress={() => handleAddItem(searchText)}>
@@ -521,7 +540,7 @@ const soilOptions = [
                     setModalType(null);
                     setSearchText("");
                     setActiveInput(null);
-                    ExpoSpeechRecognitionModule.stop(); // 🔥 Mic Stop
+                    ExpoSpeechRecognitionModule.stop(); 
                     setIsListening(false);
                   }}
                 >
@@ -539,10 +558,9 @@ const soilOptions = [
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
-  container: { padding: 20, paddingBottom: 40 }, // 🔥 Added paddingBottom for keyboard
+  container: { padding: 20, paddingBottom: 40 }, 
   label: { fontSize: 14, color: "#6B7280", marginBottom: 6, marginLeft: 4, fontWeight: '500', fontFamily: 'Mandali' },
   
-  // 🔥 STANDARD PATTERN INPUT STYLES
   inputBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -601,7 +619,6 @@ const styles = StyleSheet.create({
   activePill: { backgroundColor: "#1B5E20"},
   pillText: { fontSize: 16, fontWeight: "600", fontFamily: "Mandali" },
 
-  // 🔥 STANDARD SAVE BUTTON
   saveBtn: { marginTop: 10, borderRadius: 18, overflow: "hidden", elevation: 6, shadowColor: "#1B5E20", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 8 },
   saveGradient: { height: 56, justifyContent: "center", alignItems: "center" },
   saveText: { color: "#fff", fontSize: 16, fontWeight: "600" },

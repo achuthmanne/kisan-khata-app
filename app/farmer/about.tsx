@@ -4,14 +4,14 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"; // 🔥 M
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    View
+  Dimensions,
+  FlatList,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  View
 } from "react-native";
 
 import AppHeader from "@/components/AppHeader";
@@ -21,7 +21,7 @@ const { width } = Dimensions.get("window");
 
 export default function AboutUs() {
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const APP_VERSION = "1.0.0"; 
+  const APP_VERSION = "1.1.0"; 
 
   useEffect(() => {
     const loadLang = async () => {

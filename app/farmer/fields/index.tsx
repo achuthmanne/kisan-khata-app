@@ -26,12 +26,9 @@ import { Menu, MenuOption, MenuOptions, MenuTrigger } from "react-native-popup-m
 // 🔥 REANIMATED
 import Animated, { Easing, FadeInDown, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
 
-// 🔥 PRO FIX 2: Correct way to create Animated TextInput without crashing older Androids
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
-
 const screenWidth = Dimensions.get("window").width;
 
-// 🔥 UNIQUE PREMIUM COLORS FOR CROPS
 const PREM_COLORS = [
   "#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", 
   "#EC4899", "#06B6D4", "#F97316", "#84CC16", 
@@ -49,10 +46,13 @@ export default function FieldsScreen() {
   
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [deleteVisible, setDeleteVisible] = useState(false);
+  const [cantDeleteVisible, setCantDeleteVisible] = useState(false); // 🔥 NEW: Warning Modal State
+  const [actionLoading, setActionLoading] = useState(false); // 🔥 NEW: Loading while checking usage
+  
   const [loading, setLoading] = useState(true); 
+  const [isDeleting, setIsDeleting] = useState(false); 
   const [soilStats, setSoilStats] = useState<any[]>([]); 
 
-  // 🔥 ANIMATION STATE FOR TOTAL ACRES
   const animatedAcres = useSharedValue(0);
 
   useEffect(() => {
@@ -67,7 +67,6 @@ export default function FieldsScreen() {
     const formatted = totalAcres % 1 !== 0 ? val.toFixed(1) : Math.floor(val).toString();
     return {
         text: formatted,
-        // 🔥 Some RN versions require value instead of text for TextInput animations
         value: formatted
     } as any; 
   });
@@ -76,11 +75,10 @@ export default function FieldsScreen() {
     AsyncStorage.getItem("APP_LANG").then((l) => { if (l) setLanguage(l as any); });
   }, []);
 
-  // 🔥 PRO FIX 1: useFocusEffect for Realtime Listener to save Firebase reads & prevent Memory Leaks
   useFocusEffect(
     useCallback(() => {
       let unsubscribe: (() => void) | undefined;
-      let isMounted = true; // Safety flag
+      let isMounted = true; 
 
       const load = async () => {
         setLoading(true);
@@ -94,10 +92,7 @@ export default function FieldsScreen() {
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
-          if (isMounted) {
-            setData([]);
-            setLoading(false);
-          }
+          if (isMounted) { setData([]); setLoading(false); }
           return;
         }
 
@@ -121,11 +116,8 @@ export default function FieldsScreen() {
                   const acres = Number(d.acres) || 0; 
                   total += acres;
 
-                  if (d.type === "own") {
-                    own += acres;
-                  } else {
-                    rent += acres;
-                  }
+                  if (d.type === "own") { own += acres; } 
+                  else { rent += acres; }
 
                   const cropName = d.crop || "Others";
                   if (!cropsMap[cropName]) cropsMap[cropName] = 0;
@@ -154,10 +146,7 @@ export default function FieldsScreen() {
                 })));
 
               } else {
-                setData([]);
-                setTotalAcres(0);
-                setOwnAcres(0);
-                setRentAcres(0);
+                setData([]); setTotalAcres(0); setOwnAcres(0); setRentAcres(0);
               }
               setLoading(false);
             }, (err) => {
@@ -170,8 +159,8 @@ export default function FieldsScreen() {
       load();
 
       return () => {
-        isMounted = false; // Prevent state updates if unmounted
-        if (unsubscribe) unsubscribe(); // Kill Firebase listener safely
+        isMounted = false; 
+        if (unsubscribe) unsubscribe(); 
       };
     }, [language]) 
   );
@@ -183,7 +172,6 @@ export default function FieldsScreen() {
     return (
       <Animated.View entering={FadeInDown.delay(500)} style={styles.chartBox}>
         <AppText style={styles.sectionTitle}>{title}</AppText>
-        
         <View style={styles.chartRowWrapper}>
           <View style={{ alignItems: 'center', justifyContent: 'center' }}>
             <PieChart
@@ -203,13 +191,8 @@ export default function FieldsScreen() {
               </AppText>
             </View>
           </View>
-
           <View style={styles.modernLegendContainer}>
-            <ScrollView 
-              style={{ maxHeight: 180 }} 
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled={true}
-            >
+            <ScrollView style={{ maxHeight: 180 }} showsVerticalScrollIndicator={false} nestedScrollEnabled={true}>
               {chartData.map((item: any, index: number) => {
                 const perc = Math.round((Number(item.population) / (totalAcres || 1)) * 100) || 0;
                 return (
@@ -269,30 +252,93 @@ export default function FieldsScreen() {
 
   const optionsStyles = {
     optionsContainer: {
-      borderRadius: 14,
-      paddingVertical: 5,
-      paddingHorizontal: 0,
-      width: 150,
-      backgroundColor: "#fff",
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 8,
-      marginTop: 25, 
+      borderRadius: 14, paddingVertical: 5, paddingHorizontal: 0, width: 150, backgroundColor: "#fff",
+      shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8, marginTop: 25, 
     }
   };
 
-  // 🔥 PRO FIX 3: Safe Delete Function
-  const handleDelete = async () => {
+  // 🔥 POWERFUL LOGIC: Check if Crop is used anywhere before Editing or Deleting
+  const checkCropUsage = async (cropName: string) => {
     try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      const userDoc = await firestore().collection("users").doc(phone!).get();
+      const activeSession = userDoc.data()?.activeSession;
+
+      // 1. Check Expenses
+      const expSnap = await firestore().collection("users").doc(phone!).collection("expenses")
+        .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
+      if (!expSnap.empty) return true;
+
+      // 2. Check Sales
+      const salesSnap = await firestore().collection("users").doc(phone!).collection("sales")
+        .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
+      if (!salesSnap.empty) return true;
+
+      // 3. Collection Group Checks for nested entries (Works & Attendance)
+      try {
+        const entries = await firestore().collectionGroup("entries")
+          .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
+        if (!entries.empty) return true;
+      } catch(e) {} // Catch missing index errors silently
+
+      try {
+        const attendance = await firestore().collectionGroup("attendance")
+          .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
+        if (!attendance.empty) return true;
+      } catch(e) {}
+
+      return false; // Not used anywhere!
+    } catch (e) {
+      console.log("Usage Check Error:", e);
+      return false;
+    }
+  };
+
+  // 🔥 MODIFIED: Edit Click Handler
+  const handleEditClick = async (item: any) => {
+    setActionLoading(true);
+    const isUsed = await checkCropUsage(item.crop);
+    setActionLoading(false);
+
+    router.push({ 
+      pathname: "/farmer/fields/add-field", 
+      params: { 
+        editId: item.id,
+        crop: item.crop || "",
+        type: item.type || "",
+        acres: item.acres?.toString() || "",
+        rent: item.rent?.toString() || "",
+        soilType: item.soilType || "",
+        isUsed: isUsed ? "true" : "false" // 🔥 Sending lock status to Edit Screen
+      } 
+    });
+  };
+
+  // 🔥 MODIFIED: Delete Click Handler
+  const handleDeleteClick = async (item: any) => {
+    setActionLoading(true);
+    const isUsed = await checkCropUsage(item.crop);
+    setActionLoading(false);
+
+    setSelectedItem(item);
+    if (isUsed) {
+      setCantDeleteVisible(true); // 🔥 BLOCK DELETE!
+    } else {
+      setDeleteVisible(true);     // Allow Delete
+    }
+  };
+
+  const handleDelete = async () => {
+    if (isDeleting) return;
+    try {
+      setIsDeleting(true);
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone && selectedItem) {
         await firestore().collection("users").doc(phone).collection("fields").doc(selectedItem.id).delete();
       }
-    } catch (e) {
-      console.log("Delete error", e);
+    } catch (e) { console.log("Delete error", e);
     } finally {
+      setIsDeleting(false);
       setDeleteVisible(false);
       setSelectedItem(null);
     }
@@ -329,7 +375,6 @@ export default function FieldsScreen() {
              <LinearGradient colors={["#53143d", "#2e0513"]} style={styles.mainCard}>
                 <AppText style={styles.cardLabel}>{language === "te" ? "మొత్తం సాగు భూమి" : "Total Cultivated Area"}</AppText>
                 
-                {/* 🔥 ANIMATED ACRES HERO VALUE */}
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 5 }}>
                   <AnimatedTextInput 
                     editable={false}
@@ -343,9 +388,7 @@ export default function FieldsScreen() {
 
                 <View style={styles.glassRow}>
                   <View style={styles.glassBox}>
-                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}>
-                      <Ionicons name="leaf" size={16} color="#10B981" />
-                    </View>
+                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}><Ionicons name="leaf" size={16} color="#10B981" /></View>
                     <View>
                       <AppText style={styles.glassLabel}>{language === "te" ? "సొంతం" : "Own"}</AppText>
                       <AppText style={styles.glassValue}>{ownAcres} <AppText style={styles.glassUnit}>{language === "te" ? "ఎకరాలు" : "Acres"}</AppText></AppText>
@@ -353,9 +396,7 @@ export default function FieldsScreen() {
                   </View>
 
                   <View style={styles.glassBox}>
-                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}>
-                      <Ionicons name="business" size={16} color="#F59E0B" />
-                    </View>
+                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}><Ionicons name="business" size={16} color="#F59E0B" /></View>
                     <View>
                       <AppText style={styles.glassLabel}>{language === "te" ? "కౌలు" : "Rent"}</AppText>
                       <AppText style={styles.glassValue}>{rentAcres} <AppText style={styles.glassUnit}>{language === "te" ? "ఎకరాలు" : "Acres"}</AppText></AppText>
@@ -377,20 +418,13 @@ export default function FieldsScreen() {
 
             <View style={styles.chartsRow}>
                 <Animated.View entering={FadeInDown.delay(200)} style={styles.chartBox}>
-                  <AppText style={styles.sectionTitle}>
-                    {language === "te" ? "భూమి యాజమాన్యం" : "Land Ownership"}
-                  </AppText>
+                  <AppText style={styles.sectionTitle}>{language === "te" ? "భూమి యాజమాన్యం" : "Land Ownership"}</AppText>
                   <View style={styles.semiChartWrapper}>
                     <PieChart
                       data={safeOwnershipData}
-                      width={screenWidth * 0.9} 
-                      height={220}
+                      width={screenWidth * 0.9} height={220}
                       chartConfig={{ color: (opacity = 1) => `rgba(0,0,0, ${opacity})` }}
-                      accessor={"population"}
-                      backgroundColor={"transparent"}
-                      paddingLeft={"88"} 
-                      hasLegend={false}
-                      absolute
+                      accessor={"population"} backgroundColor={"transparent"} paddingLeft={"88"} hasLegend={false} absolute
                     />
                     <View style={styles.semiHole}>
                         <Ionicons name="location" size={24} color="#6366F1" style={{marginBottom: 4}} />
@@ -402,37 +436,26 @@ export default function FieldsScreen() {
                     {ownershipData.map((item, index) => (
                       <View key={index} style={styles.semiLegendItem}>
                         <View style={[styles.legendDot, { backgroundColor: item.color, width: 12, height: 12 }]} />
-                        <View>
-                          <AppText style={styles.legendName}>{item.name.replace(" (%)", "")}</AppText>
-                        </View>
+                        <View><AppText style={styles.legendName}>{item.name.replace(" (%)", "")}</AppText></View>
                       </View>
                     ))}
                   </View>
                 </Animated.View>
 
                 <Animated.View entering={FadeInDown.delay(400)} style={styles.chartBox}>
-                  <AppText style={styles.sectionTitle}>
-                    {language === "te" ? "పంటల వారీగా వివరాలు" : "Crop-wise Distribution"}
-                  </AppText>
+                  <AppText style={styles.sectionTitle}>{language === "te" ? "పంటల వారీగా వివరాలు" : "Crop-wise Distribution"}</AppText>
                   <View style={styles.centerChartWrapper}>
                     <PieChart
-                      data={safeCropStats} 
-                      width={screenWidth - 60} 
-                      height={200}
+                      data={safeCropStats} width={screenWidth - 60} height={200}
                       chartConfig={{ color: (opacity = 1) => `rgba(0,0,0, ${opacity})` }}
-                      accessor={"population"}
-                      backgroundColor={"transparent"}
-                      paddingLeft={(screenWidth / 4).toString()} 
-                      hasLegend={false}
+                      accessor={"population"} backgroundColor={"transparent"} paddingLeft={(screenWidth / 4).toString()} hasLegend={false}
                     />
                   </View>
                   <View style={styles.gridLegendContainer}>
                     {cropStats.map((item, index) => (
                       <View key={index} style={styles.gridLegendItem}>
                         <View style={[styles.gridDot, { backgroundColor: item.color }]} />
-                        <View style={styles.gridTextWrapper}>
-                          <AppText style={styles.gridName} numberOfLines={1}>{item.name}</AppText>
-                        </View>
+                        <View style={styles.gridTextWrapper}><AppText style={styles.gridName} numberOfLines={1}>{item.name}</AppText></View>
                       </View>
                     ))}
                   </View>
@@ -469,42 +492,28 @@ export default function FieldsScreen() {
 
                       <Menu>
                         <MenuTrigger style={styles.menuBtn}>
-                          <Ionicons name="ellipsis-vertical" size={18} color="#94A3B8" />
+                          {/* 🔥 Show loader if checking usage */}
+                          {actionLoading && selectedItem?.id === item.id ? (
+                             <Ionicons name="sync" size={18} color="#2563EB" />
+                          ) : (
+                             <Ionicons name="ellipsis-vertical" size={18} color="#94A3B8" />
+                          )}
                         </MenuTrigger>
 
                         <MenuOptions customStyles={optionsStyles}>
-                          <MenuOption onSelect={() => {
-                            router.push({ 
-                              pathname: "/farmer/fields/add-field", 
-                              params: { 
-                                editId: item.id,
-                                crop: item.crop || "",
-                                type: item.type || "",
-                                acres: item.acres?.toString() || "",
-                                rent: item.rent?.toString() || "",
-                                soilType: item.soilType || ""
-                              } 
-                            });
-                          }}>
+                          <MenuOption onSelect={() => { setSelectedItem(item); handleEditClick(item); }}>
                             <View style={styles.modernMenuItem}>
                               <Ionicons name="create-outline" size={18} color="#2563EB" />
-                              <AppText style={styles.menuTextEdit} language={language}>
-                                {language === "te" ? "సవరించు" : "Edit"}
-                              </AppText>
+                              <AppText style={styles.menuTextEdit} language={language}>{language === "te" ? "సవరించు" : "Edit"}</AppText>
                             </View>
                           </MenuOption>
                           
                           <View style={styles.menuDivider} />
 
-                          <MenuOption onSelect={() => {
-                            setSelectedItem(item);
-                            setDeleteVisible(true);
-                          }}>
+                          <MenuOption onSelect={() => { setSelectedItem(item); handleDeleteClick(item); }}>
                             <View style={styles.modernMenuItem}>
                               <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                              <AppText style={styles.menuTextDelete} language={language}>
-                                {language === "te" ? "తొలగించు" : "Delete"}
-                              </AppText>
+                              <AppText style={styles.menuTextDelete} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
                             </View>
                           </MenuOption>
                         </MenuOptions>
@@ -523,24 +532,39 @@ export default function FieldsScreen() {
       <Modal visible={deleteVisible} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.deleteBox}>
-            <View style={styles.iconBg}>
-              <Ionicons name="trash-outline" size={32} color="#DC2626" />
-            </View>
-            <AppText style={styles.deleteTitle}>
-              {language === "te" ? "తొలగించాలా?" : "Delete Field?"}
-            </AppText>
-            <AppText style={styles.deleteSub}>
-              {language === "te" ? "ఈ రికార్డ్ శాశ్వతంగా తొలగించబడుతుంది" : "This record will be permanently deleted"}
-            </AppText>
+            <View style={styles.iconBg}><Ionicons name="trash-outline" size={32} color="#DC2626" /></View>
+            <AppText style={styles.deleteTitle}>{language === "te" ? "తొలగించాలా?" : "Delete Field?"}</AppText>
+            <AppText style={styles.deleteSub}>{language === "te" ? "ఈ రికార్డ్ శాశ్వతంగా తొలగించబడుతుంది" : "This record will be permanently deleted"}</AppText>
             <View style={styles.deleteBtns}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.cancelBtn} onPress={() => setDeleteVisible(false)}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.cancelBtn} onPress={() => setDeleteVisible(false)} disabled={isDeleting}>
                 <AppText style={styles.cancelText}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={handleDelete}
-              >
-                <AppText style={styles.deleteText}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={isDeleting}>
+                <AppText style={styles.deleteText}>{isDeleting ? (language === "te" ? "తొలగిస్తోంది..." : "Deleting...") : (language === "te" ? "తొలగించు" : "Delete")}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔥 NEW: CANNOT DELETE MODAL (USAGE BLOCKER) */}
+      <Modal visible={cantDeleteVisible} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.deleteBox}>
+            <View style={[styles.iconBg, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="lock-closed" size={32} color="#D97706" />
+            </View>
+            <AppText style={[styles.deleteTitle, { color: "#111827" }]}>
+              {language === "te" ? "తొలగించడం కుదరదు!" : "Cannot Delete!"}
+            </AppText>
+            <AppText style={styles.deleteSub}>
+              {language === "te" 
+                ? "ఈ పంటపై ఇప్పటికే యాప్‌లో పనులు లేదా ఖర్చులు నమోదు చేయబడ్డాయి. కాబట్టి దీన్ని తొలగించలేరు." 
+                : "You cannot delete this field because expenses or works are already recorded under this crop."}
+            </AppText>
+            <View style={[styles.deleteBtns, { justifyContent: "center" }]}>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.cancelBtn, { backgroundColor: "#F3F4F6", flex: 0.6 }]} onPress={() => setCantDeleteVisible(false)}>
+                <AppText style={styles.cancelText}>{language === "te" ? "సరే" : "Okay"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -592,11 +616,11 @@ const styles = StyleSheet.create({
   menuDivider: { height: 1, backgroundColor: "#F1F5F9", marginHorizontal: 10 },
 
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" },
-  deleteBox: { width: "80%", backgroundColor: "#fff", borderRadius: 18, padding: 20, alignItems: "center" },
-  iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 10 },
-  deleteTitle: { fontSize: 16, fontWeight: "600" },
-  deleteSub: { fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 6 },
-  deleteBtns: { flexDirection: "row", marginTop: 20, gap: 10 },
+  deleteBox: { width: "80%", backgroundColor: "#fff", borderRadius: 18, padding: 24, alignItems: "center" },
+  iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  deleteTitle: { fontSize: 18, fontWeight: "600", color: "#EF4444" },
+  deleteSub: { fontSize: 14, color: "#6B7280", textAlign: "center", marginTop: 8, lineHeight: 22 },
+  deleteBtns: { flexDirection: "row", marginTop: 24, gap: 12 },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
   cancelText: { fontSize: 14, fontWeight: "600", color: "#374151" },
   deleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#DC2626", alignItems: "center", justifyContent: "center" },

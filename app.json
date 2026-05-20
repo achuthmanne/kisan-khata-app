@@ -71,7 +71,14 @@
         {
           "contactsPermission": "మీ రైతులు మరియు డ్రైవర్లను సులభంగా యాడ్ చేయడానికి కాంటాక్ట్స్ పర్మిషన్ అవసరం."
         }
-      ]
+      ],
+      [
+  "expo-notifications",
+  {
+    "icon": "./assets/images/icon.png",
+    "color": "#1B5E20"
+  }
+]
     ],
     "experiments": {
       "typedRoutes": true,

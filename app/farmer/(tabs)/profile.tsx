@@ -466,7 +466,7 @@ export default function ProfileScreen() {
             </AppText>
           </View>
 
-          <View style={{ height: 100 }} />
+          <View style={{ height: 40 }} />
         </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
 

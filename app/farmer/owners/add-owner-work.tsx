@@ -704,18 +704,24 @@ const workOptions = [
       </Modal>
 
       {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
-      <Modal visible={showDuplicateModal} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={[styles.modalBox, { backgroundColor: "#fff" }]}>
-            <View style={[styles.iconBg, { backgroundColor: "#FEF3C7" }]}><Ionicons name="copy-outline" size={36} color="#D97706" /></View>
-            <AppText style={styles.modalTitleText}>{language === "te" ? "ఇదివరకే నమోదు చేశారు!" : "Already Exists!"}</AppText>
-            <AppText style={{ fontSize: 14, color: "#6B7280", marginTop: 8, textAlign: "center", lineHeight: 22 }}>{language === "te" ? `మీరు ఇదే తేదీన, ఇదే పంటపై, ఇదే పనిని ఇదివరకే నమోదు చేశారు.\n\nఇది రెండవసారి (మరో సెషన్ లో) చేసిన పనా?` : `An entry with the same Date, Crop, and Work already exists.\n\nIs this a second session for the same day?`}</AppText>
-            <View style={{ flexDirection: "row", marginTop: 24, gap: 16, width: "100%" }}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.cancelBtn, { flex: 1, backgroundColor: "#F3F4F6" }]} onPress={() => setShowDuplicateModal(false)}>
-                <AppText style={{ color: "#374151", fontWeight: "600" }}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
+            </View>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
+              {language === "te" ? "ఇదివరకే నమోదు చేశారు!" : "Already Exists!"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te" ? `మీరు ఇదే తేదీన, ఇదే పంటపై, ఇదే పనిని ఇదివరకే నమోదు చేశారు.\n\nఇది రెండవసారి (మరో సెషన్ లో) చేసిన పనా?` : `An entry with the same Date, Crop, and Work already exists.\n\nIs this a second session for the same day?`}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.deleteConfirmBtn, { flex: 1, backgroundColor: "#D97706" }]} onPress={executeSave}>
-                <AppText style={{ color: "#fff", fontWeight: "600" }}>{language === "te" ? "పర్వాలేదు, చేర్చు" : "Add Anyway"}</AppText>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard} onPress={executeSave}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "పర్వాలేదు, చేర్చు" : "Add Anyway"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -851,5 +857,17 @@ const styles = StyleSheet.create({
   modalBox: { width: "80%", backgroundColor: "#fff", borderRadius: 18, padding: 24, alignItems: "center", elevation: 10 },
   iconBg: { width: 64, height: 64, borderRadius: 32, justifyContent: "center", alignItems: "center", marginBottom: 12 },
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center" },
-  deleteConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center" }
+  deleteConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, alignItems: "center" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" },
 });

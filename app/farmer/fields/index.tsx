@@ -530,41 +530,48 @@ export default function FieldsScreen() {
 
       {/* 🔥 PREMIUM DELETE MODAL */}
       <Modal visible={deleteVisible} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.deleteBox}>
-            <View style={styles.iconBg}><Ionicons name="trash-outline" size={32} color="#DC2626" /></View>
-            <AppText style={styles.deleteTitle}>{language === "te" ? "తొలగించాలా?" : "Delete Field?"}</AppText>
-            <AppText style={styles.deleteSub}>{language === "te" ? "ఈ రికార్డ్ శాశ్వతంగా తొలగించబడుతుంది" : "This record will be permanently deleted"}</AppText>
-            <View style={styles.deleteBtns}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.cancelBtn} onPress={() => setDeleteVisible(false)} disabled={isDeleting}>
-                <AppText style={styles.cancelText}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconBg}>
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
+            </View>
+            <AppText style={styles.modalTitle}>{language === "te" ? "తొలగించాలా?" : "Delete Field?"}</AppText>
+            <AppText style={styles.modalSub}>{language === "te" ? "ఈ రికార్డ్ శాశ్వతంగా తొలగించబడుతుంది" : "This record will be permanently deleted"}</AppText>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtn} onPress={() => setDeleteVisible(false)} disabled={isDeleting}>
+                <AppText style={styles.modalCancelText}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} disabled={isDeleting}>
-                <AppText style={styles.deleteText}>{isDeleting ? (language === "te" ? "తొలగిస్తోంది..." : "Deleting...") : (language === "te" ? "తొలగించు" : "Delete")}</AppText>
+              <TouchableOpacity style={styles.modalConfirmBtnStandard} onPress={handleDelete} disabled={isDeleting}>
+                <AppText style={styles.modalConfirmTextStandard}>{isDeleting ? (language === "te" ? "తొలగిస్తోంది..." : "Deleting...") : (language === "te" ? "తొలగించు" : "Delete")}</AppText>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* 🔥 NEW: CANNOT DELETE MODAL (USAGE BLOCKER) */}
-      <Modal visible={cantDeleteVisible} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.deleteBox}>
-            <View style={[styles.iconBg, { backgroundColor: "#FEF3C7" }]}>
-              <Ionicons name="lock-closed" size={32} color="#D97706" />
+      {/* 🔒 CANNOT DELETE WARNING MODAL */}
+      <Modal visible={cantDeleteVisible} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardWarning}>
+              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={[styles.deleteTitle, { color: "#111827" }]}>
+            <AppText style={styles.modalTitleStandardWarning} language={language}>
               {language === "te" ? "తొలగించడం కుదరదు!" : "Cannot Delete!"}
             </AppText>
-            <AppText style={styles.deleteSub}>
-              {language === "te" 
-                ? "ఈ పంటపై ఇప్పటికే యాప్‌లో పనులు లేదా ఖర్చులు నమోదు చేయబడ్డాయి. కాబట్టి దీన్ని తొలగించలేరు." 
-                : "You cannot delete this field because expenses or works are already recorded under this crop."}
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te"
+                ? "ఈ పొలానికి సంబంధించి కూలీల హాజరు, లేదా ఇతర ఖర్చులు ఇప్పటికే నమోదయ్యాయి. వాటిని తొలగిస్తేనే ఈ పొలం తొలగించబడుతుంది."
+                : "This field has associated records (attendance, expenses, or sales). Please delete them first."}
             </AppText>
-            <View style={[styles.deleteBtns, { justifyContent: "center" }]}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.cancelBtn, { backgroundColor: "#F3F4F6", flex: 0.6 }]} onPress={() => setCantDeleteVisible(false)}>
-                <AppText style={styles.cancelText}>{language === "te" ? "సరే" : "Okay"}</AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8}
+                style={styles.modalWarningBtnStandard} 
+                onPress={() => setCantDeleteVisible(false)}
+              >
+                <AppText style={styles.modalWarningTextStandard} language={language}>
+                  {language === "te" ? "అర్థమైంది" : "Got It"}
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -615,17 +622,6 @@ const styles = StyleSheet.create({
   menuTextDelete: { fontSize: 14, color: "#EF4444", fontWeight: "500" },
   menuDivider: { height: 1, backgroundColor: "#F1F5F9", marginHorizontal: 10 },
 
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" },
-  deleteBox: { width: "80%", backgroundColor: "#fff", borderRadius: 18, padding: 24, alignItems: "center" },
-  iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  deleteTitle: { fontSize: 18, fontWeight: "600", color: "#EF4444" },
-  deleteSub: { fontSize: 14, color: "#6B7280", textAlign: "center", marginTop: 8, lineHeight: 22 },
-  deleteBtns: { flexDirection: "row", marginTop: 24, gap: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
-  cancelText: { fontSize: 14, fontWeight: "600", color: "#374151" },
-  deleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#DC2626", alignItems: "center", justifyContent: "center" },
-  deleteText: { fontSize: 14, fontWeight: "600", color: "#fff" },
-
   fab: { position: "absolute", bottom: 30, right: 20, elevation: 5, shadowColor: '#16A34A', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: {width: 0, height: 4} },
   fabGradient: { width: 64, height: 64, borderRadius: 35, justifyContent: "center", alignItems: "center" },
   
@@ -662,4 +658,23 @@ const styles = StyleSheet.create({
   modernValueText: { fontSize: 11, color: '#64748B', fontWeight: '500', marginTop: 1 },
   modernUnderline: { height: 3, backgroundColor: '#F1F5F9', borderRadius: 1, marginTop: 4, width: '90%' },
   modernFill: { height: '100%', borderRadius: 1, opacity: 0.8 },
+  
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
+  modalContent: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+  modalTitle: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
+  modalSub: { textAlign: "center", color: "#64748B", marginBottom: 25 },
+  modalButtons: { flexDirection: "row", gap: 10 },
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12 },
+  modalCancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+  modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+  modalCancelText: { color: "#64748B", fontWeight: "500" },
+  modalConfirmTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  modalTitleStandardWarning: { fontSize: 20, fontWeight: "500", color: "#F59E0B", marginVertical: 10, textAlign: "center" },
+  modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
+  modalWarningTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 });

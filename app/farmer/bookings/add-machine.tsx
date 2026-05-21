@@ -58,6 +58,7 @@ export default function AddMachine() {
     message: string;
   }>({ visible: false, type: "success", message: "" });
   const [successModal, setSuccessModal] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
   const [coords, setCoords] = useState<any>(null);
   const [locationText, setLocationText] = useState(
@@ -369,7 +370,7 @@ export default function AddMachine() {
     return (value || "").includes(searchText.toLowerCase().trim());
   });
 
-  const handleSave = async () => {
+  const handleSave = async (bypassDuplicate = false) => {
     if (loading) return;
 
     const newErrors: any = {};
@@ -412,10 +413,25 @@ export default function AddMachine() {
         updatedAt: firestore.FieldValue.serverTimestamp(),
       };
 
+      const ref = firestore().collection("machines");
+
+      if (!isEditing && !bypassDuplicate) {
+        const duplicateCheck = await ref
+          .where("phone", "==", phone.trim())
+          .where("equipment", "==", equipment)
+          .get();
+
+        if (!duplicateCheck.empty) {
+          setLoading(false);
+          setShowDuplicateModal(true);
+          return;
+        }
+      }
+
       if (isEditing) {
-        await firestore().collection("machines").doc(machineId as string).update(machineData);
+        await ref.doc(machineId as string).update(machineData);
       } else {
-        await firestore().collection("machines").add({
+        await ref.add({
           ...machineData,
           userId: userPhone,
           createdAt: firestore.FieldValue.serverTimestamp(),
@@ -622,7 +638,7 @@ export default function AddMachine() {
             </View>
 
             {/* SAVE BUTTON */}
-            <TouchableOpacity activeOpacity={0.8} style={styles.saveBtn} onPress={handleSave}>
+            <TouchableOpacity activeOpacity={0.8} style={styles.saveBtn} onPress={() => handleSave(false)}>
               <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.saveGradient}>
                 <AppText style={styles.saveText}>{isEditing ? (language === "te" ? "సవరించండి" : "Update Machine") : (language === "te" ? "భద్రపరచండి" : "Save Machine")}</AppText>
               </LinearGradient>
@@ -835,6 +851,33 @@ export default function AddMachine() {
         </View>
       </Modal>
 
+      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
+            </View>
+            <AppText style={styles.modalTitleStandardInfo}>
+              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
+            </AppText>
+            <AppText style={styles.modalSubStandard}>
+              {language === "te" ? "సరిగ్గా ఇదే మెషీన్ మరియు ఫోన్ నంబర్ తో వివరాలు ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An exact machine and phone number entry already exists.\n\nAre you sure you want to add this duplicate entry?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
+                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
+              >
+                <AppText style={styles.modalInfoTextStandard}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <AgriLoader visible={loading} type="saving" language={language} />
     </SafeAreaView>
   );
@@ -917,5 +960,17 @@ const styles = StyleSheet.create({
   successTitle: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
   successMsg: { textAlign: "center", color: "#6B7280", marginBottom: 20, lineHeight: 22 },
   successBtn: { height: 50, borderRadius: 14, justifyContent: "center", alignItems: "center" },
-  successBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" }
+  successBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
 });

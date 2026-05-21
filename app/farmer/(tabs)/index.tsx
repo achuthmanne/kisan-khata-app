@@ -86,35 +86,37 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
 
       <View style={{ flex: 1, paddingTop: 110 }}>
         <View>
-          <LinearGradient colors={["#1B5E20","#1B5E20"]} style={{ paddingTop: 40, paddingBottom: 5, paddingHorizontal: 20, justifyContent: "center" }}>
+          <LinearGradient colors={["#1B5E20","#1B5E20"]} style={{ paddingTop: 28, paddingBottom: 15, paddingHorizontal: 20, justifyContent: "center" }}>
             <View style={{ alignItems: "center", justifyContent: "center" }}>
               <Animated.View style={{ width: width - 40, height: 120, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.1)", opacity: pulseAnim, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" }} />
             </View>
-            <View style={{ flexDirection: "row", justifyContent: "center", marginTop: 8 }}>
+          </LinearGradient>
+          
+          <View style={{ position: "relative", alignItems: "center" }}>
+            <Svg width={width + 40} height={40} viewBox={`0 0 ${width + 40} 40`} style={{ marginTop: -1, alignSelf: "center", marginLeft: -20 }}>
+              <Path d={`M0 0 H${width + 40} Q${(width + 40)/2} 40 0 0 Z`} fill="#1B5E20" />
+            </Svg>
+            <View style={{ flexDirection: "row", justifyContent: "center", position: "absolute", top: 0 }}>
               <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.8)", marginHorizontal: 4, opacity: pulseAnim }} />
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)", marginHorizontal: 4 }} />
             </View>
-          </LinearGradient>
-          
-          <Svg width={width + 40} height={40} viewBox={`0 0 ${width + 40} 40`} style={{ marginTop: -1, alignSelf: "center", marginLeft: -20 }}>
-            <Path d={`M0 0 H${width + 40} V20 Q${(width + 40)/2} 60 0 20 Z`} fill="#1B5E20" />
-          </Svg>
+          </View>
         </View>
 
-        <Animated.View style={{ width: width - 40, height: 74, borderRadius: 20, marginHorizontal: 20, marginTop: 10, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
+        <Animated.View style={{ width: width - 40, height: 74, borderRadius: 20, marginHorizontal: 20, marginTop: -10, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
 
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 20, marginTop: 25, marginBottom: 8 }}>
           <Animated.View style={{ width: 140, height: 22, borderRadius: 6, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
           <Animated.View style={{ width: 60, height: 24, borderRadius: 14, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
         </View>
         
-        <View style={{ flexDirection: "row", paddingLeft: 20, paddingTop: 12, gap: 12 }}>
+        <View style={{ flexDirection: "row", paddingLeft: 20, paddingTop: 0, gap: 12 }}>
           {[1, 2, 3].map((i) => (
             <Animated.View key={i} style={{ width: 120, height: 38, borderRadius: 20, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
           ))}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 20, marginTop: 25, marginBottom: 15, gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 20, marginTop: 5, marginBottom: 15, gap: 8 }}>
           <Animated.View style={{ width: 110, height: 22, borderRadius: 6, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
         </View>
 
@@ -783,7 +785,7 @@ export default function Dashboard() {
      </LinearGradient>
 
     <Animated.ScrollView
-      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+      onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingTop: 110 }}
@@ -906,17 +908,17 @@ export default function Dashboard() {
               }}
             />
           </View>
+        </LinearGradient>
 
-          <View style={styles.headerDots}>
+        <View style={{ position: "relative", alignItems: "center" }}>
+          <Svg width={width + 40} height={40} viewBox={`0 0 ${width + 40} 40`} style={[styles.headerSvg, { marginLeft: -20 }]}>
+            <Path d={`M0 0 H${width + 40} Q${(width + 40)/2} 40 0 0 Z`} fill="#1B5E20" />
+          </Svg>
+          <View style={[styles.headerDots, { position: "absolute", top: 0 }]}>
             <View style={[styles.headerDot, activeHeaderCard===0 && styles.headerDotActive]}/>
             <View style={[styles.headerDot, activeHeaderCard===1 && styles.headerDotActive]}/>
           </View>
-
-        </LinearGradient>
-
-        <Svg width={width + 40} height={40} viewBox={`0 0 ${width + 40} 40`} style={[styles.headerSvg, { marginLeft: -20 }]}>
-          <Path d={`M0 0 H${width + 40} V20 Q${(width + 40)/2} 60 0 20 Z`} fill="#1B5E20" />
-        </Svg>
+        </View>
       </View>
     </Animated.View>
 
@@ -966,7 +968,7 @@ export default function Dashboard() {
       horizontal
       showsHorizontalScrollIndicator={false}
       keyExtractor={(item: any)=>item.service}
-      contentContainerStyle={{ paddingLeft:20, paddingRight:10, paddingTop:12 }}
+      contentContainerStyle={{ paddingLeft:20, paddingRight:10, paddingTop:0, paddingBottom: 0 }}
       snapToAlignment="start"
       decelerationRate="fast"
       snapToInterval={(width - 60) / 3 + 10}
@@ -987,7 +989,7 @@ export default function Dashboard() {
     />
     
    {/* ALL SERVICES */}
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, { marginTop: 5 }]}>
       <Text style={[styles.sectionTitle, { fontFamily: "Mandali" }]}>
         {t.all}
       </Text>
@@ -1072,11 +1074,11 @@ export default function Dashboard() {
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   safe:{ flex:1, backgroundColor:"#F6F7F6" },
-  header:{ paddingTop:40, paddingBottom:5, paddingHorizontal:20, justifyContent:"center" },
+  header:{ paddingTop:28, paddingBottom:15, paddingHorizontal:20, justifyContent:"center" },
   headerCarousel:{ alignItems:"center", justifyContent:"center" },
   headerSvg:{ marginTop:-1, alignSelf:"center" },
-  stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10 },
-  headerRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:10 },
+  stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 60, paddingHorizontal: 20, paddingBottom: 5 },
+  headerRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:5 },
   profileRow:{ flexDirection:"row", alignItems:"center" },
   profileImage:{ width:50, height:50, borderRadius:25, marginRight:10 },
   avatar:{ width:70, height:70, borderRadius:35, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center", elevation:5 },
@@ -1101,7 +1103,7 @@ const styles = StyleSheet.create({
   weatherRight:{ justifyContent:"center", alignItems:"center" },
   weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding:false },
   temp:{ color:"white", fontSize:55, fontWeight:"bold", marginRight: -6 },
-  headerDots:{ flexDirection:"row", justifyContent:"center", marginTop:8 },
+  headerDots:{ flexDirection:"row", justifyContent:"center", marginTop:0 },
   badge: { position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, backgroundColor: "#EF4444", justifyContent: "center", alignItems: "center" },
   badgeText: { color: "#fff", fontSize: 10, fontWeight: "700", textAlign: "center", includeFontPadding: false, textAlignVertical: "center" },
   headerDot:{ width:8, height:8, borderRadius:4, backgroundColor:"rgba(255,255,255,0.4)", marginHorizontal:4 },
@@ -1120,9 +1122,9 @@ const styles = StyleSheet.create({
   price:{ color:"white", fontSize:16, fontWeight:"bold", marginRight:6 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
   closeBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#E5E7EB", justifyContent: "center", alignItems: "center" },
-  sessionMainContainer: { marginHorizontal: 20, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#dfe1e3', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 10 },
+  sessionMainContainer: { marginHorizontal: 20, marginTop: -10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: 'rgba(22, 163, 74, 0.2)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10 },
   sessionContent: { flexDirection: 'row', alignItems: 'center' },
-  sessionIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAF9', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  sessionIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   sessionLabel: { fontSize: 12, color: '#6B7280' },
   sessionValue: { fontSize: 20, fontWeight: '600', color: '#1F2937' },
   powerButton: { width: 44, height: 44, borderRadius: 14, overflow: "hidden" },
@@ -1171,7 +1173,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false, 
     lineHeight: 24 
   },
-  grid:{ flexDirection:"row", flexWrap:"wrap", justifyContent:"flex-start", paddingHorizontal:20, paddingBottom: 30, marginBottom: 30, gap:14 },
+  grid:{ flexDirection:"row", flexWrap:"wrap", justifyContent:"flex-start", paddingHorizontal:20, paddingBottom: 10, marginBottom: 20, gap:14 },
   cardIcon:{ width:22, height:22, tintColor:"#2E7D32", resizeMode:"contain" },
   smartCard:{ flexDirection:"row", alignItems:"center", paddingVertical:12, paddingHorizontal:16, borderTopColor:"rgba(255,255,255,0.6)", borderRadius:20, marginRight:12, marginBottom:10, borderWidth:1, borderColor:"rgba(255,255,255,0.35)", shadowColor:"#000", shadowOpacity:0.12, shadowRadius:10, elevation:5 },
   smartChip:{ flexDirection:"row", alignItems:"center", backgroundColor:"#F8F9FA", paddingVertical:9, paddingHorizontal:14, borderRadius:20, minHeight: 36, marginRight:12, marginBottom:8, borderWidth:1, borderColor:"#E5E7EB" },

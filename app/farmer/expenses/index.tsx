@@ -412,7 +412,7 @@ export default function ExpensesScreen() {
               <View style={styles.overlay}>
                 <View style={styles.deleteBox}>
                   <View style={styles.iconBg}>
-                    <Ionicons name="trash-outline" size={32} color="#DC2626" />
+                    <Ionicons name="trash-outline" size={36} color="#e44830" />
                   </View>
                   <AppText style={styles.deleteTitle} language={language}>
                     {language === "te" ? "తొలగించాలా?" : "Delete Expense?"}
@@ -525,16 +525,16 @@ const styles = StyleSheet.create({
     menuTextDelete: { fontSize: 14, color: "#EF4444", fontWeight: "500" },
     menuDivider: { height: 1, backgroundColor: "#F1F5F9", marginHorizontal: 10 },
 
-    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" },
-    deleteBox: { width: "80%", backgroundColor: "#fff", padding: 24, borderRadius: 20, alignItems: "center", elevation: 10 },
-    iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 10 },
-    deleteTitle: { fontSize: 18, fontWeight: "600", marginTop: 12, color: '#111827' },
-    deleteSub: { fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 8, lineHeight: 20 },
-    deleteBtns: { flexDirection: "row", marginTop: 20, gap: 12 },
-    cancelBtn: { flex: 1, paddingVertical: 12, backgroundColor: "#F1F5F9", borderRadius: 12, alignItems: "center" },
-    cancelText: { fontWeight: "600", color: "#475569" },
-    deleteBtn: { flex: 1, paddingVertical: 12, backgroundColor: "#DC2626", borderRadius: 12, alignItems: "center" },
-    deleteText: { fontWeight: "600", color: "#fff" },
+    overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
+    deleteBox: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+    iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+    deleteTitle: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
+    deleteSub: { textAlign: "center", color: "#64748B", marginBottom: 25 },
+    deleteBtns: { flexDirection: "row", gap: 10 },
+    cancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+    cancelText: { color: "#64748B", fontWeight: "500" },
+    deleteBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+    deleteText: { color: "white", fontWeight: "500" },
 
     addBtn: { position: "absolute", bottom: 30, right: 25 },
     addGradient: { width: 64, height: 64, borderRadius: 32, justifyContent: "center", alignItems: "center", elevation: 5 }

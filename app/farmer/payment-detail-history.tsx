@@ -540,36 +540,35 @@ export default function PaymentDetailHistory() {
 
       {/* DELETE MODAL */}
       <Modal visible={modalVisible} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.iconBg}>
-              <Ionicons name="warning" size={34} color="#DC2626" />
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandard}>
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={styles.modalTitleStandard} language={language}>
               {language === "te" ? "ఈ రికార్డును తొలగించాలా?" : "Are you sure you want to delete this? "}
             </AppText>
-            <AppText style={styles.modalSub} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "తొలగిస్తే, దీనికి సంబంధించిన హాజరు కార్డులు మళ్ళీ చెల్లింపు చేయడానికి అందుబాటులోకి వస్తాయి."
                 : "Once deleted, the linked attendance cards will become available again for payment selection."}
             </AppText>
-            <View style={styles.modalBtns}>
+            <View style={styles.modalButtonsStandard}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.cancelBtn}
+                style={styles.modalCancelBtnStandard}
                 onPress={() => setModalVisible(false)}
               >
-                <AppText style={styles.cancelText} language={language}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>
                   {language === "te" ? "వద్దు" : "Cancel"}
                 </AppText>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.deleteBtn}
+                style={styles.modalConfirmBtnStandard}
                 onPress={handleDelete}
               >
-                <Ionicons name="trash-outline" size={14} color="#fff" />
-                <AppText style={styles.deleteText} language={language}>
+                <AppText style={styles.modalConfirmTextStandard} language={language}>
                   {language === "te" ? "తొలగించు" : "Delete"}
                 </AppText>
               </TouchableOpacity>
@@ -651,5 +650,17 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 14, color: "#4B5563", fontWeight: "600" },
   deleteText: { fontSize: 14, color: "#fff", fontWeight: "600" },
   
-  shimmerCard: { marginHorizontal: 20, marginTop: 12, padding: 14, borderRadius: 12, backgroundColor: "#fff", overflow: "hidden" }
+  shimmerCard: { marginHorizontal: 20, marginTop: 12, padding: 14, borderRadius: 12, backgroundColor: "#fff", overflow: "hidden" },
+
+  // UNIFIED PREMIUM MODAL CLASSES
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+  modalTitleStandard: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10, textAlign: "center" },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25 },
+  modalButtonsStandard: { flexDirection: "row", gap: 10 },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+  modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+  modalCancelTextStandard: { color: "#64748B", fontWeight: "500" },
+  modalConfirmTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 }
 });

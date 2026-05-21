@@ -440,21 +440,21 @@ export default function FarmerHistory() {
 
       {/* DELETE MODAL */}
       <Modal visible={!!deleteId} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.iconBg}>
-              <Ionicons name="trash-outline" size={36} color="#DC2626" />
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandard}>
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
             </View>
-            <AppText style={styles.modalTitle}>{language === "te" ? "తొలగించాలా?" : "Delete Work?"}</AppText>
-            <AppText style={styles.modalSub}>
+            <AppText style={styles.modalTitleStandard}>{language === "te" ? "తొలగించాలా?" : "Delete Work?"}</AppText>
+            <AppText style={styles.modalSubStandard}>
               {language === "te" ? "ఈ పనిని తొలగించాలనుకుంటున్నారా?" : "Are you sure you want to delete this work?"}
             </AppText>
-            <View style={styles.modalRow}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.cancelBtn} onPress={() => setDeleteId(null)}>
-                <AppText>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setDeleteId(null)}>
+                <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.deleteConfirmBtn1} onPress={handleDelete}>
-                <AppText style={{ color: "#fff" }}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalConfirmBtnStandard} onPress={handleDelete}>
+                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -529,5 +529,17 @@ const styles = StyleSheet.create({
   iconBg1: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 10 }, 
   cancelBtn: { flex: 1, padding: 12, backgroundColor: "#F3F4F6", borderRadius: 10, alignItems: "center" },
   deleteConfirmBtn: { flex: 1, padding: 12, backgroundColor: "#16A34A", borderRadius: 10, alignItems: "center" },
-  deleteConfirmBtn1: { flex: 1, padding: 12, backgroundColor: "#DC2626", borderRadius: 10, alignItems: "center" }
+  deleteConfirmBtn1: { flex: 1, padding: 12, backgroundColor: "#DC2626", borderRadius: 10, alignItems: "center" },
+  
+  // UNIFIED PREMIUM MODAL CLASSES
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+  modalTitleStandard: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25 },
+  modalButtonsStandard: { flexDirection: "row", gap: 10 },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+  modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+  modalCancelTextStandard: { color: "#64748B", fontWeight: "500" },
+  modalConfirmTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 });

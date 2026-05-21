@@ -42,6 +42,7 @@ export default function AddField() {
   // 🔥 STANDARD PATTERN STATES
   const [activeInput, setActiveInput] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({}); 
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
   const [modalType, setModalType] = useState<"crop" | "soil" | null>(null); 
   const [searchText, setSearchText] = useState("");
@@ -169,7 +170,7 @@ const soilOptions = [
     AsyncStorage.getItem("APP_LANG").then((l) => { if (l) setLanguage(l as any); });
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = async (bypassDuplicate = false) => {
     if (loading) return;
     Keyboard.dismiss();
 
@@ -213,18 +214,31 @@ const soilOptions = [
         updatedAt: firestore.FieldValue.serverTimestamp()
       };
 
+      const ref = firestore()
+        .collection("users")
+        .doc(phone)
+        .collection("fields");
+
+      if (!editId && !bypassDuplicate) {
+        const duplicateCheck = await ref
+          .where("crop", "==", fieldData.crop)
+          .where("acres", "==", fieldData.acres)
+          .where("session", "==", activeSession)
+          .get();
+
+        if (!duplicateCheck.empty) {
+          setLoading(false);
+          setShowDuplicateModal(true);
+          return;
+        }
+      }
+
       if (editId) {
-        await firestore()
-          .collection("users")
-          .doc(phone)
-          .collection("fields")
+        await ref
           .doc(editId as string)
           .update(fieldData);
       } else {
-        await firestore()
-          .collection("users")
-          .doc(phone)
-          .collection("fields")
+        await ref
           .add({
             ...fieldData,
             createdAt: firestore.FieldValue.serverTimestamp()
@@ -454,7 +468,7 @@ const soilOptions = [
           )}
 
           {/* 💾 SAVE BUTTON */}
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.saveBtn} onPress={() => handleSave(false)} disabled={loading} activeOpacity={0.8}>
             <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.saveGradient}>
               <AppText style={styles.saveText}>
                 {editId 
@@ -552,6 +566,33 @@ const soilOptions = [
         </View>
       </Modal>
 
+      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
+            </View>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
+              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te" ? "సరిగ్గా ఇదే పొలం వివరాలు (పంట, ఎకరాలు) ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An exact field entry (Crop, Acres) already exists.\n\nAre you sure you want to add this duplicate entry?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
+                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -639,4 +680,16 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, height: 54, fontSize: 16, fontFamily: 'Mandali' },
   item: { padding: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
   itemText: { fontSize: 17, fontFamily: "Mandali" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
 });

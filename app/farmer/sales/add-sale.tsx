@@ -44,6 +44,7 @@ export default function AddSale() {
   const [modalType, setModalType] = useState<"crop" | null>(null);
   const [searchText, setSearchText] = useState("");
   const [unitOpen, setUnitOpen] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
   const [activeInput, setActiveInput] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({}); 
@@ -145,7 +146,7 @@ export default function AddSale() {
     c.toLowerCase().includes(searchText.toLowerCase().trim())
   );
 
-  const handleSave = async () => {
+  const handleSave = async (bypassDuplicate = false) => {
     Keyboard.dismiss(); 
     if (loading) return;
 
@@ -181,7 +182,23 @@ export default function AddSale() {
       };
 
       const ref = firestore().collection("users").doc(phone).collection("sales");
-      if (editId) await ref.doc(editId).update(data);
+
+      if (!editId && !bypassDuplicate) {
+        const duplicateCheck = await ref
+          .where("crop", "==", data.crop)
+          .where("quantity", "==", data.quantity)
+          .where("rate", "==", data.rate)
+          .where("session", "==", activeSession)
+          .get();
+
+        if (!duplicateCheck.empty) {
+          setLoading(false);
+          setShowDuplicateModal(true);
+          return;
+        }
+      }
+
+      if (editId) await ref.doc(editId as string).update(data);
       else await ref.add(data);
 
       router.back();
@@ -372,7 +389,7 @@ export default function AddSale() {
         </View>
 
         {/* 💾 SAVE BTN */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.saveBtn} onPress={() => handleSave(false)} disabled={loading} activeOpacity={0.8}>
           <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.saveInner}>
             <AppText style={styles.saveText} language={language}>
               {editId ? (language === "te" ? "సవరించండి" : "Update Sale") : (language === "te" ? "భద్రపరచండి" : "Save Sale")}
@@ -452,6 +469,34 @@ export default function AddSale() {
           </View>
         </View>
       </Modal>
+
+      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
+            </View>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
+              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te" ? "సరిగ్గా ఇదే అమ్మకం (పంట, పరిమాణం, ధర) ఇప్పటికే ఉంది.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An exact sale entry (Crop, Quantity, Rate) already exists.\n\nAre you sure you want to add this duplicate entry?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
+                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -487,4 +532,16 @@ const styles = StyleSheet.create({
   itemText: { fontSize: 17, fontFamily: "Mandali" },
   cropHintBox: { backgroundColor: "#F0FDF4", padding: 12, borderRadius: 12, marginBottom: 16, flexDirection: 'row', gap: 10, borderLeftWidth: 4, borderLeftColor: '#059669' },
   cropHintText: { flex: 1, fontSize: 13, color: "#166534", lineHeight: 18 },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
 });

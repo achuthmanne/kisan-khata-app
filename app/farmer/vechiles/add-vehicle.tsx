@@ -429,21 +429,21 @@ export default function AddVehicle() {
 
       {/* 🚀 PREMIUM VALIDATION / DUPLICATE MODAL */}
       <Modal visible={showValidationModal} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlayCenter}>
-          <View style={styles.premiumModalBox}>
-            <View style={[styles.iconBgWarning, { backgroundColor: errorType === "duplicate" ? '#FEF3C7' : '#FEE2E2' }]}>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: errorType === "duplicate" ? "#DBEAFE" : "#FEE2E2" }]}>
               <Ionicons 
-                name={errorType === "duplicate" ? "copy" : "warning"} 
+                name={errorType === "duplicate" ? "copy-outline" : "warning"} 
                 size={36} 
-                color={errorType === "duplicate" ? "#F59E0B" : "#DC2626"} 
+                color={errorType === "duplicate" ? "#3B82F6" : "#DC2626"} 
               />
             </View>
-            <AppText style={styles.modalTitleTextDark}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: errorType === "duplicate" ? "#2563EB" : "#DC2626" }]} language={language}>
               {errorType === "duplicate"
                 ? (language === "te" ? "ఇప్పటికే ఉంది" : "Already Exists")
                 : (language === "te" ? "వివరాలు అవసరం" : "Missing Details")}
             </AppText>
-            <AppText style={[styles.modalSubText, { lineHeight: 22 }]}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {errorType === "duplicate"
                 ? (language === "te"
                   ? "ఈ నంబర్ తో వాహనం ఇప్పటికే మీ ఖాతాలో నమోదు చేయబడింది. దయచేసి నంబర్ సరిచూసుకోండి."
@@ -452,12 +452,13 @@ export default function AddVehicle() {
                   ? "దయచేసి అన్ని వివరాలు సరిగ్గా నమోదు చేయండి."
                   : "Please check your entered details.")}
             </AppText>
-            <View style={styles.modalBtnsRow}>
+            <View style={styles.modalButtonsStandard}>
               <TouchableOpacity 
-                style={[styles.actionBtn, { backgroundColor: errorType === "duplicate" ? '#F59E0B' : '#DC2626' }]} 
+                activeOpacity={0.8}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: errorType === "duplicate" ? "#3B82F6" : "#DC2626" }]} 
                 onPress={() => setShowValidationModal(false)}
               >
-                <AppText style={{ color: 'white', fontWeight: '600' }} language={language}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>
                   {language === "te" ? "సరే" : "OK"}
                 </AppText>
               </TouchableOpacity>
@@ -468,25 +469,26 @@ export default function AddVehicle() {
 
       {/* 🔥 LOCK INFO MODAL */}
       <Modal visible={showLockInfo} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlayCenter}>
-          <View style={styles.premiumModalBox}>
-            <View style={[styles.iconBgWarning, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="lock-closed" size={36} color="#DC2626" />
             </View>
-            <AppText style={styles.modalTitleTextDark} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#DC2626" }]} language={language}>
               {language === "te" ? "పేరు మార్చలేరు" : "Name Locked"}
             </AppText>
-            <AppText style={[styles.modalSubText, { lineHeight: 22 }]} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ వాహనానికి సంబంధించి రైతులు లేదా డ్రైవర్ల వివరాలు ఇప్పటికే నమోదు అయ్యాయి. కావున వాహనం పేరును మార్చడం కుదరదు."
                 : "Since this vehicle has associated farmers or drivers, you cannot change its name."}
             </AppText>
-            <View style={styles.modalBtnsRow}>
+            <View style={styles.modalButtonsStandard}>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: '#F59E0B' }]}
+                activeOpacity={0.8}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#DC2626" }]}
                 onPress={() => setShowLockInfo(false)}
               >
-                <AppText style={{ color: 'white', fontWeight: '600' }} language={language}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
                 </AppText>
               </TouchableOpacity>
@@ -665,5 +667,17 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F3F4F6" 
   },
   categoryIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginRight: 14 },
-  categoryItemText: { flex: 1, fontSize: 15, fontWeight: "500", color: "#374151" }
+  categoryItemText: { flex: 1, fontSize: 15, fontWeight: "500", color: "#374151" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" },
 });

@@ -427,20 +427,20 @@ export default function SalesScreen() {
 
       {/* 🔥 PREMIUM DELETE MODAL */}
       <Modal visible={deleteVisible} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.deleteBox}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
             <View style={styles.iconBg}>
-              <Ionicons name="trash-outline" size={32} color="#DC2626" />
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
             </View>
-            <AppText style={styles.deleteTitle} language={language}>
+            <AppText style={styles.modalTitle} language={language}>
               {language === "te" ? "తొలగించాలా?" : "Delete Sale?"}
             </AppText>
-            <AppText style={styles.deleteSub} language={language}>
+            <AppText style={styles.modalSub} language={language}>
               {language === "te"
                 ? "ఈ రికార్డ్ శాశ్వతంగా తొలగించబడుతుంది"
                 : "This record will be permanently deleted"}
             </AppText>
-            <View style={styles.deleteBtns}>
+            <View style={styles.modalButtons}>
               <TouchableOpacity
                 activeOpacity={0.8}
                 style={styles.cancelBtn}
@@ -452,11 +452,10 @@ export default function SalesScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.deleteBtn}
+                style={styles.confirmBtn}
                 onPress={handleDelete}
               >
-                <Ionicons name="trash-outline" size={16} color="#fff" />
-                <AppText style={styles.deleteText} language={language}>
+                <AppText style={styles.confirmText} language={language}>
                   {language === "te" ? "తొలగించు" : "Delete"}
                 </AppText>
               </TouchableOpacity>
@@ -507,69 +506,16 @@ const styles = StyleSheet.create({
   menuDivider: { height: 1, backgroundColor: "#F1F5F9", marginHorizontal: 10 },
 
   // DELETE MODAL
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center"
-  },
-  deleteBox: {
-    width: "80%",
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 24,
-    alignItems: "center"
-  },
-  iconBg: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#FEE2E2",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10
-  },
-  deleteTitle: { fontSize: 18, fontWeight: "600", marginTop: 12, color: '#111827' },
-  deleteSub: {
-    fontSize: 13,
-    color: "#6B7280",
-    textAlign: "center",
-    marginTop: 8,
-    lineHeight: 20
-  },
-  deleteBtns: {
-    flexDirection: "row",
-    marginTop: 20,
-    gap: 12
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#475569"
-  },
-  deleteBtn: {
-    flex: 1,
-    flexDirection: "row",
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#DC2626",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  deleteText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#fff"
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
+  modalContent: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+  modalTitle: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
+  modalSub: { textAlign: "center", color: "#64748B", marginBottom: 25 },
+  modalButtons: { flexDirection: "row", gap: 10 },
+  cancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+  confirmBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+  cancelText: { color: "#64748B", fontWeight: "500" },
+  confirmText: { color: "white", fontWeight: "500" },
+  iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 
   divider: { height: 1, backgroundColor: "rgba(255,255,255,0.1)", marginVertical: 15 },
   statLabel: { color: "#bbf7d0", fontSize: 12 },

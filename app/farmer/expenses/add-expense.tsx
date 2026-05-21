@@ -44,6 +44,7 @@ export default function AddExpense() {
   const [showLabourInfo, setShowLabourInfo] = useState(false);
   const [showRentInfo, setShowRentInfo] = useState(false);
   const [showTractorInfo, setShowTractorInfo] = useState(false); 
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState<"te" | "en">("te");
@@ -184,7 +185,7 @@ const categoryOptions = [
     return (value || "").includes(searchText.toLowerCase().trim());
   });
 
-  const handleSave = async () => {
+  const handleSave = async (bypassDuplicate = false) => {
       if (loading) return; 
       Keyboard.dismiss(); 
       
@@ -216,6 +217,24 @@ const categoryOptions = [
 
       try {
           const ref = firestore().collection("users").doc(phone).collection("expenses");
+
+          if (!editId && !bypassDuplicate) {
+            const duplicateCheck = await ref
+              .where("crop", "==", data.crop)
+              .where("category", "==", data.category)
+              .where("amount", "==", data.amount)
+              .where("session", "==", activeSession)
+              .get();
+
+            if (!duplicateCheck.empty) {
+              if (isMounted.current) {
+                setLoading(false);
+                setShowDuplicateModal(true);
+              }
+              return;
+            }
+          }
+
           editId ? await ref.doc(editId as string).update(data) : await ref.add(data);
 
           if (isMounted.current) router.back();
@@ -380,7 +399,7 @@ const categoryOptions = [
               )}
               
               {/* SAVE BUTTON */}
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading} activeOpacity={0.9}>
+              <TouchableOpacity style={styles.saveBtn} onPress={() => handleSave(false)} activeOpacity={0.9} disabled={loading}>
                   <LinearGradient colors={["#DC2626", "#991B1B"]} style={styles.saveGradient}>
                       <AppText style={styles.saveText}>
                           {editId ? (language === "te" ? "ఖర్చు సవరించండి" : "Update Expense") : (language === "te" ? "ఖర్చు భద్రపరచండి" : "Save Expense")}
@@ -490,6 +509,103 @@ const categoryOptions = [
               </View>
           </Modal>
 
+      {/* INFO MODALS */}
+      <Modal visible={showLabourInfo} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="information-circle" size={36} color="#F59E0B" />
+            </View>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
+              {language === "te" ? "కూలీల ఖర్చులు" : "Labour Expenses"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te"
+                ? "కూలీలకు ఇచ్చిన అడ్వాన్సులు లేదా రోజువారీ కూలీ ఖర్చులు ఇక్కడ నమోదు చేయండి. కూలీల పని వివరాలు 'కూలీలు' సెక్షన్ లో చూడగలరు."
+                : "Enter daily labour expenses or advances given to workers here."}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B" }]} onPress={() => setShowLabourInfo(false)}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే, అర్థమైంది" : "Got It"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showRentInfo} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="information-circle" size={36} color="#F59E0B" />
+            </View>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
+              {language === "te" ? "భూమి కౌలు ఖర్చులు" : "Land Lease"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te"
+                ? "కౌలుకి తీసుకున్న భూమి యొక్క అడ్వాన్స్ లేదా పూర్తి కౌలు డబ్బులు ఇక్కడ నమోదు చేయండి."
+                : "Enter land lease advances or full payments here."}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B" }]} onPress={() => setShowRentInfo(false)}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే, అర్థమైంది" : "Got It"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showTractorInfo} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="information-circle" size={36} color="#F59E0B" />
+            </View>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
+              {language === "te" ? "ట్రాక్టర్ ఖర్చులు" : "Tractor Expenses"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te"
+                ? "అద్దె ట్రాక్టర్ కోసం ఇచ్చిన డబ్బులు లేదా పెట్రోల్/డీజిల్ ఖర్చులు ఇక్కడ నమోదు చేయండి."
+                : "Enter rented tractor payments or fuel expenses here."}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B" }]} onPress={() => setShowTractorInfo(false)}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే, అర్థమైంది" : "Got It"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
+            </View>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
+              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te" ? "సరిగ్గా ఇదే ఖర్చు (పంట, రకం, మొత్తం) ఇప్పటికే ఉంది.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An exact expense entry (Crop, Category, Amount) already exists.\n\nAre you sure you want to add this duplicate entry?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
+                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
           <AgriLoader visible={loading} type="saving" language={language} />
       </SafeAreaView>
   );
@@ -572,4 +688,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F1F5F9"
   },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
 });

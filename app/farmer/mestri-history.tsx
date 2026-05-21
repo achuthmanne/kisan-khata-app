@@ -430,26 +430,25 @@ export default function MestriHistory() {
 
       {/* 🔴 STANDARD DELETE MODAL (For Unpaid records) */}
       <Modal visible={modalVisible} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.iconBg}>
-              <Ionicons name="warning" size={34} color="#DC2626" />
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandard}>
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={styles.modalTitleStandard} language={language}>
               {language === "te" ? "తొలగించాలా?" : "Remove Entry?"}
             </AppText>
-            <AppText style={styles.modalSub} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ హాజరు వివరాన్ని తొలగించాలా?"
                 : "Are you sure you want to delete this attendance record?"}
             </AppText>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={[styles.cancelBtn, {flex: 1}]} onPress={() => setModalVisible(false)}>
-                <AppText style={styles.cancelText} language={language}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity style={styles.modalCancelBtnStandard} onPress={() => setModalVisible(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.deleteBtn, {flex: 0.5}]} onPress={handleDelete}>
-                <Ionicons name="trash-outline" size={14} color="#fff" />
-                <AppText style={styles.deleteText} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+              <TouchableOpacity style={styles.modalConfirmBtnStandard} onPress={handleDelete}>
+                <AppText style={styles.modalConfirmTextStandard} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -458,22 +457,22 @@ export default function MestriHistory() {
 
       {/* 🔒 ALREADY PAID WARNING MODAL */}
       <Modal visible={showPaidWarning} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={[styles.iconBg, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="lock-closed" size={34} color="#F59E0B" />
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardWarning}>
+              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={styles.modalTitleStandardWarning} language={language}>
               {language === "te" ? "తొలగించడం కుదరదు" : "Cannot Delete"}
             </AppText>
-            <AppText style={[styles.modalSub, { lineHeight: 22 }]} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ హాజరుకు ఇప్పటికే చెల్లింపు జరిగింది. మీరు దీన్ని తొలగించాలనుకుంటే, ముందుగా 'చెల్లింపు చరిత్ర' (Payment History) లో పేమెంట్ రికార్డును తొలగించండి."
                 : "This attendance is already paid. Please delete the payment record in Payment History first before removing it here."}
             </AppText>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity activeOpacity={0.7} style={[styles.cancelBtn, { flex: 1, backgroundColor: '#F59E0B' }]} onPress={() => setShowPaidWarning(false)}>
-                <AppText  style={[styles.cancelText, { color: '#fff', fontWeight: '600' }]} language={language}>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.7} style={styles.modalWarningBtnStandard} onPress={() => setShowPaidWarning(false)}>
+                <AppText style={styles.modalWarningTextStandard} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
                 </AppText>
               </TouchableOpacity>
@@ -553,5 +552,21 @@ const styles = StyleSheet.create({
   cancelBtn: { paddingVertical: 10, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#F3F4F6", justifyContent: 'center', alignItems: 'center' },
   deleteBtn: { flexDirection: "row", alignItems: "center", justifyContent: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 10, backgroundColor: "#DC2626" },
   cancelText: { fontSize: 13, color: "#374151", fontWeight: "500", textAlign: 'center' },
-  deleteText: { fontSize: 13, color: "#fff", fontWeight: "600", textAlign: 'center' }
+  deleteText: { fontSize: 13, color: "#fff", fontWeight: "600", textAlign: 'center' },
+  
+  // UNIFIED PREMIUM MODAL CLASSES
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+  modalTitleStandard: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25 },
+  modalButtonsStandard: { flexDirection: "row", gap: 10 },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+  modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+  modalCancelTextStandard: { color: "#64748B", fontWeight: "500" },
+  modalConfirmTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  modalTitleStandardWarning: { fontSize: 20, fontWeight: "500", color: "#F59E0B", marginVertical: 10, textAlign: "center" },
+  modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
+  modalWarningTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 });

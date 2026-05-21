@@ -3,17 +3,18 @@
 import AppEmptyState from "@/components/AppEmptyState";
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
+import { LOGO_BASE64 } from "@/constants/logoBase64";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
-import { Asset } from 'expo-asset';
-import * as FileSystem from 'expo-file-system/legacy';
 import { LinearGradient } from "expo-linear-gradient";
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { memo, useEffect, useRef, useState } from "react";
 import {
-  Animated, Easing, FlatList, InteractionManager, SafeAreaView,
+  Animated, Easing, FlatList, InteractionManager,
+  Modal,
+  SafeAreaView,
   StatusBar,
   StyleSheet, TouchableOpacity, View
 } from "react-native";
@@ -88,6 +89,7 @@ export default function SummaryScreen() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [userName, setUserName] = useState("Farmer");
   const [typedName, setTypedName] = useState("");
+  const [showEmptyModal, setShowEmptyModal] = useState(false);
   
   const expenseAnim = useRef(new Animated.Value(0)).current;
   const labourAnim = useRef(new Animated.Value(0)).current;
@@ -163,19 +165,9 @@ export default function SummaryScreen() {
   /* ---------------- 🔥 ULTRA HD PROFESSIONAL PDF GENERATOR (BUG FIX) ---------------- */
   const exportProfessionalPDF = async (existingInsights: string[]) => {
     try {
-      let logoBase64 = "";
-      try {
-        const logoAsset = Asset.fromModule(require('../../assets/images/logo.png'));
-        await logoAsset.downloadAsync();
-        if (logoAsset.localUri) {
-          const rawBase64 = await FileSystem.readAsStringAsync(logoAsset.localUri, { encoding: 'base64' });
-          // 🔥 Fix 1: Clean Base64 (Remove newlines that break PDF rendering)
-          logoBase64 = rawBase64.replace(/\n/g, ""); 
-        }
-      } catch (e) {
-        console.log("Logo missing or failed to load");
-      }
-
+      // 🔥 Fix: Using hardcoded Base64 logo to guarantee rendering on all Android devices
+      const logoBase64 = LOGO_BASE64;
+      
       const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       const time = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
@@ -230,7 +222,7 @@ export default function SummaryScreen() {
           <body>
             <div class="header">
               <div class="logo-container">
-                ${logoBase64 ? `<img src="data:image/png;base64,${logoBase64}" class="logo-img" />` : ''}
+                <img src="${logoBase64}" class="logo-img" />
                 <div class="brand-text-container">
                   <h1 class="brand-title">Kisan Khata</h1>
                   <p class="brand-sub">The Digital Farm Ledger</p>
@@ -321,6 +313,14 @@ export default function SummaryScreen() {
     } catch (error) { 
       console.error("PDF Generation Error:", error); 
     }
+  };
+
+  const handleDownloadPDF = () => {
+    if (isEmpty) {
+      setShowEmptyModal(true);
+      return;
+    }
+    exportProfessionalPDF(suggestions);
   };
 
   const round = (num: number) => Math.round(num);
@@ -542,12 +542,22 @@ export default function SummaryScreen() {
           c.profit = c.income - (c.expense + c.labour + c.rent);
         });
 
+        // 🔥 Remove crops that have absolutely zero financial or yield activity
+        const filteredCropMap: any = {};
+        Object.keys(cropMap).forEach(key => {
+          const c = cropMap[key];
+          const totalActivity = c.expense + c.labour + c.rent + c.income + c.quantity;
+          if (totalActivity > 0) {
+            filteredCropMap[key] = c;
+          }
+        });
+
         setSummary({
           expense: totalExp, labour: totalLab, income: totalInc, rent: totalRent,
           profit: totalInc - (totalExp + totalLab + totalRent)
         });
-        setCrops(cropMap);
-        setTimeout(() => { if (isMounted) generateSmartInsights(cropMap, totalInc); }, 300);
+        setCrops(filteredCropMap);
+        setTimeout(() => { if (isMounted) generateSmartInsights(filteredCropMap, totalInc); }, 300);
       } catch (e) { console.log(e); } finally { if (isMounted) setLoading(false); }
     };
     loadData();
@@ -576,7 +586,7 @@ export default function SummaryScreen() {
         title={language === "te" ? "సారాంశం" : "Summary"} 
         subtitle={language === "te" ? "వ్యవసాయ నివేదిక" : "Farm Report"} 
         language={language} 
-        onDownload={() => exportProfessionalPDF(suggestions)}
+        onDownload={handleDownloadPDF}
       />
 
       {loading ? (
@@ -751,12 +761,43 @@ export default function SummaryScreen() {
           }
         />
       )}
+
+      {/* 🔥 EMPTY PDF MODAL */}
+      <Modal visible={showEmptyModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.emptyModalContent}>
+            <View style={styles.emptyModalIconBox}>
+              <Ionicons name="document-text-outline" size={36} color="#DC2626" />
+            </View>
+            <AppText style={styles.emptyModalTitle}>
+              {language === "te" ? "నివేదిక ఖాళీగా ఉంది" : "Report is Empty"}
+            </AppText>
+            <AppText style={styles.emptyModalSub}>
+              {language === "te" 
+                ? "PDF జనరేట్ చేయడానికి మీ వ్యవసాయ డేటా ఏమీ లేదు. దయచేసి ముందుగా కొన్ని ఖర్చులు లేదా ఆదాయ వివరాలను నమోదు చేయండి." 
+                : "There is no farm data to generate a PDF. Please enter some expenses or income details first."}
+            </AppText>
+            <TouchableOpacity activeOpacity={0.7} style={styles.emptyModalBtn} onPress={() => setShowEmptyModal(false)}>
+              <AppText style={styles.emptyModalBtnText}>
+                {language === "te" ? "అర్థమైంది" : "Understood"}
+              </AppText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F8FAFC" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
+  emptyModalContent: { backgroundColor: "#fff", width: "100%", borderRadius: 24, padding: 24, alignItems: "center", elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
+  emptyModalIconBox: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#FEF2F2", justifyContent: "center", alignItems: "center", marginBottom: 16 },
+  emptyModalTitle: { fontSize: 20, fontWeight: "600", color: "#0F172A", marginBottom: 10 },
+  emptyModalSub: { fontSize: 14, color: "#64748B", textAlign: "center", lineHeight: 22, marginBottom: 24 },
+  emptyModalBtn: { backgroundColor: "#16A34A", width: "100%", paddingVertical: 14, borderRadius: 14, alignItems: "center" },
+  emptyModalBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   stickyBox: { backgroundColor: "#ffffff", padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9", elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10 },
   barItem: { marginBottom: 16 },
   barTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: 'center', marginBottom: 8 },

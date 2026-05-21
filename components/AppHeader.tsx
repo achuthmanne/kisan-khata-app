@@ -1,16 +1,21 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, TouchableOpacity, View, Platform, StatusBar } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "./AppText";
 
 export default function AppHeader({ title, subtitle, language, onDownload }: any) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
+  // Dynamic padding: Chinna screens lo thakkuva, pedda notch screens lo ekkuva.
+  const safeTop = Math.max(insets.top, Platform.OS === "android" ? (StatusBar.currentHeight || 20) : 20);
 
   return (
     <LinearGradient
       colors={["#1B5E20", "#2E7D32"]}
-      style={styles.header}
+      style={[styles.header, { paddingTop: safeTop + 10 }]}
     >
       {/* TOP ROW */}
       <View style={styles.topRow}>
@@ -18,9 +23,17 @@ export default function AppHeader({ title, subtitle, language, onDownload }: any
           <Ionicons name="arrow-back" size={20} color="white" />
         </TouchableOpacity>
 
-        <AppText style={styles.title} language={language}>
-          {title}
-        </AppText>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 10 }}>
+          <AppText style={styles.title} language={language}>
+            {title}
+          </AppText>
+          {/* SUBTITLE */}
+          {subtitle && (
+            <AppText style={styles.subtitle} language={language}>
+              {subtitle}
+            </AppText>
+          )}
+        </View>
 
         {/* 📥 DOWNLOAD BUTTON - SAME AS BACK BUTTON STYLE */}
         {onDownload ? (
@@ -28,24 +41,16 @@ export default function AppHeader({ title, subtitle, language, onDownload }: any
             <Ionicons name="cloud-download-outline" size={20} color="white" />
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 36 }} /> // Space maintainer
+          <View style={{ width: 32 }} /> // Space maintainer
         )}
       </View>
-
-      {/* SUBTITLE CENTER */}
-      {subtitle && (
-        <AppText style={styles.subtitle} language={language}>
-          {subtitle}
-        </AppText>
-      )}
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   header: {
-    paddingTop: 48,
-    paddingBottom: 16,
+    paddingBottom: 12,
     paddingHorizontal: 20
   },
 
@@ -56,9 +61,9 @@ const styles = StyleSheet.create({
   },
 
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.15)", // నీ పాత స్టైల్ నే వాడాను బ్రో
     justifyContent: "center",
     alignItems: "center"
@@ -69,11 +74,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "600",
     textAlign: "center",
-    flex: 1
+    includeFontPadding: false,
+    textAlignVertical: "center"
   },
 
   subtitle: {
-    marginTop: 4,
+    marginTop: 2,
     textAlign: "center",
     color: "rgba(255,255,255,0.8)",
     fontSize: 12

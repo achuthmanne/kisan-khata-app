@@ -6,23 +6,82 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter, useSegments } from "expo-router";
-import { Alert, Platform, Easing } from "react-native";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Animated,
+  Easing,
+  Linking,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  View,
-  Linking
+  View
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 
 import { useLanguage } from "@/context/LanguageContext";
 import AppText from "../../../components/AppText";
 import CustomTabBar from "../../../components/CustomTabBar";
+
+import AnimatedReanimated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+
+/* 🔥 INSTAGRAM-STYLE PREMIUM TOGGLE WITH REANIMATED FOR 60FPS SMOOTHNESS */
+const InstagramToggle = React.memo(({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: () => void }) => {
+  const progress = useSharedValue(isEnabled ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(isEnabled ? 1 : 0, {
+      duration: 250,
+    });
+  }, [isEnabled]);
+
+  const trackAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      backgroundColor: interpolateColor(
+        progress.value,
+        [0, 1],
+        ["#E5E7EB", "#16A34A"]
+      ),
+    };
+  });
+
+  const thumbAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: progress.value * 20 }],
+    };
+  });
+
+  return (
+    <TouchableOpacity activeOpacity={1} onPress={onToggle}>
+      <AnimatedReanimated.View
+        style={[{
+          width: 52,
+          height: 32,
+          borderRadius: 16,
+          justifyContent: "center",
+          paddingHorizontal: 4,
+        }, trackAnimatedStyle]}
+      >
+        <AnimatedReanimated.View
+          style={[{
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: "#FFFFFF",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 2,
+            elevation: 3,
+          }, thumbAnimatedStyle]}
+        />
+      </AnimatedReanimated.View>
+    </TouchableOpacity>
+  );
+});
 
 export default function FarmerLayout() {
   const router = useRouter();
@@ -36,19 +95,6 @@ export default function FarmerLayout() {
 
   const drawerAnim = useRef(new Animated.Value(-320)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
-  
-  const toggleTranslateX = useRef(new Animated.Value(language === "te" ? 24 : 2)).current;
-
-  /* ---------------- LANGUAGE TOGGLE ANIMATION ---------------- */
-  useEffect(() => {
-    Animated.spring(toggleTranslateX, {
-      toValue: language === "te" ? 24 : 2,
-      useNativeDriver: true, 
-      damping: 15,
-      stiffness: 150,
-      mass: 0.6
-    }).start();
-  }, [language]);
 
   /* ---------------- DRAWER ANIMATION ---------------- */
   useEffect(() => {
@@ -271,9 +317,7 @@ export default function FarmerLayout() {
 
                 {/* PREMIUM LANGUAGE TOGGLE WRAPPER */}
                 <View style={{ paddingHorizontal: 20 }}>
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={toggleLanguage}
+                  <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -293,21 +337,9 @@ export default function FarmerLayout() {
                       </View>
                     </View>
               
-                    {/* 🔥 BIGGER & GLITCH-FREE PREMIUM TOGGLE SWITCH */}
-                    <View
-                      style={[
-                        styles.toggleContainer,
-                        { backgroundColor: language === "te" ? "#DCFCE7" : "#E5E7EB" } 
-                      ]}
-                    >
-                      <Animated.View
-                        style={[
-                          styles.toggleCircle,
-                          { transform: [{ translateX: toggleTranslateX }] } 
-                        ]}
-                      />
-                    </View>
-                  </TouchableOpacity>
+                    {/* 🔥 INSTAGRAM REELS AUTO-SCROLL STYLE TOGGLE */}
+                    <InstagramToggle isEnabled={language === "te"} onToggle={toggleLanguage} />
+                  </View>
                 </View>
               </View>
       
@@ -352,7 +384,7 @@ export default function FarmerLayout() {
                 </TouchableOpacity>
             
                 {/* Rate Us */}
-                <TouchableOpacity style={styles.drawerItem} onPress={() => navigateFromDrawer("rate")}>
+                <TouchableOpacity style={[styles.drawerItem, { borderBottomWidth: 0 }]} onPress={() => navigateFromDrawer("rate")}>
                   <Ionicons name="star-outline" size={20} color="#16A34A" />
                   <AppText style={styles.drawerText}>
                     {language === "te" ? "మాకు రేటింగ్ ఇవ్వండి" : "Rate Us"}
@@ -426,25 +458,6 @@ const styles = StyleSheet.create({
     fontSize:15,
     fontWeight:"600",
     color:"#1F2937"
-  },
-  toggleContainer: {
-    width: 52,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#D1D5DB"
-  },
-  toggleCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#16A34A",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-    elevation: 2
   },
   
   // 🔥 NEW PINNED CONTAINER STYLES

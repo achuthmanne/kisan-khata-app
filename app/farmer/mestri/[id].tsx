@@ -424,33 +424,34 @@ export default function MestriAttendance() {
       </ScrollView> 
 
       {/* 🔥 APP THEMED DUPLICATE WARNING MODAL */}
-      <Modal visible={showWarning} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.warningBox}>
-            <View style={styles.iconBg}>
-              <Ionicons name="warning" size={36} color="#16A34A" /> 
+      <Modal visible={showWarning} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
             </View>
-            <AppText style={styles.warningTitle} language={language}>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
               {language === "te" ? "ఇప్పటికే ఉంది" : "Already Exists"}
             </AppText>
-            <AppText style={styles.warningText} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ తేదీ, పంట, మరియు పని వివరాలతో ఇప్పటికే హాజరు నమోదు అయింది."
                 : "Attendance already exists for this date, crop, and work combination."}
             </AppText>
 
-            <View style={styles.rowBtns}>
+            <View style={styles.modalButtonsStandard}>
               <TouchableOpacity
-                style={styles.helpBtn}
+                activeOpacity={0.8}
+                style={styles.modalCancelBtnStandard}
                 onPress={() => {
                   setShowWarning(false);
                   setTimeout(() => setShowGuide(true), 200);
                 }}
               >
-                <AppText style={styles.helpText} language={language}>{language === "te" ? "సహాయం" : "Help"}</AppText>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "సహాయం" : "Help"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.noBtn} onPress={() => setShowWarning(false)}>
-                <AppText style={styles.noText} language={language}>{language === "te" ? "సరే" : "Okay"}</AppText>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard} onPress={() => setShowWarning(false)}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే" : "Okay"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -684,4 +685,16 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: "row", justifyContent: "space-between", padding: 20, alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
   modalTitleText: { fontSize: 18, fontWeight: "600", color: "#1F2937" },
   option: { padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" },
 });

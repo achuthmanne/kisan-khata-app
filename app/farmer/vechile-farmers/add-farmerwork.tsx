@@ -887,26 +887,26 @@ export default function AddFarmerWork() {
       </Modal>
 
       {/* 🔥 DUPLICATE ENTRY WARNING MODAL 🔥 */}
-      <Modal visible={showDuplicateModal} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.errorBox}>
-            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
-              <Ionicons name="warning" size={36} color="#F59E0B" />
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
             </View>
-            <AppText style={[styles.errorTitle, { color: '#111827', fontSize: 18 }]}>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
               {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Work Entry!"}
             </AppText>
-            <AppText style={[styles.errorMsg, { lineHeight: 20 }]}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te" ? "ఈ తేదీన, ఇదే పంట మరియు పని వివరాలతో రికార్డు ఇప్పటికే ఉంది.\n\nమీరు ఖచ్చితంగా ఈ పనిని మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An entry with the same date, crop, and work already exists.\n\nAre you sure you want to add this duplicate work entry?"}
             </AppText>
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 20, width: '100%' }}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.okBtn, { flex: 1, backgroundColor: "#F3F4F6", marginTop: 0 }]} onPress={() => setShowDuplicateModal(false)}>
-                <AppText style={{ color: "#4B5563", fontWeight: '600' }}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.okBtn, { flex: 1, backgroundColor: "#16A34A", marginTop: 0 }]}
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
                 onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
               >
-                <AppText style={{ color: "#fff", fontWeight: '600' }}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1013,5 +1013,17 @@ const styles = StyleSheet.create({
   errorBox: { width: "85%", backgroundColor: "#fff", borderRadius: 24, padding: 24, alignItems: "center", elevation: 10 },
   errorTitle: { fontSize: 16, fontWeight: "600", marginTop: 10 },
   errorMsg: { fontSize: 13, color: "#6B7280", marginTop: 6, textAlign: "center" },
-  okBtn: { marginTop: 15, backgroundColor: "#DC2626", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" }
+  okBtn: { marginTop: 15, backgroundColor: "#DC2626", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
 });

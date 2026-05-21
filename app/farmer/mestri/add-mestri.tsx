@@ -48,7 +48,10 @@ export default function AddMestri() {
   
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [loading, setLoading] = useState(false);
+  
+  // 🔥 Lock Info & Duplicate Modal States
   const [showLockInfo, setShowLockInfo] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   // CONTACTS STATES
   const [showContactsModal, setShowContactsModal] = useState(false);
@@ -198,7 +201,7 @@ export default function AddMestri() {
     };
   }, []);
 
-  const handleSave = async () => {
+  const handleSave = async (bypassDuplicate = false) => {
     Keyboard.dismiss();
 
     const newErrors: { name?: string; phone?: string; village?: string } = {};
@@ -235,6 +238,21 @@ export default function AddMestri() {
         .collection("users")
         .doc(userPhone)
         .collection("mestris");
+
+      if (!editId && !bypassDuplicate) {
+        const duplicateCheck = await ref
+          .where("phone", "==", cleanPhone)
+          .where("session", "==", activeSession)
+          .get();
+
+        if (!duplicateCheck.empty) {
+          if (isMounted.current) {
+            setLoading(false);
+            setShowDuplicateModal(true);
+          }
+          return;
+        }
+      }
 
       if (editId) {
         await ref.doc(editId).update({
@@ -474,7 +492,7 @@ export default function AddMestri() {
         {errors.village && <AppText style={styles.errorText} language={language}>{errors.village}</AppText>}
 
         {/* SAVE BUTTON */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading} activeOpacity={0.9}>
+        <TouchableOpacity style={styles.saveBtn} onPress={() => handleSave(false)} disabled={loading} activeOpacity={0.9}>
           <LinearGradient
             colors={["#2E7D32", "#1B5E20"]}
             style={styles.saveGradient}
@@ -573,27 +591,56 @@ export default function AddMestri() {
 
       {/* LOCK INFO MODAL */}
       <Modal visible={showLockInfo} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={[styles.iconBg, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="lock-closed" size={36} color="#DC2626" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#DC2626" }]} language={language}>
               {language === "te" ? "పేరు మార్చలేరు" : "Name Locked"}
             </AppText>
-            <AppText style={[styles.modalSub, { lineHeight: 22 }]} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ మేస్త్రీకి సంబంధించిన పని వివరాలు ఇప్పటికే రికార్డ్ అయినందున మీరు పేరును సవరించలేరు. కేవలం ఫోన్ నంబర్ మరియు గ్రామం మార్చుకోవచ్చు."
                 : "Since this mestri has existing work records, you cannot change the name. You can only update the phone number and village."}
             </AppText>
-            <TouchableOpacity activeOpacity={0.8}
-              style={[styles.okBtn, { backgroundColor: '#F59E0B' }]}
-              onPress={() => setShowLockInfo(false)}
-            >
-              <AppText style={styles.okText} language={language}>
-                {language === "te" ? "అర్థమైంది" : "Got It"}
-              </AppText>
-            </TouchableOpacity>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#DC2626" }]}
+                onPress={() => setShowLockInfo(false)}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>
+                  {language === "te" ? "అర్థమైంది" : "Got It"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
+      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
+            </View>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
+              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {language === "te" ? "ఈ ఫోన్ నంబర్ తో మేస్త్రీ వివరాలు ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "A mestri with this phone number already exists.\n\nAre you sure you want to add this duplicate entry?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
+                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -705,5 +752,17 @@ const styles = StyleSheet.create({
   contactItem: { flexDirection: "row", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
   contactAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: "#16A34A", justifyContent: "center", alignItems: "center", marginRight: 15 },
   contactName: { fontSize: 16, fontWeight: "600", color: "#111827", marginBottom: 2 },
-  contactPhone: { fontSize: 13, color: "#6B7280" }
+  contactPhone: { fontSize: 13, color: "#6B7280" },
+
+  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
 });

@@ -409,19 +409,19 @@ export default function OwnersList() {
       </TouchableOpacity>
 
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.iconBgWarning}>
-              <Ionicons name="trash-outline" size={36} color="#DC2626" />
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalIconBg}>
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>{language === "te" ? "తొలగించాలా?" : "Delete Entry?"}</AppText>
-            <AppText style={styles.modalSub} language={language}>{language === "te" ? "ఈ యజమాని అకౌంట్ ని పూర్తిగా తొలగించాలా?" : "Are you sure you want to delete this owner account?"}</AppText>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowDeleteModal(false)}>
-                <AppText>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+            <AppText style={styles.modalTitleStandard} language={language}>{language === "te" ? "తొలగించాలా?" : "Delete Entry?"}</AppText>
+            <AppText style={styles.modalSubStandard} language={language}>{language === "te" ? "ఈ యజమాని అకౌంట్ ని పూర్తిగా తొలగించాలా?" : "Are you sure you want to delete this owner account?"}</AppText>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowDeleteModal(false)}>
+                <AppText style={styles.modalCancelText}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={confirmDelete}>
-                <AppText style={{ color: "#fff", fontWeight: '600' }}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+              <TouchableOpacity style={styles.modalConfirmBtn} onPress={confirmDelete}>
+                <AppText style={styles.modalConfirmText}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -429,20 +429,20 @@ export default function OwnersList() {
       </Modal>
 
       <Modal visible={showCannotDeleteModal} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={[styles.iconBgWarning, { backgroundColor: '#FEF3C7' }]}>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardWarning}>
               <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>{language === "te" ? "తొలగించడం కుదరదు" : "Cannot Delete"}</AppText>
-            <AppText style={[styles.modalSub, { lineHeight: 22 }]} language={language}>
+            <AppText style={styles.modalTitleStandardWarning} language={language}>{language === "te" ? "తొలగించడం కుదరదు" : "Cannot Delete"}</AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ ఓనర్ కు సంబంధించి పనుల వివరాలు ఇప్పటికే మీ అకౌంట్లో రికార్డ్ అయ్యాయి. కావున వీరిని తొలగించడం కుదరదు."
                 : "This owner has existing work records logged. Therefore, they cannot be deleted."}
             </AppText>
-            <View style={styles.modalBtns}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.cancelBtn, { flex: 1, backgroundColor: '#F59E0B' }]} onPress={() => setShowCannotDeleteModal(false)}>
-                <AppText style={{ color: 'white', fontWeight: '600' }} language={language}>{language === "te" ? "అర్థమైంది" : "Got It"}</AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalWarningBtnStandard} onPress={() => setShowCannotDeleteModal(false)}>
+                <AppText style={styles.modalWarningTextStandard} language={language}>{language === "te" ? "అర్థమైంది" : "Got It"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -482,5 +482,24 @@ const styles = StyleSheet.create({
   modalSub: { fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 8 },
   modalBtns: { flexDirection: "row", marginTop: 20, gap: 12 },
   cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center", justifyContent: 'center' },
-  deleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#DC2626", alignItems: "center", justifyContent: 'center' }
+  deleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#DC2626", alignItems: "center", justifyContent: 'center' },
+  
+  // UNIFIED PREMIUM MODAL CLASSES
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
+  modalContent: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
+  modalTitleStandard: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
+  modalButtons: { flexDirection: "row", gap: 10 },
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12 },
+  modalCancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
+  modalConfirmBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
+  modalCancelText: { color: "#64748B", fontWeight: "500" },
+  modalConfirmText: { color: "white", fontWeight: "500" },
+  modalIconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  modalTitleStandardWarning: { fontSize: 20, fontWeight: "500", color: "#F59E0B", marginVertical: 10, textAlign: "center" },
+  modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
+  modalWarningTextStandard: { color: "white", fontWeight: "500" },
+  modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 });

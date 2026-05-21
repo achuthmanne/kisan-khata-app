@@ -47,6 +47,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./withManifestFix.js",
       "expo-router",
       [
         "expo-splash-screen",

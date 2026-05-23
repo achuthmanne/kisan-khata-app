@@ -29,7 +29,6 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import ShimmerPlaceholder from "react-native-shimmer-placeholder";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
 
@@ -469,6 +468,7 @@ export default function Dashboard() {
   };
 
   const translateToTelugu = async (text: string) => {
+    if (!text) return "లొకేషన్";
     if (cityMap[text]) return cityMap[text]; 
     try {
       const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=te&dt=t&q=${encodeURIComponent(text)}`);
@@ -582,8 +582,17 @@ export default function Dashboard() {
       if (!res.ok) throw new Error("Weather API failed");
       const data = await res.json();
 
-      let finalCity = data.name;
-      if (language === "te") finalCity = await translateToTelugu(data.name);
+      let osCity = "";
+      try {
+        const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
+        if (geo && geo.length > 0) {
+          const g = geo[0];
+          osCity = g.name || g.street || g.city || g.subregion || g.district || "";
+        }
+      } catch (e) {}
+
+      let finalCity = osCity || data.name;
+      if (language === "te") finalCity = await translateToTelugu(finalCity);
 
       setCity(finalCity);
       
@@ -768,7 +777,7 @@ export default function Dashboard() {
                 <Ionicons name={getGreetingIcon()} size={18} color="#C8E6C9" />
                 <AppText style={styles.greet} language={language}>{getGreeting()}</AppText>
               </Animated.View>
-              <AppText style={[styles.name, language === "en" && { fontWeight: "600", marginTop: -8 }, language === "te" && { fontFamily: "Mandali", marginTop: -8}]} language={language}>
+              <AppText style={[styles.name, language === "en" && { fontWeight: "600", marginTop: -8 }, language === "te" && { fontFamily: "Mandali", marginTop: -8}]} language={language} numberOfLines={1} ellipsizeMode="tail">
                 {name || "Farmer"}
               </AppText>
             </View>
@@ -886,9 +895,8 @@ export default function Dashboard() {
                                 return(
                                   <View key={index} style={styles.marketRow}>
                                     <View style={styles.marketLeft}>
-                                      {/* 🔥 PRO FIX 4: Safe undefined check for commodity API gaps */}
-                                      <AppText style={styles.crop} language={language}>{(item.commodity || "").replace(/\(.*?\)/g,"")}</AppText>
-                                      <AppText style={styles.marketName} language={language }>{item.market} | {item.arrival_date?.slice(0,5) || ""}</AppText>
+                                      <AppText style={styles.crop} language={language} numberOfLines={1} ellipsizeMode="tail">{(item.commodity || "").replace(/\(.*?\)/g,"")}</AppText>
+                                      <AppText style={styles.marketName} language={language} numberOfLines={1} ellipsizeMode="tail">{item.market} | {item.arrival_date?.slice(0,5) || ""}</AppText>
                                     </View>
                                     <View style={styles.marketRight}>
                                       <AppText style={styles.price} language={language}>₹{item.modal_price}</AppText>
@@ -1079,19 +1087,19 @@ const styles = StyleSheet.create({
   headerSvg:{ marginTop:-1, alignSelf:"center" },
   stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 60, paddingHorizontal: 20, paddingBottom: 5 },
   headerRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:5 },
-  profileRow:{ flexDirection:"row", alignItems:"center" },
+  profileRow:{ flexDirection:"row", alignItems:"center", flexShrink: 1 },
   profileImage:{ width:50, height:50, borderRadius:25, marginRight:10 },
   avatar:{ width:70, height:70, borderRadius:35, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center", elevation:5 },
   avatarText:{ color:"#fff", fontSize:26, fontWeight:"bold" },
-  name:{ color:"white", fontSize:22, includeFontPadding:false, textAlignVertical:"center" },
+  name:{ color:"white", fontSize:22, includeFontPadding:false, textAlignVertical:"center", flexShrink: 1 },
   notifyBtn:{ backgroundColor:"rgba(255,255,255,0.2)", padding:10, borderRadius:12 },
   headerGlassCard:{ width:"100%", height:120, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, paddingVertical:16, paddingHorizontal:16, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
   drawerItem:{ flexDirection:"row", alignItems:"center", paddingVertical:14, borderBottomWidth:0.5, borderColor:"#E5E7EB", gap:12 },
   drawerText:{ fontSize:15, fontWeight:"600", color:"#1F2937" },
   openText:{ color:"white", fontSize:12, opacity:0.9 },
   weatherCard:{ marginTop:30, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, padding:18, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
-  locationRow:{ flexDirection:"row", alignItems:"center", paddingRight: 40 },
-  city:{ color:"white", fontSize:16, fontWeight:"600", marginLeft:6, marginBottom: 5, lineHeight:22 },
+  locationRow:{ flexDirection:"row", alignItems:"center", paddingRight: 5, flexShrink: 1 },
+  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, marginTop: -5, includeFontPadding: false, },
   date:{ color:"rgba(255,255,255,0.8)", fontSize:14, marginTop:5 },
   greetRow:{ flexDirection:"row", alignItems:"center", gap:6 },
   rightTopSection:{ position:"absolute", right:8, alignItems:"flex-end" },
@@ -1099,7 +1107,7 @@ const styles = StyleSheet.create({
   greet:{ color:"#C8E6C9", fontSize:14, fontWeight:"600" },
   weatherRow:{ flexDirection:"row", alignItems:"center" },
   weatherIcon:{ width:26, height:26, marginRight:6 },
-  weatherLeft:{ flex:1 },
+  weatherLeft:{ flex:1, paddingRight: 110 },
   weatherRight:{ justifyContent:"center", alignItems:"center" },
   weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding:false },
   temp:{ color:"white", fontSize:55, fontWeight:"bold", marginRight: -6 },
@@ -1116,9 +1124,9 @@ const styles = StyleSheet.create({
   priceLoadingText:{ color:"white", fontSize:13, opacity:0.9 },
   marketTitle:{ color:"white", fontSize:16, fontWeight:"600" },
   marketSeeMore:{ flexDirection:"row", alignItems:"center", gap:4 },
-  marketRight:{ flexDirection:"row", alignItems:"center", justifyContent:"flex-end", minWidth:80 },
-  crop:{ color:"white", fontSize:15, fontWeight:"700" },
-  marketName:{ color:"rgba(255,255,255,0.75)", fontSize:11, marginTop:2 },
+  marketRight:{ flexDirection:"row", alignItems:"center", justifyContent:"flex-end", minWidth:80, paddingLeft: 10 },
+  crop:{ color:"white", fontSize:15, fontWeight:"700", flexShrink: 1 },
+  marketName:{ color:"rgba(255,255,255,0.75)", fontSize:11, marginTop:2, flexShrink: 1 },
   price:{ color:"white", fontSize:16, fontWeight:"bold", marginRight:6 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
   closeBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#E5E7EB", justifyContent: "center", alignItems: "center" },

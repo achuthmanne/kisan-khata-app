@@ -50,7 +50,6 @@ export default function MestriAttendance() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const [showWarning, setShowWarning] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [warningType, setWarningType] = useState<"duplicate" | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -98,7 +97,13 @@ export default function MestriAttendance() {
       const set = new Set<string>();
       snap.forEach(doc => {
         const data = doc.data();
-        if (data.crop) set.add(data.crop);
+        if (data.crop) {
+          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+          const formatted = data.nickname 
+            ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
+            : `${data.crop} - ${data.acres || 0} ${acresText}`;
+          set.add(formatted);
+        }
       });
       setUserCrops(Array.from(set));
     };
@@ -435,23 +440,23 @@ export default function MestriAttendance() {
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
-                ? "ఈ తేదీ, పంట, మరియు పని వివరాలతో ఇప్పటికే హాజరు నమోదు అయింది."
-                : "Attendance already exists for this date, crop, and work combination."}
+                ? "మీరు ఈ రోజు, ఈ పంట మరియు పనికి సంబంధించిన కూలీల లెక్కను ఇప్పటికే వేశారు. ఒకవేళ మీరు కూలీల సంఖ్యను మార్చాలి అనుకుంటే, దయచేసి కింద ఉన్న 'పని చరిత్ర' బటన్ నొక్కి, అందులో ఈ రోజుటి లెక్కను మార్చండి లేదా తొలగించండి."
+                : "Attendance for this crop and work on this date already exists. If you want to change the workers count, please tap 'Work History' below to edit or delete today's entry."}
             </AppText>
 
             <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowWarning(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={styles.modalCancelBtnStandard}
+                style={styles.modalInfoBtnStandard}
                 onPress={() => {
                   setShowWarning(false);
-                  setTimeout(() => setShowGuide(true), 200);
+                  router.push(`/farmer/mestri-history?id=${id}`);
                 }}
               >
-                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "సహాయం" : "Help"}</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard} onPress={() => setShowWarning(false)}>
-                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే" : "Okay"}</AppText>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "పని చరిత్ర" : "Work History"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -564,26 +569,7 @@ export default function MestriAttendance() {
         </View>
       </Modal>
 
-      <Modal visible={showGuide} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.guideBox}>
-            <AppText style={styles.guideTitle} language={language}>
-              {language === "te" ? "ఏం చేయాలి?" : "What to do?"}
-            </AppText>
-            <AppText style={styles.guideText} language={language}>
-              {language === "te" ? "ఈ రోజుటి హాజరు వివరాలు మార్చాలనుకుంటే 'హిస్టరీ' లోకి వెళ్లి సవరించుకోండి." : "If you want to edit today's attendance, please go to History and edit it."}
-            </AppText>
-            <View style={styles.rowBtns}>
-              <TouchableOpacity style={[styles.noBtn, {backgroundColor: '#F1F5F9'}]} onPress={() => setShowGuide(false)}>
-                <AppText style={[styles.noText, {color: '#4B5563'}]} language={language}>{language === "te" ? "వద్దు" : "Close"}</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.historyBtn} onPress={() => { setShowGuide(false); router.push("/farmer/attendance-history"); }}>
-                <AppText style={styles.historyText} language={language}>{language === "te" ? "హిస్టరీ చూడండి" : "View History"}</AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+
 
       <Modal visible={showSuccess} transparent>
         <View style={styles.successOverlay}>
@@ -674,12 +660,6 @@ const styles = StyleSheet.create({
   helpText: { color: "#4B5563", fontWeight: "600" },
   noBtn: { flex: 1, backgroundColor: "#16A34A", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
   noText: { color: "white", fontWeight: "600" },
-  
-  guideBox: { width: "85%", backgroundColor: "white", borderRadius: 22, padding: 24 },
-  guideTitle: { fontSize: 18, fontWeight: "600", color: "#111827", marginBottom: 10 },
-  guideText: { fontSize: 14, color: "#4B5563", lineHeight: 22 },
-  historyBtn: { flex: 1.5, backgroundColor: "#2E7D32", paddingVertical: 12, borderRadius: 12, alignItems: "center" },
-  historyText: { color: "white", fontWeight: "600" },
 
   modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 25, borderTopRightRadius: 25, height: "70%" },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", padding: 20, alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },

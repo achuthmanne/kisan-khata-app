@@ -9,7 +9,7 @@ import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
-import React, { useCallback, useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -350,7 +350,7 @@ export default function VehicleDetails() {
 
       {/* LIST */}
       {loading ? (
-        <View style={{ paddingTop: 10 }}>
+        <View style={{ paddingVertical: 10 }}>
           <ShimmerRow />
           <ShimmerRow />
           <ShimmerRow />
@@ -361,7 +361,7 @@ export default function VehicleDetails() {
           keyExtractor={(item) => item.id}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={[
-            { padding: 20, paddingBottom: 100 },
+            { paddingVertical: 10, paddingBottom: 100 },
             filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           ListEmptyComponent={

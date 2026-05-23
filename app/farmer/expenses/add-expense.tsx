@@ -111,7 +111,13 @@ const categoryOptions = [
       const set = new Set<string>();
       snap.forEach(doc => {
         const d = doc.data();
-        if (d.crop) set.add(d.crop);
+        if (d.crop) {
+          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+          const formatted = d.nickname 
+            ? `${d.crop} - ${d.nickname} (${d.acres || 0} ${acresText})` 
+            : `${d.crop} - ${d.acres || 0} ${acresText}`;
+          set.add(formatted);
+        }
       });
 
       if (isMounted.current) setUserCrops(Array.from(set));

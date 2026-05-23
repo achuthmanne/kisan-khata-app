@@ -31,6 +31,7 @@ export default function AddField() {
 
   // 🔥 INSTANT DATA LOAD FROM PARAMS
   const [crop, setCrop] = useState(getStr(params.crop));
+  const [nickname, setNickname] = useState(getStr(params.nickname) || ""); // 🔥 NEW
   const [soilType, setSoilType] = useState(getStr(params.soilType));
   const [acres, setAcres] = useState(getStr(params.acres));
   const [type, setType] = useState<"own" | "rent" | null>(getStr(params.type) as "own" | "rent" | null);
@@ -47,7 +48,11 @@ export default function AddField() {
   const [modalType, setModalType] = useState<"crop" | "soil" | null>(null); 
   const [searchText, setSearchText] = useState("");
   const [isListening, setIsListening] = useState(false);
+  const [voiceTarget, setVoiceTarget] = useState<"search" | "nickname" | null>(null);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
+  const nicknameRef = useRef<TextInput>(null);
   const acresRef = useRef<TextInput>(null);
   const rentRef = useRef<TextInput>(null);
 
@@ -176,7 +181,8 @@ const soilOptions = [
 
     // 🔥 INLINE VALIDATION LOGIC
     const newErrors: any = {};
-    if (!crop.trim()) newErrors.crop = language === "te" ? "పంటను ఎంచుకోండి*" : "Select Crop*";
+    if (!crop.trim()) newErrors.crop = language === "te" ? "పంటను ఎంచుకోండి*" : "Select Crop Name*";
+    if (!nickname.trim()) newErrors.nickname = language === "te" ? "పొలం గుర్తు/ఆనవాలు నమోదు చేయండి*" : "Enter Field Nickname/Location*";
     if (!soilType.trim()) newErrors.soilType = language === "te" ? "నేల రకాన్ని ఎంచుకోండి*" : "Select Soil Type*";
     if (!acres) newErrors.acres = language === "te" ? "ఎకరాలు నమోదు చేయండి*" : "Enter acres*";
     if (!type) newErrors.type = language === "te" ? "పొలం రకం ఎంచుకోండి*" : "Select field type*";
@@ -207,6 +213,7 @@ const soilOptions = [
       const fieldData = {
         session: activeSession,
         crop: crop.trim(),
+        nickname: nickname.trim(), // 🔥 Saved to DB
         soilType: soilType.trim(),
         acres: Number(acres),
         type,
@@ -222,7 +229,7 @@ const soilOptions = [
       if (!editId && !bypassDuplicate) {
         const duplicateCheck = await ref
           .where("crop", "==", fieldData.crop)
-          .where("acres", "==", fieldData.acres)
+          .where("nickname", "==", fieldData.nickname)
           .where("session", "==", activeSession)
           .get();
 
@@ -247,26 +254,36 @@ const soilOptions = [
 
       router.back();
 
-    } catch (e) {
-      console.log(e);
+    } catch (e: any) {
+      console.log("SAVE ERROR:", e);
+      setErrorMsg(language === "te" ? "సర్వర్ లోపం! దయచేసి ఇంటర్నెట్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి." : "Server Error! Please check your internet and try again.");
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const startVoice = async () => {
+  const startVoice = async (target: "search" | "nickname" = "search") => {
+    Keyboard.dismiss();
     const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!res.granted) return;
+    setVoiceTarget(target);
     setIsListening(true);
-    ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-US" });
+    ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-US", interimResults: true });
   };
 
   useSpeechRecognitionEvent("result", (event) => {
     if (!isListening) return; // 🔥 Safety check
     const text = event.results?.[0]?.transcript?.replace(/[.,?!]/g, ""); // 🔥 Punctuation fix
-    if (text) setSearchText(text);
+    if (text) {
+      if (voiceTarget === "nickname") setNickname(text);
+      else setSearchText(text);
+    }
   });
-  useSpeechRecognitionEvent("end", () => setIsListening(false));
+  useSpeechRecognitionEvent("end", () => {
+    setIsListening(false);
+    setVoiceTarget(null);
+  });
 
   useEffect(() => {
     if (!isScreenFocused) {
@@ -345,6 +362,47 @@ const soilOptions = [
               </AppText>
             </View>
           )}
+
+          {/* 🔥 NICKNAME / LOCATION BOX */}
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={() => {
+              setActiveInput("nickname");
+              setTimeout(() => nicknameRef.current?.focus(), 50);
+            }}
+            style={[styles.inputBox, activeInput === "nickname" && styles.inputFocused, errors.nickname && styles.inputError]}
+          >
+            <Ionicons name="location-outline" size={20} color={nickname ? "#16A34A" : "#9CA3AF"} />
+            <View style={styles.inputWrapper}>
+              {!nickname && activeInput !== "nickname" && (
+                <AppText style={styles.placeholder}>
+                  {language === "te" ? "ఆనవాలు (ఉదా: చెరువు కాడ)*" : "Nickname / Location*"}
+                </AppText>
+              )}
+              <TextInput
+                ref={nicknameRef}
+                value={nickname}
+                cursorColor="#16A34A"
+                selectionColor="#16A34A40"
+                onChangeText={(txt) => {
+                  setNickname(txt);
+                  if (errors.nickname) setErrors({ ...errors, nickname: "" });
+                }}
+                style={[styles.input, { display: (nickname || activeInput === "nickname") ? "flex" : "none", paddingRight: 40 }]}
+                onFocus={() => setActiveInput("nickname")}
+                onBlur={() => setActiveInput(null)}
+              />
+            </View>
+            {/* MIC BUTTON */}
+            <TouchableOpacity onPress={() => startVoice("nickname")}>
+              <Ionicons 
+                name={voiceTarget === "nickname" && isListening ? "mic" : "mic-outline"} 
+                size={22} 
+                color={voiceTarget === "nickname" && isListening ? "#EF4444" : "#9CA3AF"} 
+              />
+            </TouchableOpacity>
+          </TouchableOpacity>
+          {errors.nickname && <AppText style={styles.errorText} language={language}>{errors.nickname}</AppText>}
 
           {/* 🪨 SOIL TYPE BOX */}
           <TouchableOpacity 
@@ -522,8 +580,8 @@ const soilOptions = [
                   <Ionicons name="add" size={20} color="#fff" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={startVoice} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
-                <Ionicons name={isListening ? "mic" : "mic-outline"} size={24} color={isListening ? "#EF4444" : "#16A34A"} />
+              <TouchableOpacity onPress={() => startVoice("search")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                <Ionicons name={voiceTarget === "search" && isListening ? "mic" : "mic-outline"} size={24} color={voiceTarget === "search" && isListening ? "#EF4444" : "#16A34A"} />
               </TouchableOpacity>
             </View>
 
@@ -593,13 +651,35 @@ const soilOptions = [
         </View>
       </Modal>
 
+      {/* 🔥 GLOBAL ERROR MODAL */}
+      <Modal visible={showErrorModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="warning-outline" size={36} color="#EF4444" />
+            </View>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#EF4444" }]} language={language}>
+              {language === "te" ? "లోపం జరిగింది" : "Error Occurred"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {errorMsg}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowErrorModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "సరే" : "OK"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
-  container: { padding: 20, paddingBottom: 40 }, 
+  container: { padding: 20, paddingBottom: 120 }, 
   label: { fontSize: 14, color: "#6B7280", marginBottom: 6, marginLeft: 4, fontWeight: '500', fontFamily: 'Mandali' },
   
   inputBox: {
@@ -657,6 +737,7 @@ const styles = StyleSheet.create({
     flex: 1, padding: 15, borderRadius: 12, backgroundColor: "#F9FAFB", 
     alignItems: "center", borderWidth: 1, borderColor: "#D1D5DB"
   },
+  
   activePill: { backgroundColor: "#1B5E20"},
   pillText: { fontSize: 16, fontWeight: "600", fontFamily: "Mandali" },
 

@@ -68,7 +68,7 @@ export default function AddMestri() {
   const [isListening, setIsListening] = useState(false);
 
   const t = {
-    name: language === "te" ? "పేరు నమోదు చేయండి*" : "Enter name*",
+    name: language === "te" ? "కూలీ మేస్త్రీ పేరు రాయండి*" : "Enter kuli mestri name*",
     phone: language === "te" ? "ఫోన్ నంబర్ నమోదు చేయండి" : "Enter phone number",
     village: language === "te" ? "గ్రామం నమోదు చేయండి*" : "Enter village*"
   };

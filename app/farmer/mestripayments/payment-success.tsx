@@ -17,7 +17,8 @@ import {
   StatusBar,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
+  Modal
 } from "react-native";
 
 // 🔥 FULL BLOCK iOS SWIPE BACK
@@ -244,7 +245,7 @@ export default function PaymentSuccess() {
               </TouchableOpacity>
               <TouchableOpacity activeOpacity={0.8} style={[styles.subBtn, { backgroundColor: "#fff", borderColor: SUCCESS_GREEN }]} onPress={() => router.replace("/farmer/(tabs)/history")}>
                 <Ionicons name="time-outline" size={18} color={SUCCESS_GREEN} />
-                <AppText style={{ color: SUCCESS_GREEN, fontWeight: '600' }} language={language}>{language === "te" ? "చరిత్ర" : "History"}</AppText>
+                <AppText style={{ color: SUCCESS_GREEN, fontWeight: '600' }} language={language}>{language === "te" ? "చెల్లింపులు" : "Payments"}</AppText>
               </TouchableOpacity>
             </View>
             
@@ -282,36 +283,44 @@ export default function PaymentSuccess() {
         </View>
       )}
 
-      {/* HELP MODAL */}
-      {helpModal && (
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={[styles.iconBg, { backgroundColor: SUCCESS_GREEN + "15" }]}>
-              <Ionicons name="information-circle" size={40} color={SUCCESS_GREEN} />
+      {/* HELP MODAL - PREMIUM THEME */}
+      <Modal visible={helpModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandardInfo}>
+              <Ionicons name="information-circle" size={36} color={SUCCESS_GREEN} />
             </View>
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={styles.modalTitleStandardInfo} language={language}>
               {language === "te" ? "ఎలా సరిచేయాలి?" : "How to fix payment?"}
             </AppText>
-            <View style={styles.stepsContainer}>
-              <AppText style={styles.step} language={language}>1. {language === "te" ? "చరిత్ర (History) లోకి వెళ్ళండి" : "Go to History"}</AppText>
-              <AppText style={styles.step} language={language}>2. {language === "te" ? "వివరాలు సరిచూసుకోండి" : "Verify the details"}</AppText>
-              <AppText style={styles.step} language={language}>3. {language === "te" ? "తప్పుగా ఉంటే డిలీట్ చేయండి" : "Delete if incorrect"}</AppText>
+            
+            <View style={{ width: '100%', marginTop: 15, marginBottom: 25 }}>
+              <AppText style={[styles.modalSubStandard, { textAlign: 'left', marginBottom: 6 }]} language={language}>
+                1. {language === "te" ? "కింద ఉన్న 'చెల్లింపులు' ఆప్షన్ నొక్కండి." : "Go to Payments below."}
+              </AppText>
+              <AppText style={[styles.modalSubStandard, { textAlign: 'left', marginBottom: 6 }]} language={language}>
+                2. {language === "te" ? "మీరు తప్పుగా వేసిన చెల్లింపు వివరాలపై నొక్కండి." : "Tap on the incorrect payment record."}
+              </AppText>
+              <AppText style={[styles.modalSubStandard, { textAlign: 'left', marginBottom: 0 }]} language={language}>
+                3. {language === "te" ? "పైన ఉన్న 'తొలగించు' (చెత్తబుట్ట) ఐకాన్ నొక్కి దాన్ని తీసేయండి." : "Tap the 'Delete' (trash) icon at the top."}
+              </AppText>
             </View>
             
-            {/* 🔥 NEW PREMIUM OK BUTTON */}
-            <TouchableOpacity 
-              activeOpacity={0.7} 
-              style={styles.helpOkBtn} 
-              onPress={() => setHelpModal(false)} // 🔥 Just closing the modal now
-            >
-              <AppText style={styles.helpOkText} language={language}>
-                {language === "te" ? "అర్థమైంది" : "Got it"}
-              </AppText>
-            </TouchableOpacity>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={styles.modalInfoBtnStandard} 
+                onPress={() => setHelpModal(false)}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>
+                  {language === "te" ? "అర్థమైంది" : "Got it"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
 
           </View>
         </View>
-      )}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -362,28 +371,13 @@ const styles = StyleSheet.create({
   confirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 18 },
   confirmText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", zIndex: 1000 },
-  modalBox: { width: "85%", backgroundColor: "#fff", borderRadius: 28, padding: 25, alignItems: "center" },
-  iconBg: { width: 70, height: 70, borderRadius: 35, justifyContent: "center", alignItems: "center", marginBottom: 15 },
-  modalTitle: { fontSize: 20, fontWeight: "600", color: '#111827' },
-  stepsContainer: { width: '100%', marginTop: 15 },
-  step: { fontSize: 15, color: "#4B5563", marginVertical: 5, fontWeight: '500' },
-  
-  // 🔥 PREMIUM MODAL BUTTON STYLES
-  helpOkBtn: { 
-    marginTop: 25, 
-    paddingVertical: 14, 
-    borderRadius: 14, 
-    alignItems: "center", 
-    width: "100%", 
-    backgroundColor: "#1B5E20", 
-    borderWidth: 1, 
-    borderColor: "#BBF7D0" 
-  },
-  helpOkText: { 
-    color: "#fff", 
-    includeFontPadding: false,
-    fontWeight: "600", 
-    fontSize: 15 
-  }
+  // UNIFIED PREMIUM MODAL CLASSES
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#16A34A", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600", fontSize: 16 },
 });

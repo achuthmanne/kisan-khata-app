@@ -586,7 +586,6 @@ export default function SummaryScreen() {
         title={language === "te" ? "సారాంశం" : "Summary"} 
         subtitle={language === "te" ? "వ్యవసాయ నివేదిక" : "Farm Report"} 
         language={language} 
-        onDownload={handleDownloadPDF}
       />
 
       {loading ? (
@@ -726,6 +725,29 @@ export default function SummaryScreen() {
                 </View>
                 <AppText style={styles.resultAmount}>{isProfit ? `+ ₹${summary.profit.toLocaleString("en-IN")}` : `- ₹${Math.abs(summary.profit).toLocaleString("en-IN")}`}</AppText>
               </LinearGradient>
+
+              {/* PDF DOWNLOAD BUTTON */}
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                onPress={handleDownloadPDF} 
+                style={{ 
+                  marginHorizontal: 20, 
+                  marginTop: 16, 
+                  backgroundColor: '#FEF2F2', 
+                  padding: 14, 
+                  borderRadius: 12, 
+                  borderWidth: 1, 
+                  borderColor: '#FECACA', 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  justifyContent: 'center'
+                }}
+              >
+                <Ionicons name="document-text" size={24} color="#DC2626" />
+                <AppText style={{ color: "#DC2626", fontWeight: "600", fontSize: 16, marginLeft: 10 }}>
+                  {language === "te" ? "PDF డౌన్‌లోడ్ చేసుకోండి" : "Download PDF Report"}
+                </AppText>
+              </TouchableOpacity>
 
               {/* AI CARD */}
               <TouchableOpacity activeOpacity={0.85} onPress={handleAIClick} style={styles.aiSmartCard}>

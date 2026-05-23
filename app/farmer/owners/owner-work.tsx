@@ -12,7 +12,8 @@ import {
   StatusBar,
   StyleSheet,
   TouchableOpacity,
-  View
+  View,
+  Linking
 } from "react-native";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 
@@ -463,6 +464,86 @@ export default function OwnerWork() {
                     </View>
                   );
                 })}
+
+                {/* WHATSAPP SHARE BUTTON FOR CROP */}
+                {isOpen && item.list.length > 0 && (
+                  <View style={{ padding: 14, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#F9FAFB" }}>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "#E5F6EB",
+                        paddingVertical: 10,
+                        borderRadius: 8,
+                      }}
+                      onPress={() => {
+                        let totalPayable = 0;
+                        let totalAdvance = 0;
+                        let balanceDue = 0;
+                        const dailyLog: string[] = [];
+
+                        item.list.forEach((work: any) => {
+                          const payable = Number(work.payableAmount?.toString().replace(/,/g, "") || 0);
+                          const advance = Number(work.advanceAmount?.toString().replace(/,/g, "") || 0);
+                          const final = Number(work.finalAmount?.toString().replace(/,/g, "") || 0);
+                          
+                          totalPayable += payable;
+                          totalAdvance += advance;
+                          balanceDue += final;
+
+                          let wMsg = `📅 *${work.date}*\n`;
+                          wMsg += `✅ ${work.work}\n`;
+                          
+                          if (work.acres) {
+                            wMsg += `🚜 విస్తీర్ణం: ${work.acres} ఎకరాలు\n`;
+                          } else if (work.workType === "time") {
+                            wMsg += `⏱️ సమయం: ${work.hrs || 0}h ${work.mins || 0}m\n`;
+                          } else if (work.saalluCount) {
+                            wMsg += `🌾 సాళ్లు: ${work.saalluCount}\n`;
+                          }
+
+                          let rateStr = "";
+                          if (work.workType === "time") {
+                            rateStr = `₹${work.ratePerHour || 0} / గం`;
+                          } else if (work.ratePerAcre) {
+                            rateStr = `₹${work.ratePerAcre || 0} / ఎకరా`;
+                          } else {
+                            rateStr = `₹${work.ratePerSaalu || 0} / సాలు`;
+                          }
+                          wMsg += `🏷️ ధర: ${rateStr}\n`;
+                          wMsg += `💵 బిల్లు: ₹${payable.toLocaleString('en-IN')}\n`;
+                          if (advance > 0) wMsg += `💰 అడ్వాన్స్: ₹${advance.toLocaleString('en-IN')}\n`;
+                          
+                          if (work.notes) {
+                            wMsg += `📌 నోట్: ${work.notes}\n`;
+                          }
+                          dailyLog.push(wMsg.trim());
+                        });
+
+                        let msg = `🚜 *Kisan Khata - Owner Report*\n`;
+                        msg += `👤 *యజమాని పేరు:* ${oName || 'Owner'}\n`;
+                        msg += `🌾 *పంట:* ${item.crop}\n\n`;
+                        
+                        msg += `💵 *మొత్తం బిల్లు:* ₹${totalPayable.toLocaleString('en-IN')}\n`;
+                        msg += `💰 *మొత్తం అడ్వాన్స్:* ₹${totalAdvance.toLocaleString('en-IN')}\n`;
+                        msg += `⚠️ *ఇవ్వాల్సిన బ్యాలెన్స్:* ₹${balanceDue.toLocaleString('en-IN')}\n\n`;
+                        
+                        if (dailyLog.length > 0) {
+                          msg += `📝 *పనుల వివరాలు:*\n\n`;
+                          msg += dailyLog.join('\n\n');
+                        }
+
+                        Linking.openURL(`whatsapp://send?text=${encodeURIComponent(msg)}`);
+                      }}
+                    >
+                      <Ionicons name="logo-whatsapp" size={20} color="#16A34A" />
+                      <AppText style={{ color: "#16A34A", fontWeight: "600", marginLeft: 8 }}>
+                        {language === "te" ? "వాట్సాప్ లో షేర్ చేయండి" : "Share on WhatsApp"}
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             );
           }}

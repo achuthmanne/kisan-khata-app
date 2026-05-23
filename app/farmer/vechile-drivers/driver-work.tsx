@@ -37,7 +37,7 @@ type WorkItem = {
 export default function DriverHistory() {
 
   const router = useRouter();
-  const { vehicleId, driverId, name, phone } = useLocalSearchParams();
+  const { vehicleId, driverId, name, phone, paymentType, monthlySalary } = useLocalSearchParams();
   const isMounted = useRef(true); // 🔥 PRO FIX: Memory leak protection
 
   // 🔥 URL Params Array లాగా వస్తే క్రాష్ అవ్వకుండా
@@ -45,6 +45,8 @@ export default function DriverHistory() {
   const dPhone = Array.isArray(phone) ? phone[0] : phone;
   const vId = Array.isArray(vehicleId) ? vehicleId[0] : vehicleId;
   const dId = Array.isArray(driverId) ? driverId[0] : driverId;
+  const dPaymentType = Array.isArray(paymentType) ? paymentType[0] : paymentType;
+  const dMonthlySalary = Array.isArray(monthlySalary) ? monthlySalary[0] : monthlySalary;
 
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
@@ -303,16 +305,84 @@ export default function DriverHistory() {
                     <View key={work.id} style={[styles.workCard]}>
 
                       {/* TOP */}
-                      <View style={[styles.rowBetween, { justifyContent:'center'}]}>
-                        <AppText style={styles.date}>{work.date}</AppText>
+                      <View style={[styles.rowBetween, { alignItems:'flex-start'}]}>
+                        <View>
+                          <AppText style={styles.date}>{work.date}</AppText>
+                          {work.customerName ? (
+                            <AppText style={{ fontFamily: "Mandali", fontSize: 16, color: "#1F2937", marginTop: 4, fontWeight: "600" }}>
+                              👤 {work.customerName}
+                            </AppText>
+                          ) : null}
+                        </View>
+                        <AppText style={[styles.statusText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
+                          {isPaid
+                            ? (language === "te" ? "పూర్తయింది" : "Done (Locked)")
+                            : (language === "te" ? "పూర్తి కాలేదు" : "Pending")}
+                        </AppText>
                       </View>
 
-                      {/* PAYMENT STATUS */}
+                      {/* WORK DETAILS (ACRES / HOURS) */}
+                      {(work.workMode === "hourly" || work.workMode === "acres") && (
+                        <View style={{ backgroundColor: "#F3F4F6", padding: 10, borderRadius: 8, marginTop: 10 }}>
+                          {work.workMode === "hourly" ? (
+                            <View style={{ gap: 4 }}>
+                              <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#4B5563" }}>
+                                ⏳ {language === "te" ? `పని సమయం: ` : `Work Time: `} 
+                                <AppText style={{ fontWeight: "600", color: "#1F2937" }}>
+                                  {work.startTimeRaw ? new Date(work.startTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {work.endTimeRaw ? new Date(work.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                                </AppText>
+                              </AppText>
+                              
+                              {work.hasBreak && (
+                                <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#EF4444" }}>
+                                  ☕ {language === "te" ? "బ్రేక్ సమయం (-): " : "Break Time (-): "}
+                                  <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
+                                    {work.breakStartTimeRaw ? new Date(work.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {work.breakEndTimeRaw ? new Date(work.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                                  </AppText>
+                                </AppText>
+                              )}
+
+                              <View style={{ height: 1, backgroundColor: "#E5E7EB", marginVertical: 4 }} />
+                              
+                              <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#16A34A" }}>
+                                ✅ {language === "te" ? `అసలు పని: ` : `Actual Work: `} 
+                                <AppText style={{ fontWeight: "600", color: "#16A34A" }}>{work.totalHoursStr}</AppText>
+                              </AppText>
+                            </View>
+                          ) : (
+                            <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#4B5563" }}>
+                              📏 {language === "te" ? `విస్తీర్ణం: ` : `Area: `}
+                              <AppText style={{ fontWeight: "600", color: "#1F2937" }}>{work.acresWorked} {language === "te" ? "ఎకరాలు" : "Acres"}</AppText>
+                            </AppText>
+                          )}
+                        </View>
+                      )}
+
+                      {/* DETAILS */}
+                      <View style={[styles.detailsGrid, { marginTop: 15 }]}>
+                        <View style={styles.detailItem}>
+                          <View style={styles.leftPart}>
+                            <Ionicons name="cash-outline" size={14} color="#6B7280" />
+                            <AppText style={styles.label}>{language === "te" ? "కూలి:" : "Wage:"}</AppText>
+                          </View>
+                          <AppText style={styles.value}>₹ {Number(work.payableAmount || 0).toLocaleString("en-IN")}</AppText>
+                        </View>
+
+                        <View style={styles.detailItem}>
+                          <View style={styles.leftPart}>
+                            <Ionicons name="wallet-outline" size={14} color="#6B7280" />
+                            <AppText style={styles.label}>{language === "te" ? "అడ్వాన్స్:" : "Advance:"}</AppText>
+                          </View>
+                          <AppText style={styles.value}>₹ {Number(work.advanceAmount || 0).toLocaleString("en-IN")}</AppText>
+                        </View>
+                      </View>
+
+                      {/* PAYMENT STATUS TOGGLE */}
                       <View style={styles.statusRow}>
                         <AppText style={[styles.statusText, { color: isPaid ? "#16A34A" : "#DC2626" }]}>
                           {isPaid
-                            ? (language === "te" ? "చెల్లింపు పూర్తైంది (లాక్)" : "Payment Done (Locked)")
-                            : (language === "te" ? "చెల్లింపు పెండింగ్" : "Payment Pending")}
+                            ? (language === "te" ? "చెల్లింపు పూర్తయింది" : "Payment Done (Locked)")
+                            : (language === "te" ? "డబ్బులు ఇవ్వాలి" : "Payment Pending")}
                         </AppText>
                         <TouchableOpacity
                           activeOpacity={isPaid ? 1 : 0.8}
@@ -326,25 +396,6 @@ export default function DriverHistory() {
                         >
                           <View style={[styles.toggleCircle, { alignSelf: isPaid ? "flex-end" : "flex-start" }]} />
                         </TouchableOpacity>
-                      </View>
-
-                      {/* DETAILS */}
-                      <View style={styles.detailsGrid}>
-                        <View style={styles.detailItem}>
-                          <View style={styles.leftPart}>
-                            <Ionicons name="cash-outline" size={14} color="#6B7280" />
-                            <AppText style={styles.label}>{language === "te" ? "మొత్తం:" : "Payable:"}</AppText>
-                          </View>
-                          <AppText style={styles.value}>₹ {Number(work.payableAmount || 0).toLocaleString("en-IN")}</AppText>
-                        </View>
-
-                        <View style={styles.detailItem}>
-                          <View style={styles.leftPart}>
-                            <Ionicons name="wallet-outline" size={14} color="#6B7280" />
-                            <AppText style={styles.label}>{language === "te" ? "అడ్వాన్స్:" : "Advance:"}</AppText>
-                          </View>
-                          <AppText style={styles.value}>₹ {Number(work.advanceAmount || 0).toLocaleString("en-IN")}</AppText>
-                        </View>
                       </View>
 
                       {/* FINAL + DELETE */}
@@ -385,7 +436,12 @@ export default function DriverHistory() {
         onPress={() =>
           router.push({
             pathname: "/farmer/vechile-drivers/add-driverwork",    
-            params: { vehicleId: vId, driverId: dId }
+            params: { 
+              vehicleId: vId, 
+              driverId: dId,
+              paymentType: dPaymentType,
+              monthlySalary: dMonthlySalary
+            }
           })
         }
       >
@@ -481,7 +537,7 @@ const styles = StyleSheet.create({
   value: { fontSize: 12, fontWeight: "600", color: "#111827", textAlign: "right" },
   detailsGrid: { marginTop: 10, gap: 8 },
   bottomRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12 },
-  finalAmount: { fontSize: 17, fontWeight: "bold", color: "#111827" },
+  finalAmount: { fontSize: 17, fontWeight: "600", color: "#111827" },
   deleteBtn: { backgroundColor: "#FEE2E2", padding: 8, borderRadius: 10 },
   notesBox: { flexDirection: "row", alignItems: "flex-start", gap: 6, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#E5E7EB" },
   notesText: { fontSize: 14, color: "#374151", flex: 1, lineHeight: 24 },

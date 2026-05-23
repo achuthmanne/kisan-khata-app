@@ -50,6 +50,7 @@ export default function VehicleDetails() {
   // 🔥 NEW STATES FOR LOCK LOGIC & MODERN UI
   const [actionLoading, setActionLoading] = useState(false);
   const [showCannotDeleteModal, setShowCannotDeleteModal] = useState(false);
+  const [expandedSalaryId, setExpandedSalaryId] = useState<string | null>(null);
 
   useSpeechRecognitionEvent("result", (event) => {
     if (!isScreenFocused || !isMounted.current) return;
@@ -221,6 +222,8 @@ export default function VehicleDetails() {
         name: item.driverName,
         phone: item.phone,
         village: item.village,
+        paymentType: item.paymentType || "daily",
+        monthlySalary: item.monthlySalary?.toString() || "",
         hasRecords: hasRecords ? "true" : "false" 
       }
     });
@@ -349,7 +352,7 @@ export default function VehicleDetails() {
 
       {/* LIST */}
       {loading ? (
-        <View style={{ paddingTop: 10 }}>
+        <View style={{ padding: 20 }}>
           <ShimmerRow />
           <ShimmerRow />
           <ShimmerRow />
@@ -381,74 +384,138 @@ export default function VehicleDetails() {
           }
           renderItem={({ item }) => {
             const color = getColor(item.id);
+            
+            // Salary History Logic
+            const hasHistory = item.salaryHistory && item.salaryHistory.length > 0;
+            let badgeBg = "#DCFCE7";
+            let badgeColor = "#16A34A";
+            if (hasHistory) {
+              const lastHistory = item.salaryHistory[item.salaryHistory.length - 1];
+              if (item.monthlySalary < lastHistory.salary) {
+                badgeBg = "#FEF2F2";
+                badgeColor = "#DC2626";
+              }
+            }
 
             return (
-              <View style={styles.row}>
-                {/* LEFT */}
-                <TouchableOpacity
-                  style={styles.left}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    router.push({
-                      pathname: "/farmer/vechile-drivers/driver-work",
-                      params: {
-                        vehicleId: vId,
-                        driverId: item.id,
-                        name: item.driverName,
-                        phone: item.phone,
-                        village: item.village
-                      }
-                    });
-                  }}
-                >
-                  <View style={[styles.avatar, { backgroundColor: color }]}>
-                    <AppText style={styles.avatarText}>
-                      {item.driverName?.charAt(0)?.toUpperCase()}
-                    </AppText>
-                  </View>
+              <View style={{ marginVertical: 6, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, backgroundColor: "#ffffff", overflow: "hidden" }}>
+                <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: 12, justifyContent: "space-between" }}>
+                  {/* LEFT */}
+                  <TouchableOpacity
+                    style={styles.left}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      router.push({
+                        pathname: item.paymentType === "monthly" ? "/farmer/vechile-drivers/monthly-driver-work" : "/farmer/vechile-drivers/driver-work",
+                        params: {
+                          vehicleId: vId,
+                          driverId: item.id,
+                          name: item.driverName,
+                          phone: item.phone,
+                          paymentType: item.paymentType,
+                          monthlySalary: item.monthlySalary || 0
+                        }
+                      });
+                    }}
+                  >
+                    <View style={[styles.avatar, { backgroundColor: color }]}>
+                      <AppText style={styles.avatarText}>
+                        {item.driverName?.charAt(0)?.toUpperCase()}
+                      </AppText>
+                    </View>
 
-                  <View style={styles.details}>
-                    {/* 🔥 PRO FIX: Text truncate for long names */}
-                    <AppText style={styles.name} numberOfLines={1} ellipsizeMode="tail">{item.driverName}</AppText>
-                    <AppText style={styles.phone}>+91 - {item.phone || "----"}</AppText>
-                    <AppText style={styles.sub} numberOfLines={1} ellipsizeMode="tail">{item.village || "----"}</AppText>
-                  </View>
-                </TouchableOpacity>
-
-                {/* RIGHT */}
-                <View style={styles.right}>
-                  <TouchableOpacity style={styles.callBtn} onPress={() => handleCall(item.phone)}>
-                    <Ionicons name="call" size={16} color="#16A34A" />
+                    <View style={styles.details}>
+                      {/* 🔥 PRO FIX: Text truncate for long names */}
+                      <AppText style={styles.name} numberOfLines={1} ellipsizeMode="tail">{item.driverName}</AppText>
+                      <AppText style={styles.phone}>+91 - {item.phone || "----"}</AppText>
+                      <AppText style={styles.sub} numberOfLines={1} ellipsizeMode="tail">{item.village || "----"}</AppText>
+                    </View>
                   </TouchableOpacity>
 
-                  <Menu>
-                    <MenuTrigger style={{ padding: 5 }}>
-                      <Ionicons name="ellipsis-vertical" size={20} color="#6B7280" />
-                    </MenuTrigger>
+                  {/* RIGHT */}
+                  <View style={{ alignItems: "flex-end", justifyContent: "space-between" }}>
+                    <View style={{ flexDirection: "row", gap: 8, alignItems: "center", marginBottom: item.paymentType === "monthly" ? 10 : 0 }}>
+                      <TouchableOpacity style={styles.callBtn} onPress={() => handleCall(item.phone)}>
+                        <Ionicons name="call" size={16} color="#16A34A" />
+                      </TouchableOpacity>
 
-                    <MenuOptions customStyles={optionsStyles}>
-                      <MenuOption onSelect={() => handleEditClick(item)}>
-                        <View style={styles.modernMenuItem}>
-                          <Ionicons name="create-outline" size={18} color="#2563EB" />
-                          <AppText style={styles.menuTextEdit} language={language}>
-                            {language === "te" ? "మార్చు" : "Edit"}
-                          </AppText>
-                        </View>
-                      </MenuOption>
-                      
-                      <View style={styles.menuDivider} />
+                      <Menu>
+                        <MenuTrigger style={{ padding: 5 }}>
+                          <Ionicons name="ellipsis-vertical" size={20} color="#6B7280" />
+                        </MenuTrigger>
 
-                      <MenuOption onSelect={() => handleDeleteClick(item)}>
-                        <View style={styles.modernMenuItem}>
-                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                          <AppText style={styles.menuTextDelete} language={language}>
-                            {language === "te" ? "తొలగించు" : "Delete"}
-                          </AppText>
-                        </View>
-                      </MenuOption>
-                    </MenuOptions>
-                  </Menu>
+                        <MenuOptions customStyles={optionsStyles}>
+                          <MenuOption onSelect={() => handleEditClick(item)}>
+                            <View style={styles.modernMenuItem}>
+                              <Ionicons name="create-outline" size={18} color="#2563EB" />
+                              <AppText style={styles.menuTextEdit} language={language}>
+                                {language === "te" ? "మార్చు" : "Edit"}
+                              </AppText>
+                            </View>
+                          </MenuOption>
+                          
+                          <View style={styles.menuDivider} />
+
+                          <MenuOption onSelect={() => handleDeleteClick(item)}>
+                            <View style={styles.modernMenuItem}>
+                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                              <AppText style={styles.menuTextDelete} language={language}>
+                                {language === "te" ? "తొలగించు" : "Delete"}
+                              </AppText>
+                            </View>
+                          </MenuOption>
+                        </MenuOptions>
+                      </Menu>
+                    </View>
+
+                    {/* 🔥 MONTHLY SALARY BADGE */}
+                    {item.paymentType === "monthly" && (
+                      hasHistory ? (
+                         <TouchableOpacity 
+                           activeOpacity={0.7}
+                           style={{ backgroundColor: badgeBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, flexDirection: "row", alignItems: "center" }}
+                           onPress={() => setExpandedSalaryId(expandedSalaryId === item.id ? null : item.id)}
+                         >
+                           <AppText style={{ fontSize: 11, color: badgeColor, fontWeight: "600", fontFamily: "Mandali" }}>
+                              {language === "te" ? "కొత్త జీతం: " : "New Salary: "}₹{Number(item.monthlySalary).toLocaleString("en-IN")}
+                           </AppText>
+                           <Ionicons name={expandedSalaryId === item.id ? "chevron-up" : "chevron-down"} size={12} color={badgeColor} style={{ marginLeft: 4 }} />
+                         </TouchableOpacity>
+                      ) : (
+                         <View style={{ backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                           <AppText style={{ fontSize: 11, color: "#16A34A", fontWeight: "600", fontFamily: "Mandali" }}>
+                              {language === "te" ? "నెల జీతం: " : "Salary: "}₹{Number(item.monthlySalary).toLocaleString("en-IN")}
+                           </AppText>
+                         </View>
+                      )
+                    )}
+                  </View>
                 </View>
+
+                {/* EXPANDABLE SALARY HISTORY */}
+                {item.paymentType === "monthly" && hasHistory && expandedSalaryId === item.id && (
+                   <View style={{ backgroundColor: "#F9FAFB", padding: 12, borderTopWidth: 1, borderTopColor: "#E5E7EB" }}>
+                      <AppText style={{ fontSize: 12, color: "#6B7280", fontWeight: "600", marginBottom: 8 }}>{language === "te" ? "జీతాల హిస్టరీ:" : "Salary History:"}</AppText>
+                      {item.salaryHistory.map((sh: any, idx: number) => {
+                         const startObj = new Date(sh.startDateRaw);
+                         const endObj = new Date(sh.endDateRaw);
+                         const startStr = startObj.toLocaleDateString('en-GB').replace(/\//g, '-').slice(0, 5);
+                         const endStr = endObj.toLocaleDateString('en-GB').replace(/\//g, '-').slice(0, 5);
+                         const period = `${startStr}  ${language === "te" ? "నుండి" : "to"}  ${endStr}`;
+                         return (
+                             <View key={idx} style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 4 }}>
+                                <AppText style={{ fontSize: 12, color: "#9CA3AF" }}>{period}</AppText>
+                                <AppText style={{ fontSize: 12, color: "#9CA3AF", fontWeight: "600" }}>₹{Number(sh.salary).toLocaleString("en-IN")}</AppText>
+                             </View>
+                         );
+                      })}
+                      {/* Current Salary in the list */}
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#E5E7EB" }}>
+                          <AppText style={{ fontSize: 12, color: "#374151", fontWeight: "600" }}>{language === "te" ? "ప్రస్తుతం నడుస్తున్నది" : "Currently Active"}</AppText>
+                          <AppText style={{ fontSize: 12, color: badgeColor, fontWeight: "600" }}>₹{Number(item.monthlySalary).toLocaleString("en-IN")}</AppText>
+                      </View>
+                   </View>
+                )}
               </View>
             );
           }}
@@ -537,7 +604,7 @@ const styles = StyleSheet.create({
   searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", marginHorizontal: 20, marginTop: 15, marginBottom: 0, paddingHorizontal: 12, height: 50, borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" },
   searchFocused: { borderColor: "#16A34A", backgroundColor: "#FFFFFF" },
   searchInput: { flex: 1, height: "100%", marginLeft: 10, fontSize: 15, paddingTop: 0, paddingBottom: 0, textAlignVertical: "center", color: "#1F2937", fontFamily: "Mandali", includeFontPadding: false },
-  row: { flexDirection: "row", alignItems: "center", paddingVertical: 14, marginHorizontal: 20, marginVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor:"#E5E7EB", borderRadius: 12, backgroundColor:"#ffffff", justifyContent: "space-between" },
+  row: { flexDirection: "row", alignItems: "center", paddingVertical: 14, marginHorizontal: 0, marginVertical: 6, paddingHorizontal: 12, borderWidth: 1, borderColor:"#E5E7EB", borderRadius: 12, backgroundColor:"#ffffff", justifyContent: "space-between" },
   left: { flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 10 },
   avatar: { width: 42, height: 42, borderRadius: 21, justifyContent: "center", alignItems: "center", marginRight: 12 },
   avatarText: { color: "#fff", fontWeight: "600" },

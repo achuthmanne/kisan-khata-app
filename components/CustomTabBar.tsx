@@ -12,10 +12,14 @@ import {
   View,
   Platform
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
 export default function CustomTabBar({ state, navigation, language }: any) {
+  const insets = useSafeAreaInsets();
+  const paddingBottom = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 10);
+  const navbarHeight = 60 + paddingBottom;
 
   // 🔥 Production level TabItem
   const TabItem = ({ icon, label, isFocused, onPress }: any) => {
@@ -47,7 +51,7 @@ export default function CustomTabBar({ state, navigation, language }: any) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.navbar}>
+      <View style={[styles.navbar, { height: navbarHeight, paddingBottom: paddingBottom }]}>
 
         {/* HOME */}
         <TabItem
@@ -170,12 +174,10 @@ const styles = StyleSheet.create({
 
   navbar: {
     flexDirection: "row",
-    height: 70, 
     width: "100%",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 8,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 5, 
   },
 
   tabItem: {

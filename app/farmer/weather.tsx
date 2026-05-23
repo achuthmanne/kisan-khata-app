@@ -184,12 +184,15 @@ export default function WeatherScreen() {
       const lat = location.coords.latitude;
       const lon = location.coords.longitude;
 
-      // 🔥 PRO FIX: API మీద ఆధారపడకుండా సిస్టమ్ (OS) నుండే ఇంగ్లీష్ సిటీ పేరు లాగుతున్నాం
+      // 🔥 PRO FIX: Get precise Village name from OS Geocoder instead of District/Mandal
       let osCity = "";
       try {
         const geo = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
         if (geo && geo.length > 0) {
-          osCity = geo[0].city || geo[0].subregion || geo[0].district || geo[0].region || "";
+          const g = geo[0];
+          // For rural India, g.name or g.street often contains the exact Village name.
+          // g.city / g.subregion usually contains the Mandal.
+          osCity = g.name || g.street || g.city || g.subregion || g.district || "";
         }
       } catch (e) {}
 

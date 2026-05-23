@@ -306,7 +306,7 @@ export default function OwnersList() {
       )}
 
       {loading ? (
-        <View style={{ paddingTop: 10, paddingHorizontal: 20 }}>
+        <View style={{ paddingVertical: 10 }}>
           <ShimmerRow /><ShimmerRow /><ShimmerRow />
         </View>
       ) : (
@@ -316,7 +316,7 @@ export default function OwnersList() {
           keyboardShouldPersistTaps="handled" 
           keyboardDismissMode="on-drag"
           contentContainerStyle={[
-            { padding: 20, paddingBottom: 100 },
+            { paddingVertical: 10, paddingBottom: 100 },
             filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           ListEmptyComponent={

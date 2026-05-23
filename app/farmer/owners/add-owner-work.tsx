@@ -105,7 +105,13 @@ export default function AddOwnerWork() {
       const set = new Set<string>();
       snap.forEach(doc => {
         const data = doc.data();
-        if (data.crop) set.add(data.crop);
+        if (data.crop) {
+          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+          const formatted = data.nickname 
+            ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
+            : `${data.crop} - ${data.acres || 0} ${acresText}`;
+          set.add(formatted);
+        }
       });
       if (isMounted.current) setUserCrops(Array.from(set));
     };

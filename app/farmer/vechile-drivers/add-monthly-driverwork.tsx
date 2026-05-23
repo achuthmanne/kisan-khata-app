@@ -25,9 +25,9 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 
 export default function AddDriverWork() {
   const router = useRouter();
-  const { vehicleId, driverId, paymentType, monthlySalary } = useLocalSearchParams(); 
+  const { vehicleId, driverId, paymentType, monthlySalary, cycleId, prefillDate, prefillDateRaw, balance } = useLocalSearchParams();
 
-  const dPaymentType = Array.isArray(paymentType) ? paymentType[0] : paymentType || "daily";
+  const dPaymentType = "monthly";
   const dMonthlySalary = Array.isArray(monthlySalary) ? monthlySalary[0] : monthlySalary || "0";
   const isMounted = useRef(true); 
 
@@ -36,10 +36,15 @@ export default function AddDriverWork() {
 
   const isScreenFocused = useIsFocused();
   const [isListening, setIsListening] = useState(false);
-  const [voiceTarget, setVoiceTarget] = useState<"work" | "notes" | "customerName" | null>(null); 
+  const [voiceTarget, setVoiceTarget] = useState<"work" | "notes" | "customerName" | "cuttingReason" | null>(null); 
 
-  const [date, setDate] = useState("");
+  const prefillDateStr = Array.isArray(prefillDate) ? prefillDate[0] : prefillDate;
+  const cycleIdStr = Array.isArray(cycleId) ? cycleId[0] : cycleId;
+  const prefillDateRawStr = Array.isArray(prefillDateRaw) ? prefillDateRaw[0] : prefillDateRaw;
+
+  const [date, setDate] = useState(prefillDateStr || "");
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [attendance, setAttendance] = useState<"present" | "absent">("present");
 
   // 🔥 NEW WORK LOG STATES
   const [customerName, setCustomerName] = useState("");
@@ -67,12 +72,14 @@ export default function AddDriverWork() {
   const [searchText, setSearchText] = useState("");
 
   // 🔥 PAYMENT STATES
-  const [attendance, setAttendance] = useState<"present" | "half" | "absent">("present");
-
   const [payableAmount, setPayableAmount] = useState(""); 
-  const [advanceAmount, setAdvanceAmount] = useState("0"); 
-  const payableInputRef = useRef<TextInput>(null);
+  const [advanceAmount, setAdvanceAmount] = useState(""); 
   const advanceInputRef = useRef<TextInput>(null);
+
+  const [cuttingAmount, setCuttingAmount] = useState("");
+  const cuttingInputRef = useRef<TextInput>(null);
+  const [cuttingReason, setCuttingReason] = useState("");
+  const cuttingReasonRef = useRef<TextInput>(null);
 
   const [notes, setNotes] = useState("");
   const notesInputRef = useRef<TextInput>(null);
@@ -143,14 +150,10 @@ export default function AddDriverWork() {
 
   // Simple Final Calculation
   const getFinalAmount = () => {
-    if (dPaymentType === "monthly") {
-      // For monthly, we only care about advances. Payables are 0.
-      return advanceAmount || "0";
-    }
-    const p = parseFloat(payableAmount) || 0;
+    // Return advance + cutting amount to store total deductions for the day
     const a = parseFloat(advanceAmount) || 0;
-    const final = p - a;
-    return (final < 0 ? 0 : final).toLocaleString('en-IN');
+    const c = parseFloat(cuttingAmount) || 0;
+    return (a + c).toString();
   };
 
   const isBreakTimeValid = () => {
@@ -248,7 +251,7 @@ export default function AddDriverWork() {
     { "en": "Tractor Spraying", "te": "ట్రాక్టర్ పిచికారీ" }
   ];
 
-  const handleVoiceInput = async (target: "work" | "notes" | "customerName") => {
+  const handleVoiceInput = async (target: "work" | "notes" | "customerName" | "cuttingReason") => {
     setVoiceTarget(target);
     const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!res.granted) return;
@@ -275,6 +278,9 @@ export default function AddDriverWork() {
     else if (voiceTarget === "customerName") {
       setCustomerName(text);
     }
+    else if (voiceTarget === "cuttingReason") {
+      setCuttingReason((prev) => prev ? prev + " " + text : text);
+    }
   });
 
   useSpeechRecognitionEvent("end", () => {
@@ -288,6 +294,7 @@ export default function AddDriverWork() {
     
     let entryData: any = {
       date,
+      dateRaw: new Date(date.split('-').reverse().join('-')).toISOString(),
       customerName: customerName.trim(),
       work: work.trim(),
       notes: notes.trim(),
@@ -299,9 +306,12 @@ export default function AddDriverWork() {
     if (dPaymentType === "monthly") {
       entryData = {
         ...entryData,
+        cycleId: cycleIdStr,
         attendance,
         advanceAmount: advanceAmount.trim(),
-        finalAmount: getFinalAmount(), // which is just advance for monthly
+        cuttingAmount: cuttingAmount.trim(),
+        cuttingReason: cuttingReason.trim(),
+        finalAmount: getFinalAmount(), // advance + cutting
         workMode: attendance === "absent" ? null : workMode,
       };
       
@@ -326,6 +336,8 @@ export default function AddDriverWork() {
         workMode,
         payableAmount: payableAmount.trim(),
         advanceAmount: advanceAmount.trim(),
+        cuttingAmount: cuttingAmount && cuttingAmount.trim(),
+        cuttingReason: cuttingReason && cuttingReason.trim(),
         finalAmount: getFinalAmount(),
       };
       
@@ -368,7 +380,7 @@ export default function AddDriverWork() {
     if (!date) newErrors.date = language === "te" ? "తేదీని ఎంచుకోండి*" : "Select Date*";
     
     if (dPaymentType === "monthly" && attendance === "absent") {
-       // Only date and advance are relevant
+       // Work inputs are not mandatory, but cutting amount reason check
     } else {
        if (!work) newErrors.work = language === "te" ? "పనిని ఎంచుకోండి*" : "Select Work*";
        if (!customerName) newErrors.customerName = language === "te" ? "రైతు పేరు రాయండి*" : "Enter Customer Name*";
@@ -387,8 +399,11 @@ export default function AddDriverWork() {
        }
     }
 
-    if (dPaymentType === "daily" && (!payableAmount || payableAmount === "0" || payableAmount === "")) {
-      newErrors.payableAmount = language === "te" ? "కూలి నమోదు చేయండి*" : "Enter Wage*";
+
+    if (dPaymentType === "monthly") {
+       if (parseFloat(cuttingAmount) > 0 && !cuttingReason.trim()) {
+          newErrors.cuttingReason = language === "te" ? "కట్ చేయడానికి కారణం రాయండి*" : "Reason for deduction is mandatory*";
+       }
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -511,6 +526,33 @@ export default function AddDriverWork() {
         </TouchableOpacity>
         {errors.date && <AppText style={styles.errorText} language={language}>{errors.date}</AppText>}
 
+        {dPaymentType === "monthly" && (
+            <View style={{ marginBottom: 16, marginTop: 8 }}>
+              <AppText style={styles.label}>
+                {language === "te" ? "హాజరు*" : "Attendance*"}
+              </AppText>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  style={[styles.segmentBtn, attendance === "present" && styles.segmentActive]}
+                  onPress={() => setAttendance("present")}
+                >
+                  <AppText style={[styles.segmentText, attendance === "present" && styles.segmentTextActive]}>
+                    {language === "te" ? "వచ్చాడు" : "Present"}
+                  </AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.segmentBtn, attendance === "absent" && styles.segmentActive]}
+                  onPress={() => setAttendance("absent")}
+                >
+                  <AppText style={[styles.segmentText, attendance === "absent" && styles.segmentTextActive]}>
+                    {language === "te" ? "రాలేదు" : "Absent"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            </View>
+        )}
+
+        {/* WORK SECTIONS ONLY SHOWN IF PRESENT */}
         {!(dPaymentType === "monthly" && attendance === "absent") && (
           <>
             {/* 👤 CUSTOMER NAME */}
@@ -673,7 +715,7 @@ export default function AddDriverWork() {
                                <View style={{ height: 1, backgroundColor: "#BBF7D0", marginVertical: 4 }} />
                                <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
                                  <AppText style={{ color: "#16A34A", fontWeight: "600", fontFamily: "Mandali", fontSize: 16 }}>{language === "te" ? "పని చేసిన అసలు సమయం:" : "Actual Work Time:"}</AppText>
-                                 <AppText style={{ color: "#16A34A", fontWeight: "bold", fontFamily: "Mandali", fontSize: 16 }}>{times.net}</AppText>
+                                 <AppText style={{ color: "#16A34A", fontWeight: "600", fontFamily: "Mandali", fontSize: 16 }}>{times.net}</AppText>
                                </View>
                              </>
                           ) : (
@@ -756,105 +798,16 @@ export default function AddDriverWork() {
            </AppText>
         </View>
 
-        {dPaymentType === "monthly" ? (
+        {dPaymentType === "monthly" && (
           <>
-            <View style={{ marginBottom: 16 }}>
-              <AppText style={styles.label}>
-                {language === "te" ? "హాజరు*" : "Attendance*"}
-              </AppText>
-              <View style={styles.segmentedControl}>
-                <TouchableOpacity
-                  style={[styles.segmentBtn, attendance === "present" && styles.segmentActive]}
-                  onPress={() => setAttendance("present")}
-                >
-                  <AppText style={[styles.segmentText, attendance === "present" && styles.segmentTextActive]}>
-                    {language === "te" ? "పూర్తి రోజు" : "Present"}
-                  </AppText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.segmentBtn, attendance === "half" && styles.segmentActive]}
-                  onPress={() => setAttendance("half")}
-                >
-                  <AppText style={[styles.segmentText, attendance === "half" && styles.segmentTextActive]}>
-                    {language === "te" ? "సగం రోజు" : "Half Day"}
-                  </AppText>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.segmentBtn, attendance === "absent" && styles.segmentActive]}
-                  onPress={() => setAttendance("absent")}
-                >
-                  <AppText style={[styles.segmentText, attendance === "absent" && styles.segmentTextActive]}>
-                    {language === "te" ? "సెలవు" : "Absent"}
-                  </AppText>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={{ marginBottom: 16 }}>
-              <AppText style={styles.label}>
-                {language === "te" ? "ఈరోజు ఇచ్చిన అడ్వాన్స్/చిల్లర (₹)" : "Advance Paid Today (₹)"}
-              </AppText>
-              <TouchableOpacity
-                activeOpacity={1}
-                style={[styles.inputBox, activeInput === "advance" && styles.inputFocused]}
-                onPress={() => { setActiveInput("advance"); advanceInputRef.current?.focus(); }}
-              >
-                <TextInput
-                  ref={advanceInputRef}
-                  value={advanceAmount}
-                  onChangeText={setAdvanceAmount}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  style={styles.input}
-                  cursorColor="#16A34A"
-                  onFocus={() => setActiveInput("advance")}
-                  onBlur={() => setActiveInput(null)}
-                />
-              </TouchableOpacity>
-            </View>
-          </>
-        ) : (
-          <>
-            <View style={{ flexDirection: "row", marginBottom: 0 }}>
-              <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: "row", marginBottom: 8 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <AppText style={styles.label}>
-                  {language === "te" ? "డ్రైవర్ కూలి (₹)*" : "Driver Wage (₹)*"}
+                  {language === "te" ? "ఈరోజు అడ్వాన్స్ (₹)" : "Advance (₹)"}
                 </AppText>
                 <TouchableOpacity
                   activeOpacity={1}
-                  style={[styles.inputBox, activeInput === "payable" && styles.inputFocused, errors.payableAmount && styles.inputError]}
-                  onPress={() => { setActiveInput("payable"); payableInputRef.current?.focus(); if(errors.payableAmount) setErrors({...errors, payableAmount: ""}); }}
-                >
-                  <TextInput
-                    ref={payableInputRef}
-                    value={payableAmount}
-                    onChangeText={(txt) => {
-                       setPayableAmount(txt);
-                       if(errors.payableAmount) setErrors({...errors, payableAmount: ""});
-                    }}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                    style={styles.input}
-                    cursorColor="#16A34A"
-                    onFocus={() => setActiveInput("payable")}
-                    onBlur={() => setActiveInput(null)}
-                  />
-                </TouchableOpacity>
-                {errors.payableAmount && <AppText style={styles.errorText} language={language}>{errors.payableAmount}</AppText>}
-              </View>
-
-              <View style={{ justifyContent: "center", alignItems: "center", marginHorizontal: 6, marginTop: 20 }}>
-                <AppText style={{ fontSize: 24, fontWeight: "600", color: "#6B7280", fontFamily: "Mandali" }}>-</AppText>
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <AppText style={styles.label}>
-                  {language === "te" ? "అడ్వాన్స్ ఇస్తే రాయండి (-)" : "Advance Paid (-)"}
-                </AppText>
-                <TouchableOpacity
-                  activeOpacity={1}
-                  style={[styles.inputBox, { marginBottom: 0 }, activeInput === "advance" && styles.inputFocused]}
+                  style={[styles.inputBox, activeInput === "advance" && styles.inputFocused]}
                   onPress={() => { setActiveInput("advance"); advanceInputRef.current?.focus(); }}
                 >
                   <TextInput
@@ -871,19 +824,124 @@ export default function AddDriverWork() {
                   />
                 </TouchableOpacity>
               </View>
+
+              <View style={{ flex: 1, marginLeft: 8 }}>
+                <AppText style={styles.label}>
+                  {language === "te" ? "కట్ చేసిన డబ్బు (₹)" : "Cut Amount (₹)"}
+                </AppText>
+                <TouchableOpacity
+                  activeOpacity={1}
+                  style={[styles.inputBox, activeInput === "cuttingAmount" && styles.inputFocused]}
+                  onPress={() => { setActiveInput("cuttingAmount"); cuttingInputRef.current?.focus(); }}
+                >
+                  <TextInput
+                    ref={cuttingInputRef}
+                    value={cuttingAmount}
+                    onChangeText={setCuttingAmount}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                    style={styles.input}
+                    cursorColor="#16A34A"
+                    onFocus={() => setActiveInput("cuttingAmount")}
+                    onBlur={() => setActiveInput(null)}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            <View style={styles.finalBox}>
-              <View>
-                <AppText style={{ color: "#fff", opacity: 0.9, fontSize: 13, fontFamily: "Mandali" }}>
-                  {language === "te" ? `డ్రైవర్ కి ఇవ్వాల్సిన బ్యాలెన్స్` : `Balance Amount (Total)`}
-                </AppText>
-                <AppText style={{ color: "#fff", fontSize: 24, fontWeight: "600", marginTop: 4 }}>
-                  ₹{getFinalAmount()}
-                </AppText>
-              </View>
-              <Ionicons name="wallet" size={40} color="rgba(255,255,255,0.4)" />
-            </View>
+            <AppText style={{ color: "#6B7280", fontSize: 11, fontFamily: "Mandali", marginBottom: 16 }}>
+              {language === "te" ? "గమనిక: సెలవు పెట్టినా, బండి పాడైనా, లేదా ఇతర కారణాల వల్ల జీతంలో నుండి కట్ చేసే డబ్బులు ఇక్కడ రాయండి." : "Note: Enter any amount deducted due to absence or damages."}
+            </AppText>
+
+            {(parseFloat(cuttingAmount) > 0) && (
+               <View style={{ marginBottom: 16 }}>
+                 <AppText style={styles.label}>
+                   {language === "te" ? "డబ్బులు కట్ చేయడానికి కారణం రాయండి*" : "Reason for cutting amount*"}
+                 </AppText>
+                 <TouchableOpacity
+                   activeOpacity={1}
+                   style={[styles.inputBox, activeInput === "cuttingReason" && styles.inputFocused, errors.cuttingReason && styles.inputError]}
+                   onPress={() => { setActiveInput("cuttingReason"); cuttingReasonRef.current?.focus(); if (errors.cuttingReason) setErrors({...errors, cuttingReason: ""}); }}
+                 >
+                   <View style={styles.inputWrapper}>
+                     <TextInput
+                       ref={cuttingReasonRef}
+                       value={cuttingReason}
+                       onChangeText={setCuttingReason}
+                       placeholder={isListening && voiceTarget === "cuttingReason" ? (language === "te" ? "వింటున్నాను..." : "Listening...") : (language === "te" ? "ఉదాహరణకి: బండి రిపేర్ లేదా బ్రేక్ ఇవ్వలేదు" : "Example: Damage to vehicle")}
+                       placeholderTextColor={isListening && voiceTarget === "cuttingReason" ? "#EF4444" : "#9CA3AF"}
+                       style={styles.input}
+                       cursorColor="#16A34A"
+                       onFocus={() => setActiveInput("cuttingReason")}
+                       onBlur={() => setActiveInput(null)}
+                     />
+                   </View>
+                   <TouchableOpacity onPress={() => handleVoiceInput("cuttingReason")} style={styles.micBtn}>
+                     <Ionicons
+                       name={isListening && voiceTarget === "cuttingReason" ? "mic" : "mic-outline"}
+                       size={24}
+                       color={isListening && voiceTarget === "cuttingReason" ? "#EF4444" : (activeInput === "cuttingReason" ? "#16A34A" : "#6B7280")}
+                     />
+                   </TouchableOpacity>
+                 </TouchableOpacity>
+                 {errors.cuttingReason && <AppText style={styles.errorText} language={language}>{errors.cuttingReason}</AppText>}
+               </View>
+            )}
+
+            {/* Dynamic Balance Box (Moved BELOW the inputs) */}
+            {balance !== undefined && (() => {
+               const initialBalance = parseFloat(balance.toString()) || 0;
+               const currentAdvance = parseFloat(advanceAmount) || 0;
+               const currentCut = parseFloat(cuttingAmount) || 0;
+               const updatedBalance = initialBalance - currentAdvance - currentCut;
+               
+               return (
+                 <View style={{ marginBottom: 16, padding: 12, backgroundColor: "#F0FDF4", borderRadius: 12, borderWidth: 1, borderColor: "#BBF7D0" }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <AppText style={{ color: "#4B5563", fontFamily: "Mandali", fontSize: 14 }}>
+                        {language === "te" ? "పాత బ్యాలెన్స్:" : "Old Balance:"}
+                      </AppText>
+                      <AppText style={{ color: "#374151", fontFamily: "Mandali", fontSize: 14, fontWeight: "600" }}>
+                        ₹{initialBalance.toLocaleString('en-IN')}
+                      </AppText>
+                    </View>
+
+                    {currentAdvance > 0 && (
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <AppText style={{ color: "#EF4444", fontFamily: "Mandali", fontSize: 14 }}>
+                          {language === "te" ? "అడ్వాన్స్ కట్ (-):" : "Advance (-):"}
+                        </AppText>
+                        <AppText style={{ color: "#EF4444", fontFamily: "Mandali", fontSize: 14, fontWeight: "600" }}>
+                          ₹{currentAdvance.toLocaleString('en-IN')}
+                        </AppText>
+                      </View>
+                    )}
+
+                    {currentCut > 0 && (
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <AppText style={{ color: "#EF4444", fontFamily: "Mandali", fontSize: 14 }}>
+                          {language === "te" ? "కొత్త కోత (-):" : "Cut Amount (-):"}
+                        </AppText>
+                        <AppText style={{ color: "#EF4444", fontFamily: "Mandali", fontSize: 14, fontWeight: "600" }}>
+                          ₹{currentCut.toLocaleString('en-IN')}
+                        </AppText>
+                      </View>
+                    )}
+
+                    <View style={{ height: 1, backgroundColor: "#BBF7D0", marginVertical: 6 }} />
+
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                      <AppText style={{ color: "#166534", fontFamily: "Mandali", fontSize: 16, fontWeight: "600" }}>
+                        {language === "te" ? "కొత్త ఫైనల్ బ్యాలెన్స్:" : "Updated Balance:"}
+                      </AppText>
+                      <AppText style={{ color: "#16A34A", fontFamily: "Mandali", fontSize: 18, fontWeight: "600" }}>
+                        ₹{updatedBalance.toLocaleString('en-IN')}
+                      </AppText>
+                    </View>
+                 </View>
+               );
+            })()}
           </>
         )}
 

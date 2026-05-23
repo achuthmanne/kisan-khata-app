@@ -42,6 +42,8 @@ export default function AddDriver() {
   const [name, setName] = useState(getStr(params.name));
   const [phone, setPhone] = useState(getStr(params.phone));
   const [village, setVillage] = useState(getStr(params.village));
+  const [paymentType, setPaymentType] = useState<"daily" | "monthly">((getStr(params.paymentType) as "daily" | "monthly") || "daily");
+  const [monthlySalary, setMonthlySalary] = useState(getStr(params.monthlySalary));
 
   const [activeSession, setActiveSession] = useState("");
   const [activeInput, setActiveInput] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export default function AddDriver() {
   const nameRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
   const villageRef = useRef<TextInput>(null);
+  const salaryRef = useRef<TextInput>(null);
 
   const placeholders = {
     en: {
@@ -227,6 +230,10 @@ export default function AddDriver() {
     }
 
     if (!cleanVillage) newErrors.village = language === "te" ? "గ్రామం పేరు నమోదు చేయండి*" : "Enter village name*";
+    
+    if (paymentType === "monthly" && !monthlySalary.trim()) {
+      newErrors.monthlySalary = language === "te" ? "నెల జీతం నమోదు చేయండి*" : "Enter monthly salary*";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -270,13 +277,17 @@ export default function AddDriver() {
         await ref.doc(editId).update({
           driverName: cleanName, 
           phone: cleanPhone,
-          village: cleanVillage
+          village: cleanVillage,
+          paymentType,
+          monthlySalary: paymentType === "monthly" ? Number(monthlySalary) : 0
         });
       } else {
         await ref.add({
           driverName: cleanName,
           phone: cleanPhone,
           village: cleanVillage,
+          paymentType,
+          monthlySalary: paymentType === "monthly" ? Number(monthlySalary) : 0,
           session: activeSession, 
           createdAt: firestore.FieldValue.serverTimestamp()
         });
@@ -479,6 +490,69 @@ export default function AddDriver() {
         </TouchableOpacity>
         {errors.village && <AppText style={styles.errorText} language={language}>{errors.village}</AppText>}
 
+        {/* 🔘 PAYMENT TYPE SELECTION */}
+        <AppText style={{ fontSize: 14, color: "#6B7280", marginTop: 8, marginBottom: 8, marginLeft: 4, fontFamily: "Mandali", fontWeight: "600" }}>
+          {language === "te" ? "జీతం విధానం*" : "Payment Type*"}
+        </AppText>
+        <View style={{ flexDirection: "row", gap: 12, marginBottom: paymentType === "monthly" ? 16 : 32 }}>
+          <TouchableOpacity activeOpacity={0.8}
+            style={[styles.pill, paymentType === "daily" && styles.activePill]} 
+            onPress={() => setPaymentType("daily")}
+          >
+            <AppText style={[styles.pillText, { color: paymentType === "daily" ? "#fff" : "#4B5563" }]}>
+              {language === "te" ? "రోజువారీ (Daily)" : "Daily Worker"}
+            </AppText>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.8}
+            style={[styles.pill, paymentType === "monthly" && styles.activePill]} 
+            onPress={() => setPaymentType("monthly")}
+          >
+            <AppText style={[styles.pillText, { color: paymentType === "monthly" ? "#fff" : "#4B5563" }]}>
+              {language === "te" ? "నెల జీతం (Monthly)" : "Monthly Salary"}
+            </AppText>
+          </TouchableOpacity>
+        </View>
+
+        {/* 💰 MONTHLY SALARY BOX */}
+        {paymentType === "monthly" && (
+          <>
+            <TouchableOpacity
+              style={[styles.inputBox, activeInput === "salary" && styles.inputFocused, errors.monthlySalary && styles.inputError, { marginBottom: 32 }]}
+              activeOpacity={1}
+              onPress={() => { setActiveInput("salary"); salaryRef.current?.focus(); }}
+            >
+              <Ionicons 
+                name="cash-outline" 
+                size={20} 
+                color={monthlySalary || activeInput === "salary" ? "#16A34A" : "#9CA3AF"} 
+              />
+              <View style={styles.inputWrapper}>
+                {!monthlySalary && activeInput !== "salary" && (
+                  <AppText style={{ color: "#9CA3AF", fontFamily: "Mandali" }}>
+                    {language === "te" ? "నెల జీతం (రూ.)*" : "Monthly Salary (₹)*"}
+                  </AppText>
+                )}
+                <TextInput
+                  ref={salaryRef}
+                  value={monthlySalary}
+                  onChangeText={(txt) => {
+                    setMonthlySalary(txt);
+                    if (errors.monthlySalary) setErrors({ ...errors, monthlySalary: "" });
+                  }}
+                  keyboardType="numeric"
+                  cursorColor="#16A34A"
+                  selectionColor="#16A34A40"
+                  style={[styles.input, { display: (monthlySalary || activeInput === "salary") ? "flex" : "none" }]}
+                  onFocus={() => setActiveInput("salary")}
+                  onBlur={() => setActiveInput(null)}
+                  returnKeyType="done"
+                />
+              </View>
+            </TouchableOpacity>
+            {errors.monthlySalary && <AppText style={[styles.errorText, {marginTop: -28, marginBottom: 32}]} language={language}>{errors.monthlySalary}</AppText>}
+          </>
+        )}
+
         {/* SAVE */}
         <TouchableOpacity
           style={styles.saveBtn}
@@ -652,6 +726,24 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 20
+  },
+  pill: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB"
+  },
+  activePill: {
+    backgroundColor: "#1B5E20",
+  },
+  pillText: {
+    fontFamily: "Mandali",
+    fontSize: 15,
+    fontWeight: "600"
   },
   contactImportBtn: {
     flexDirection: 'row',

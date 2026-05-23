@@ -16,9 +16,10 @@ import {
   SafeAreaView,
   StatusBar,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  View
+  View,
+  Modal,
+  TextInput
 } from "react-native";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
 
@@ -342,39 +343,42 @@ export default function PaymentSummary() {
         )}
       </KeyboardAvoidingView>
 
-      {errorModal && (
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={[styles.iconBg, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="alert-circle" size={30} color="#DC2626" />
+      {/* VALIDATION ERROR MODAL - PREMIUM THEME */}
+      <Modal visible={errorModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="alert-circle" size={36} color="#DC2626" />
             </View>
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#DC2626" }]} language={language}>
               {language === "te" ? "రేటు నమోదు చేయండి" : "Rate Required"}
             </AppText>
-            <AppText style={styles.modalSub} language={language}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te" ? "దయచేసి కూలీలందరికీ రేటు ఎంటర్ చేయండి" : "Please enter the daily rate for the workers"}
             </AppText>
-            <TouchableOpacity style={styles.okBtn} onPress={() => setErrorModal(false)}>
-              <AppText style={styles.okText} language={language}>{language === "te" ? "సరే" : "OK"}</AppText>
-            </TouchableOpacity>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity style={[styles.modalInfoBtnStandard, { backgroundColor: "#DC2626" }]} onPress={() => setErrorModal(false)}>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే" : "OK"}</AppText>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      )}
+      </Modal>
 
-      {/* 🔥 UX UPGRADED PAYMENT MODE MODAL */}
-      {modeModal && (
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
+      {/* UX UPGRADED PAYMENT MODE MODAL - PREMIUM THEME */}
+      <Modal visible={modeModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { paddingBottom: 15 }]}>
 
-            <View style={[styles.iconBg, { backgroundColor: workColor + "20" }]}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: workColor + "20" }]}>
               <Ionicons name="wallet-outline" size={34} color={workColor} />
             </View>
 
-            <AppText style={styles.modalTitle} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: workColor }]} language={language}>
               {language === "te" ? `మీరు ${name} కి ఎలా చెల్లించారు?` : `How did you pay ${name}?`}
             </AppText>
 
-            <AppText style={[styles.modalSub, { color: '#DC2626', fontWeight: '500' }]} language={language}>
+            <AppText style={[styles.modalSubStandard, { color: '#DC2626', fontWeight: '500', marginBottom: 15 }]} language={language}>
               {language === "te" 
                 ? "గమనిక: ఇది కేవలం మీ లెక్కల కోసం మాత్రమే. యాప్ ద్వారా డబ్బులు కట్ అవ్వవు." 
                 : "Note: This is only for your records. No money will be deducted from the app."}
@@ -385,7 +389,7 @@ export default function PaymentSummary() {
               <View style={[styles.radioOuter, { borderColor: workColor }]}>
                 {paymentMode === "cash" && <View style={[styles.radioInner, { backgroundColor: workColor }]} />}
               </View>
-              <Ionicons name="cash-outline" size={18} color={workColor} />
+              <Ionicons name="cash-outline" size={20} color={workColor} />
               <AppText style={styles.radioText} language={language}>{language === "te" ? "నగదు (Cash)" : "Cash"}</AppText>
             </TouchableOpacity>
 
@@ -394,74 +398,56 @@ export default function PaymentSummary() {
               <View style={[styles.radioOuter, { borderColor: workColor }]}>
                 {paymentMode === "upi" && <View style={[styles.radioInner, { backgroundColor: workColor }]} />}
               </View>
-              <Ionicons name="phone-portrait-outline" size={18} color={workColor} />
+              <Ionicons name="phone-portrait-outline" size={20} color={workColor} />
               <AppText style={styles.radioText} language={language}>{language === "te" ? "ఫోన్ పే / గూగుల్ పే (UPI)" : "PhonePe / GPay (UPI)"}</AppText>
             </TouchableOpacity>
 
-            {/* CONTINUE BUTTON */}
-            <TouchableOpacity
-              disabled={!paymentMode} activeOpacity={0.9}
-              style={[styles.continueBtn, { backgroundColor: paymentMode ? workColor : "#D1D5DB" }]}
-              onPress={() => { setModeModal(false); setShowModal(true); }}
-            >
-              <AppText style={styles.continueText} language={language}>{language === "te" ? "లెక్క భద్రపరచండి" : "Save Record"}</AppText>
-            </TouchableOpacity>
+            <View style={[styles.modalButtonsStandard, { marginTop: 20 }]}>
+              <TouchableOpacity
+                disabled={!paymentMode} activeOpacity={0.9}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: paymentMode ? workColor : "#D1D5DB" }]}
+                onPress={() => { setModeModal(false); setShowModal(true); }}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "లెక్క భద్రపరచండి" : "Save Record"}</AppText>
+              </TouchableOpacity>
+            </View>
 
           </View>
         </View>
-      )}
+      </Modal>
 
-      {showModal && (
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={[styles.iconBg, { backgroundColor: workColor + "20" }]}>
-              <Ionicons name="shield-checkmark-outline" size={30} color={workColor} />
+      <Modal visible={showModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: workColor + "20" }]}>
+              <Ionicons name="shield-checkmark-outline" size={36} color={workColor} />
             </View>
-            <AppText style={styles.modalTitle} language={language}>{language === "te" ? "చెల్లింపు నిర్ధారణ" : "Confirm Record"}</AppText>
-            <AppText style={styles.modalSub} language={language}>{language === "te" ? "ఈ లెక్కను మీ యాప్ లో భద్రపరచాలా?" : "Do you want to save this record?"}</AppText>
+            <AppText style={[styles.modalTitleStandardInfo, { color: workColor }]} language={language}>{language === "te" ? "చెల్లింపు నిర్ధారణ" : "Confirm Record"}</AppText>
+            <AppText style={[styles.modalSubStandard, { marginBottom: 10 }]} language={language}>{language === "te" ? "ఈ లెక్కను మీ యాప్ లో భద్రపరచాలా?" : "Do you want to save this record?"}</AppText>
             
-            {/* 🔥 FORMATTED AMOUNT HERE TOO */}
-            <AppText style={[styles.modalAmount, { color: workColor }]}>₹ {formattedAmount}</AppText>
+            <AppText style={[styles.modalAmount, { color: workColor, marginBottom: 20 }]}>₹ {formattedAmount}</AppText>
             
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowModal(false)}>
-                <AppText style={styles.cancelText} language={language}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity style={styles.modalCancelBtnStandard} onPress={() => setShowModal(false)}>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.proceedBtn, { backgroundColor: workColor }]}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: workColor }]}
                 activeOpacity={0.8}
                 onPress={() => {
                   setShowModal(false);
                   router.push({
                     pathname: "/farmer/mestripayments/payment-success",
-                    params: {
-                      ids,        
-                      id,         
-                      name,
-                      village,
-                      crop,
-                      work,
-                      totalDays,
-                      totalWorkers,
-                      totalMorning,
-                      totalEvening,
-                      totalFull,
-                      morningRate,
-                      eveningRate,
-                      fullRate,
-                      amount,
-                      paymentMode
-                    }
+                    params: { ids, id, name, village, crop, work, totalDays, totalWorkers, totalMorning, totalEvening, totalFull, morningRate, eveningRate, fullRate, amount, paymentMode }
                   });
                 }}
               >
-                <Ionicons name="arrow-forward" size={16} color="#fff" />
-                <AppText style={styles.proceedText} language={language}>{language === "te" ? "కొనసాగించు" : "Proceed"}</AppText>
+                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "కొనసాగించు" : "Proceed"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      )}
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -501,20 +487,18 @@ const styles = StyleSheet.create({
   inlineConfirmWrapper: { marginHorizontal: 20, marginTop: 16, borderRadius: 16, overflow: "hidden" },
   confirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 15, borderRadius: 16 },
   confirmText: { color: "#fff", fontSize: 14, fontWeight: "600" },
-  
-  overlay: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center", zIndex: 999, elevation: 10 },
-  modalBox: { width: "85%", backgroundColor: "#fff", borderRadius: 18, padding: 20, alignItems: "center" },
-  iconBg: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginBottom: 10 },
-  modalTitle: { fontSize: 18, fontWeight: "600", textAlign: 'center', lineHeight: 34 },
-  modalSub: { fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 8, lineHeight: 20 },
-  modalAmount: { fontSize: 28, fontWeight: "800", marginTop: 15 },
-  modalBtns: { flexDirection: "row", marginTop: 20 },
-  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 10, alignItems: "center", borderWidth: 1, borderColor: "#E5E7EB", marginRight: 6, backgroundColor: "#F9FAFB" },
-  cancelText: { color: "#374151", fontWeight: "500" },
-  proceedBtn: { flex: 1, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 6, paddingVertical: 12, borderRadius: 10, marginLeft: 6 },
-  proceedText: { color: "#fff", fontWeight: "600" },
-  okBtn: { marginTop: 16, backgroundColor: "#DC2626", paddingVertical: 8, paddingHorizontal: 25, borderRadius: 10 },
-  okText: { color: "#fff", fontWeight: "600" },
+  // UNIFIED PREMIUM MODAL CLASSES
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
+  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#16A34A", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600", fontSize: 16 },
+  modalCancelBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600", fontSize: 16 },
+  modalAmount: { fontSize: 28, fontWeight: "800", marginTop: 15, textAlign: 'center' },
   
   shimmerSummary: { marginHorizontal: 20, marginTop: 12, padding: 16, borderRadius: 14, backgroundColor: "#fff" },
   shimmerBox: { flex: 1, height: 40, borderRadius: 8, marginHorizontal: 4 },

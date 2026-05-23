@@ -48,10 +48,11 @@ export default function FieldsScreen() {
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [cantDeleteVisible, setCantDeleteVisible] = useState(false); // 🔥 NEW: Warning Modal State
   const [actionLoading, setActionLoading] = useState(false); // 🔥 NEW: Loading while checking usage
-  
   const [loading, setLoading] = useState(true); 
   const [isDeleting, setIsDeleting] = useState(false); 
   const [soilStats, setSoilStats] = useState<any[]>([]); 
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const animatedAcres = useSharedValue(0);
 
@@ -81,78 +82,87 @@ export default function FieldsScreen() {
       let isMounted = true; 
 
       const load = async () => {
-        setLoading(true);
-        const phone = await AsyncStorage.getItem("USER_PHONE");
-        if (!phone) {
-          if (isMounted) setLoading(false);
-          return;
-        }
+        try {
+          setLoading(true);
+          const phone = await AsyncStorage.getItem("USER_PHONE");
+          if (!phone) {
+            if (isMounted) setLoading(false);
+            return;
+          }
 
-        const userDoc = await firestore().collection("users").doc(phone).get();
-        const activeSession = userDoc.data()?.activeSession;
+          const userDoc = await firestore().collection("users").doc(phone).get();
+          const activeSession = userDoc.data()?.activeSession;
 
-        if (!activeSession) {
-          if (isMounted) { setData([]); setLoading(false); }
-          return;
-        }
+          if (!activeSession) {
+            if (isMounted) { setData([]); setLoading(false); }
+            return;
+          }
 
-        if (isMounted) {
-          unsubscribe = firestore()
-            .collection("users").doc(phone).collection("fields")
-            .where("session", "==", activeSession)
-            .where("createdAt", "!=", null)  
-            .orderBy("createdAt", "desc")
-            .onSnapshot((snap) => {
-              if (snap && !snap.empty) {
-                const list: any[] = [];
-                let total = 0, own = 0, rent = 0;
-                const cropsMap: any = {};
-                const soilMap: any = {};
+          if (isMounted) {
+            unsubscribe = firestore()
+              .collection("users").doc(phone).collection("fields")
+              .where("session", "==", activeSession)
+              .where("createdAt", "!=", null)  
+              .orderBy("createdAt", "desc")
+              .onSnapshot((snap) => {
+                if (snap && !snap.empty) {
+                  const list: any[] = [];
+                  let total = 0, own = 0, rent = 0;
+                  const cropsMap: any = {};
+                  const soilMap: any = {};
 
-                snap.forEach((doc) => {
-                  const d: any = doc.data();
-                  list.push({ id: doc.id, ...d });
+                  snap.forEach((doc) => {
+                    const d: any = doc.data();
+                    list.push({ id: doc.id, ...d });
 
-                  const acres = Number(d.acres) || 0; 
-                  total += acres;
+                    const acres = Number(d.acres) || 0; 
+                    total += acres;
 
-                  if (d.type === "own") { own += acres; } 
-                  else { rent += acres; }
+                    if (d.type === "own") { own += acres; } 
+                    else { rent += acres; }
 
-                  const cropName = d.crop || "Others";
-                  if (!cropsMap[cropName]) cropsMap[cropName] = 0;
-                  cropsMap[cropName] += acres;
+                    const cropName = d.crop || "Others";
+                    if (!cropsMap[cropName]) cropsMap[cropName] = 0;
+                    cropsMap[cropName] += acres;
 
-                  const soilName = d.soilType || "Others";
-                  if (!soilMap[soilName]) soilMap[soilName] = 0;
-                  soilMap[soilName] += acres;
-                });
+                    const soilName = d.soilType || "Others";
+                    if (!soilMap[soilName]) soilMap[soilName] = 0;
+                    soilMap[soilName] += acres;
+                  });
 
-                setData(list);
-                setTotalAcres(total);
-                setOwnAcres(own);
-                setRentAcres(rent);
-                
-                setSoilStats(Object.keys(soilMap).map((name, index) => ({
-                  name, population: soilMap[name],
-                  color: PREM_COLORS[(index + 4) % PREM_COLORS.length],
-                  legendFontColor: "#475569", legendFontSize: 12
-                })));
+                  setData(list);
+                  setTotalAcres(total);
+                  setOwnAcres(own);
+                  setRentAcres(rent);
+                  
+                  setSoilStats(Object.keys(soilMap).map((name, index) => ({
+                    name, population: soilMap[name],
+                    color: PREM_COLORS[(index + 4) % PREM_COLORS.length],
+                    legendFontColor: "#475569", legendFontSize: 12
+                  })));
 
-                setCropStats(Object.keys(cropsMap).map((name, index) => ({
-                  name, population: cropsMap[name],
-                  color: PREM_COLORS[index % PREM_COLORS.length],
-                  legendFontColor: "#475569", legendFontSize: 12
-                })));
+                  setCropStats(Object.keys(cropsMap).map((name, index) => ({
+                    name, population: cropsMap[name],
+                    color: PREM_COLORS[index % PREM_COLORS.length],
+                    legendFontColor: "#475569", legendFontSize: 12
+                  })));
 
-              } else {
-                setData([]); setTotalAcres(0); setOwnAcres(0); setRentAcres(0);
-              }
-              setLoading(false);
-            }, (err) => {
-              console.log(err);
-              setLoading(false);
-            });
+                } else {
+                  setData([]); setTotalAcres(0); setOwnAcres(0); setRentAcres(0);
+                }
+                setLoading(false);
+              }, (err) => {
+                console.log("SNAPSHOT ERROR:", err);
+                if (isMounted) setLoading(false);
+              });
+          }
+        } catch (e: any) {
+          console.log("LOAD ERROR:", e);
+          if (isMounted) {
+            setLoading(false);
+            setErrorMsg(language === "te" ? "డేటా లోడ్ అవ్వలేదు! ఇంటర్నెట్ చెక్ చేయండి." : "Failed to load data! Check connection.");
+            setShowErrorModal(true);
+          }
         }
       };
 
@@ -305,6 +315,7 @@ export default function FieldsScreen() {
       params: { 
         editId: item.id,
         crop: item.crop || "",
+        nickname: item.nickname || "", // 🔥 NEW
         type: item.type || "",
         acres: item.acres?.toString() || "",
         rent: item.rent?.toString() || "",
@@ -336,7 +347,10 @@ export default function FieldsScreen() {
       if (phone && selectedItem) {
         await firestore().collection("users").doc(phone).collection("fields").doc(selectedItem.id).delete();
       }
-    } catch (e) { console.log("Delete error", e);
+    } catch (e: any) { 
+      console.log("Delete error", e);
+      setErrorMsg(language === "te" ? "తొలగించడం విఫలమైంది! ఇంటర్నెట్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి." : "Failed to delete! Please check your connection.");
+      setShowErrorModal(true);
     } finally {
       setIsDeleting(false);
       setDeleteVisible(false);
@@ -473,7 +487,9 @@ export default function FieldsScreen() {
                   <Animated.View key={item.id} entering={FadeInDown.delay(index * 100)} style={styles.fieldCard}>
                     <View style={[styles.sideBar, { backgroundColor: cropColor }]} />
                     <View style={styles.fieldInfo}>
-                      <AppText style={styles.cropName}>{item.crop}</AppText>
+                      <AppText style={styles.cropName}>
+                        {item.nickname ? `${item.crop} - ${item.nickname}` : item.crop}
+                      </AppText>
                       <AppText style={styles.fieldMeta}>
                         {item.acres} {language === "te" ? "ఎకరాలు" : "Acres"} | 
                         <AppText style={{ color: item.type === 'own' ? '#10B981' : '#F59E0B', fontWeight: '600' }}>
@@ -571,6 +587,33 @@ export default function FieldsScreen() {
               >
                 <AppText style={styles.modalWarningTextStandard} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔥 GLOBAL ERROR MODAL */}
+      <Modal visible={showErrorModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardWarning, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="warning-outline" size={36} color="#EF4444" />
+            </View>
+            <AppText style={[styles.modalTitleStandardWarning, { color: "#EF4444" }]} language={language}>
+              {language === "te" ? "లోపం జరిగింది" : "Error Occurred"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {errorMsg}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8}
+                style={[styles.modalWarningBtnStandard, { backgroundColor: "#EF4444" }]} 
+                onPress={() => setShowErrorModal(false)}
+              >
+                <AppText style={styles.modalWarningTextStandard} language={language}>
+                  {language === "te" ? "సరే" : "OK"}
                 </AppText>
               </TouchableOpacity>
             </View>

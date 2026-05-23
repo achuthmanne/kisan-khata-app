@@ -90,15 +90,75 @@ const getWeatherConfig = (main: string, lang: string) => {
   return { icon: "partly-sunny", color: "#F59E0B", text: main.charAt(0).toUpperCase() + main.slice(1) };
 };
 
-const getAgriAdvice = (main: string, temp: number, windSpeed: number, humidity: number, lang: string) => {
+const getAgriAdvice = (main: string, temp: number, windSpeed: number, humidity: number, rainChance: number, lang: string, hour: number) => {
   const m = main.toLowerCase();
-  if (m.includes("thunderstorm") || m.includes("storm") || m.includes("tornado")) return lang === "te" ? "⚠️ పిడుగులు/తుఫాను వచ్చే ప్రమాదం ఉంది. పొలం పనులు ఆపేసి సురక్షిత ప్రాంతంలో ఉండండి." : "⚠️ Storm/Thunderstorm alert. Stop field work and stay in a safe place. Do not spray or irrigate.";
-  if (m.includes("rain") || m.includes("drizzle") || m.includes("snow")) return lang === "te" ? "🌧️ వర్షం పడే అవకాశం ఉంది. ఇప్పుడు మందులు కొడితే కడిగివేయబడతాయి, వాయిదా వేయండి." : "🌧️ Rain expected. Postpone spraying fertilizers or pesticides as they will wash off.";
-  if (windSpeed > 15) return lang === "te" ? "💨 గాలి వేగం ఎక్కువగా ఉంది. మందు కొడితే పక్క పొలాలకు లేదా మీ కళ్ళలో పడే ప్రమాదం ఉంది." : "💨 High winds detected. Avoid spraying to prevent chemical drift to neighboring fields.";
-  if (temp > 35) return lang === "te" ? "🔥 ఎండ తీవ్రత ఎక్కువగా ఉంది. ఇప్పుడు మందు కొడితే ఆవిరైపోతుంది, ఉదయం లేదా సాయంత్రం పూట మాత్రమే పిచికారీ చేయండి." : "🔥 High temperature. Spraying now may cause chemical burn or evaporate quickly. Spray only in morning or evening.";
-  if (humidity > 85 && (m.includes("clouds") || m.includes("mist") || m.includes("haze"))) return lang === "te" ? "☁️ గాలిలో తేమ చాలా ఎక్కువగా ఉంది. బూజు/ఫంగస్ తెగుళ్లు వచ్చే అవకాశం ఉంది, పైరును గమనిస్తూ ఉండండి." : "☁️ High humidity and cloudy. High risk of fungal diseases. Monitor your crops closely.";
-  if (temp < 15) return lang === "te" ? "❄️ చలి/మంచు ఎక్కువగా ఉంది. ఉదయం పూట ఆకుల మీద మంచు తగ్గాకే మందులు పిచికారీ చేయండి." : "❄️ Cold weather. Wait for the morning dew to dry on leaves before spraying pesticides.";
-  return lang === "te" ? "✅ వాతావరణం చాలా అనుకూలంగా ఉంది. ఎరువులు వేయడానికి, మందులు కొట్టడానికి లేదా కోతలకు ఇది సరైన సమయం." : "✅ Perfect weather conditions. Excellent time for spraying, fertilizing, or harvesting.";
+  const isNight = hour >= 19 || hour < 5;
+  const isMorning = hour >= 5 && hour < 11;
+  const isAfternoon = hour >= 11 && hour < 16;
+
+  // 1. Extreme Danger (Lightning / Storms)
+  if (m.includes("thunderstorm") || m.includes("storm") || m.includes("tornado") || m.includes("squall")) {
+     return lang === "te" 
+       ? "⚠️ పిడుగులు పడే ప్రమాదం ఉంది. పొలంలో చెట్ల కింద ఉండకండి. తక్షణమే సురక్షిత ప్రాంతానికి వెళ్ళండి." 
+       : "⚠️ Danger of lightning/storm. Do not stand under trees. Go to a safe place immediately.";
+  }
+
+  // 2. Rain / Rain Chance (Wastes pesticide)
+  if (m.includes("rain") || m.includes("drizzle") || m.includes("snow") || rainChance >= 40) {
+     return lang === "te" 
+       ? "🌧️ వర్షం పడే అవకాశం ఉంది. ఇప్పుడు మందులు కొడితే కడిగిపోయి డబ్బులు వృధా అవుతాయి. వాతావరణం చూసి పిచికారీ చేయండి." 
+       : "🌧️ Rain expected. Spraying now will wash away pesticides and waste money. Do not spray.";
+  }
+
+  // 3. Time Sense: NIGHT
+  if (isNight) {
+     return lang === "te" 
+       ? "🌙 చీకటి పడింది. రాత్రి పూట పొలంలో పాములు/విష కీటకాల ప్రమాదం ఉంటుంది. వ్యవసాయ పనులకు విశ్రాంతి ఇవ్వండి." 
+       : "🌙 It's night time. High risk of snake/insect bites in the field. Rest and plan for tomorrow.";
+  }
+
+  // 4. High Wind (Causes drift)
+  if (windSpeed > 15) {
+     return lang === "te" 
+       ? "💨 గాలి తీవ్రత ఎక్కువగా ఉంది. ఇప్పుడు మందు కొడితే పక్క పొలాలకు లేదా మీ కళ్ళలో పడే ప్రమాదం ఉంది. గాలి తగ్గాకే పిచికారీ చేయండి." 
+       : "💨 High wind. Spraying now risks chemical drift to other fields or into your eyes. Wait for wind to stop.";
+  }
+
+  // 5. Extreme Heat (Evaporation & Leaf Burn)
+  if (temp > 35) {
+     if (isAfternoon) {
+        return lang === "te" 
+          ? "🔥 మండుటెండలో మందు కొట్టకండి. ఆకులు మాడిపోతాయి మరియు మందు ఆవిరైపోతుంది. సాయంత్రం 4 తర్వాతే పిచికారీ చేయండి." 
+          : "🔥 High heat. Do not spray now as leaves may burn and chemicals will evaporate. Wait until evening.";
+     } else if (isMorning) {
+        return lang === "te" 
+          ? "🔥 ఈరోజు ఎండ తీవ్రత ఎక్కువగా ఉంటుంది. మందు కొడితే త్వరగా ఆవిరైపోతుంది. ఉదయం 10 లోపే పిచికారీ పూర్తి చేయండి." 
+          : "🔥 Today will be very hot. Finish spraying before 10 AM before the sun gets too strong.";
+     } else {
+        return lang === "te" 
+          ? "🔥 ఎండ ఇంకా తీవ్రంగానే ఉంది. కొద్దిగా చల్లబడ్డాక మందు కొట్టండి." 
+          : "🔥 It is still hot. Wait for it to cool down a bit before spraying.";
+     }
+  }
+
+  // 6. Dew / Cold (Chemicals drip off)
+  if (temp < 15 || (isMorning && humidity > 85)) {
+     return lang === "te" 
+       ? "❄️ ఆకుల మీద మంచు ఎక్కువగా ఉంది. మంచు ఆరిన తర్వాతే మందు కొట్టండి, లేదంటే మందు కింద పడిపోతుంది." 
+       : "❄️ Heavy dew. Wait for dew to dry before spraying, else pesticide will drip off into the soil.";
+  }
+
+  // 7. High Humidity / Fungus Risk
+  if (humidity > 85 && (m.includes("clouds") || m.includes("mist") || m.includes("haze") || m.includes("fog"))) {
+     return lang === "te" 
+       ? "☁️ గాలిలో తేమ ఎక్కువగా ఉండి మబ్బులు పట్టాయి. బూజు/ఫంగస్ తెగుళ్లు వేగంగా వ్యాపిస్తాయి. పొలాన్ని జాగ్రత్తగా గమనించండి." 
+       : "☁️ High humidity and cloudy. High risk of fungal diseases spreading. Monitor your crops closely.";
+  }
+
+  // 8. Perfect Conditions
+  return lang === "te" 
+    ? "✅ వాతావరణం చాలా అనుకూలంగా ఉంది. మందులు కొట్టడానికి, ఎరువులు వేయడానికి ఇది సరైన సమయం." 
+    : "✅ Perfect weather conditions. Excellent time for spraying pesticides or applying fertilizers.";
 };
 
 /* ---------------- 1. ADVANCED WEATHER ---------------- */
@@ -148,9 +208,13 @@ export const getAdvancedWeather = functions.https.onRequest(async (req, res) => 
     if (exactLocation === "Location" && currentData.name) {
       exactLocation = currentData.name; 
     }
+    const istTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const currentHour = istTime.getHours();
+
     const currentMain = currentData.weather[0].main;
     const currentConfig = getWeatherConfig(currentMain, lang);
     const windKmH = Math.round(currentData.wind.speed * 3.6);
+    const rainChanceVal = forecastData.list[0]?.pop ? Math.round(forecastData.list[0].pop * 100) : 0;
     
     const current = {
       temp: Math.round(currentData.main.temp),
@@ -161,10 +225,10 @@ export const getAdvancedWeather = functions.https.onRequest(async (req, res) => 
       wind: windKmH,
       pressure: currentData.main.pressure,
       visibility: (currentData.visibility / 1000).toFixed(1),
-      advice: getAgriAdvice(currentMain, currentData.main.temp, windKmH, currentData.main.humidity, lang),
-      isGood: !["rain", "storm", "thunderstorm", "drizzle"].includes(currentMain.toLowerCase()) && windKmH < 15 && currentData.main.temp <= 35,
+      advice: getAgriAdvice(currentMain, currentData.main.temp, windKmH, currentData.main.humidity, rainChanceVal, lang, currentHour),
+      isGood: !["rain", "storm", "thunderstorm", "drizzle"].includes(currentMain.toLowerCase()) && windKmH < 15 && currentData.main.temp <= 35 && rainChanceVal < 40,
       uv: 6,
-      rainChance: forecastData.list[0]?.pop ? Math.round(forecastData.list[0].pop * 100) : 0
+      rainChance: rainChanceVal
     };
 
     const hourly = forecastData.list.slice(0, 8).map((item: any) => {
@@ -506,5 +570,101 @@ export const notifyNewScheme = onDocumentCreated(
     };
     
     await sendMulticastInBatches(tokens, payload);
+  }
+);
+
+/* ---------------- 7. DRIVER ATTENDANCE REMINDERS (PRODUCTION READY) ---------------- */
+export const sendDriverAttendanceReminders = onSchedule({
+  schedule: "0 19 * * *", // Runs EXACTLY ONCE a day at 7:00 PM
+  timeZone: "Asia/Kolkata"
+},
+  async () => {
+    const now = new Date();
+    // Get today's date in IST
+    const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const todayDD = String(istTime.getDate()).padStart(2, '0');
+    const todayMM = String(istTime.getMonth() + 1).padStart(2, '0');
+    const todayYYYY = istTime.getFullYear();
+    const formattedToday = `${todayDD}-${todayMM}-${todayYYYY}`; // e.g., 24-05-2026
+
+    const usersSnap = await admin.firestore().collection("users").get();
+
+    for (const doc of usersSnap.docs) {
+      const userData = doc.data();
+      const phone = doc.id;
+      const token = userData.fcmToken;
+      
+      if (!token) continue; // No token, skip
+      
+      const lang = userData.language || "te";
+      
+      // Determine active session
+      let activeSession = userData.activeSession;
+      if (!activeSession) {
+         const year = istTime.getFullYear();
+         const startYear = istTime.getMonth() >= 5 ? year : year - 1;
+         activeSession = `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+      }
+
+      // Fetch vehicles
+      const vehiclesSnap = await admin.firestore().collection("users").doc(phone).collection("vehicles").get();
+      const missedDrivers: string[] = [];
+
+      for (const vDoc of vehiclesSnap.docs) {
+        const driversSnap = await admin.firestore()
+          .collection("users").doc(phone)
+          .collection("vehicles").doc(vDoc.id)
+          .collection("drivers")
+          .where("session", "==", activeSession)
+          .where("paymentType", "==", "monthly")
+          .get();
+          
+        for (const dDoc of driversSnap.docs) {
+          const driverData = dDoc.data();
+          const driverName = driverData.driverName || "Driver";
+          
+          // Check if today's attendance exists
+          const entriesSnap = await admin.firestore()
+            .collection("users").doc(phone)
+            .collection("vehicles").doc(vDoc.id)
+            .collection("drivers").doc(dDoc.id)
+            .collection("entries")
+            .where("date", "==", formattedToday)
+            .limit(1)
+            .get();
+
+          if (entriesSnap.empty) {
+            missedDrivers.push(driverName);
+          }
+        }
+      }
+
+      if (missedDrivers.length > 0) {
+        // Construct names string cleanly
+        const namesStr = missedDrivers.join(", ");
+        
+        const title = lang === "te" 
+           ? "⚠️ ఈ రోజు హాజరు మర్చిపోయారు!" 
+           : "⚠️ Forgot Today's Attendance!";
+           
+        const body = lang === "te" 
+           ? `ఈ రోజు మీరు ${namesStr} డ్రైవర్ల హాజరు ఇంకా వేయలేదు. వెంటనే Kisan Khata లో రికార్డ్ చేయండి.`
+           : `You haven't marked attendance for ${namesStr} today. Please record it in Kisan Khata immediately.`;
+
+        try {
+          await admin.messaging().send({
+            token,
+            notification: { title, body },
+            data: { screen: "/farmer/vechiles" }, // Deep links to vehicles/drivers screen
+            android: { priority: "high", notification: { channelId: "default", sound: "default" } }
+          });
+        } catch (error: any) {
+          // 🔥 Cleanup bad tokens to save future resources
+          if (error.code === "messaging/registration-token-not-registered" || error.code === "messaging/invalid-registration-token") {
+            await admin.firestore().collection("users").doc(phone).update({ fcmToken: admin.firestore.FieldValue.delete() });
+          }
+        }
+      }
+    }
   }
 );

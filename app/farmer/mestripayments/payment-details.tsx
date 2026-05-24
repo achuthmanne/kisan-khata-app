@@ -68,11 +68,29 @@ export default function PaymentDetails() {
         .where("session", "==", activeSession) 
         .get();
 
-      const list = snap.docs.map(d => d.data());
+      // Fetch payments to handle old records that don't have isPaid: true
+      const paymentsSnap = await firestore()
+        .collection("users")
+        .doc(userPhone)
+        .collection("payments")
+        .where("mestriId", "==", id)
+        .where("session", "==", activeSession)
+        .get();
+
+      let paidIds: string[] = [];
+      paymentsSnap.docs.forEach(p => {
+        const data = p.data();
+        if (data.selectedAttendanceIds && Array.isArray(data.selectedAttendanceIds)) {
+          paidIds.push(...data.selectedAttendanceIds);
+        }
+      });
+
+      const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const unpaidList = list.filter((item: any) => !paidIds.includes(item.id));
 
       const cropGroup: any = {};
 
-      list.forEach(item => {
+      unpaidList.forEach(item => {
         const crop = item.crop || "Other";
         const work = item.work || "Other";
 
@@ -143,11 +161,11 @@ export default function PaymentDetails() {
 
       {/* 🔥 UX: Simple and Clean Top Info Box */}
       <View style={styles.topInfoBox}>
-        <AppText style={styles.mainTitle} language={language}>
+        <AppText style={styles.mainTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
           {name}
         </AppText>
         
-        <AppText style={styles.subTitle} language={language}>
+        <AppText style={styles.subTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
           {village}
         </AppText>
       </View>
@@ -195,7 +213,7 @@ export default function PaymentDetails() {
                   onPress={() => toggleCrop(item)}
                 >
                   <View style={styles.cropLeft}>
-                    <AppText style={styles.cropName} language={language}>
+                    <AppText style={styles.cropName} language={language} numberOfLines={1} ellipsizeMode="tail">
                       {item}
                     </AppText>
                     <AppText style={styles.cropDays} language={language}>
@@ -240,7 +258,7 @@ export default function PaymentDetails() {
                         activeOpacity={0.8}
                       >
                         <View style={styles.workLeft}>
-                          <AppText style={styles.workName} language={language}>
+                          <AppText style={styles.workName} language={language} numberOfLines={1} ellipsizeMode="tail">
                             {work}
                           </AppText>
 

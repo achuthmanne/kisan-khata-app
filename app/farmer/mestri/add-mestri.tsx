@@ -48,10 +48,12 @@ export default function AddMestri() {
   
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [loading, setLoading] = useState(false);
-  
   // 🔥 Lock Info & Duplicate Modal States
   const [showLockInfo, setShowLockInfo] = useState(false);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // CONTACTS STATES
   const [showContactsModal, setShowContactsModal] = useState(false);
@@ -103,20 +105,26 @@ export default function AddMestri() {
   });
 
   const handleVoiceInput = async (target: string) => {
-    if (target === "name" && isLocked) {
-      setShowLockInfo(true);
-      return;
+    try {
+      if (target === "name" && isLocked) {
+        setShowLockInfo(true);
+        return;
+      }
+      Keyboard.dismiss(); 
+      setActiveInput(target);
+      const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!result.granted) return;
+      
+      setIsListening(true);
+      ExpoSpeechRecognitionModule.start({
+        lang: language === "te" ? "te-IN" : "en-US",
+        interimResults: true,
+      });
+    } catch (e) {
+      console.log("Voice Error:", e);
+      setErrorMsg(language === "te" ? "మీ ఫోన్ వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయడం లేదు." : "Voice search is not supported on your device.");
+      setShowErrorModal(true);
     }
-    Keyboard.dismiss(); 
-    setActiveInput(target);
-    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!result.granted) return;
-    
-    setIsListening(true);
-    ExpoSpeechRecognitionModule.start({
-      lang: language === "te" ? "te-IN" : "en-US",
-      interimResults: true,
-    });
   };
 
   const handleOpenContacts = async () => {
@@ -279,8 +287,11 @@ export default function AddMestri() {
 
     } catch (e) {
       console.log("Save error:", e);
-      Alert.alert("Error", "Failed to save");
-      if (isMounted.current) setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+        setErrorMsg(language === "te" ? "సేవ్ చేయడం విఫలమైంది! దయచేసి ఇంటర్నెట్ కనెక్షన్ చెక్ చేయండి." : "Failed to save! Please check your connection.");
+        setShowErrorModal(true);
+      }
     }
   };
 
@@ -360,6 +371,7 @@ export default function AddMestri() {
             <TextInput
               ref={nameRef}
               value={name}
+              maxLength={40}
               editable={!isLocked}
               onChangeText={(txt) => {
                 setName(txt);
@@ -464,6 +476,7 @@ export default function AddMestri() {
             <TextInput
               ref={villageRef}
               value={village}
+              maxLength={40}
               onChangeText={(txt) => {
                 setVillage(txt);
                 if (errors.village) setErrors({ ...errors, village: undefined });
@@ -639,6 +652,33 @@ export default function AddMestri() {
                 onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
               >
                 <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔥 GLOBAL ERROR MODAL */}
+      <Modal visible={showErrorModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="warning-outline" size={36} color="#EF4444" />
+            </View>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#EF4444" }]} language={language}>
+              {language === "te" ? "లోపం జరిగింది" : "Error Occurred"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {errorMsg}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#EF4444" }]} 
+                onPress={() => setShowErrorModal(false)}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>
+                  {language === "te" ? "సరే" : "OK"}
+                </AppText>
               </TouchableOpacity>
             </View>
           </View>

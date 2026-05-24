@@ -45,6 +45,9 @@ export default function AttendanceScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [showCannotDeleteModal, setShowCannotDeleteModal] = useState(false);
 
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
   // 🔥 FIX 2: Voice Search Punctuation Bug
   useSpeechRecognitionEvent("result", (event) => {
     if (!isScreenFocused || !isListening) return;
@@ -58,15 +61,21 @@ export default function AttendanceScreen() {
   useSpeechRecognitionEvent("end", () => setIsListening(false));
 
   const handleVoiceSearch = async () => {
-    Keyboard.dismiss(); // 🔥 FIX 3: Close keyboard on voice search
-    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!result.granted) return;
+    try {
+      Keyboard.dismiss(); 
+      const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!result.granted) return;
 
-    setIsListening(true);
-    ExpoSpeechRecognitionModule.start({
-      lang: language === "te" ? "te-IN" : "en-US",
-      interimResults: true,
-    });
+      setIsListening(true);
+      ExpoSpeechRecognitionModule.start({
+        lang: language === "te" ? "te-IN" : "en-US",
+        interimResults: true,
+      });
+    } catch (e) {
+      console.log("Voice Error:", e);
+      setErrorMsg(language === "te" ? "మీ ఫోన్ వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయడం లేదు." : "Voice search is not supported on your device.");
+      setShowErrorModal(true);
+    }
   };
 
   useEffect(() => {
@@ -91,47 +100,54 @@ export default function AttendanceScreen() {
     let unsubscribe: (() => void) | undefined;
 
     const loadData = async () => {
-      setLoading(true);
-      const userPhone = (await AsyncStorage.getItem("USER_PHONE")) ?? "";
-      if (!userPhone) {
-        setLoading(false);
-        return;
-      }
+      try {
+        setLoading(true);
+        const userPhone = (await AsyncStorage.getItem("USER_PHONE")) ?? "";
+        if (!userPhone) {
+          setLoading(false);
+          return;
+        }
 
-      const userDoc = await firestore().collection("users").doc(userPhone).get();
-      const session = userDoc.data()?.activeSession;
+        const userDoc = await firestore().collection("users").doc(userPhone).get();
+        const session = userDoc.data()?.activeSession;
 
-      if (!session) {
-        setMestris([]);
-        setLoading(false);
-        return;
-      }
+        if (!session) {
+          setMestris([]);
+          setLoading(false);
+          return;
+        }
 
-      setActiveSession(session);
+        setActiveSession(session);
 
-      unsubscribe = firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        .where("session", "==", session)
-        .where("createdAt", "!=", null)
-        .orderBy("createdAt", "desc")
-        .onSnapshot((snapshot) => {
-          if (!snapshot) {
-            setMestris([]);
+        unsubscribe = firestore()
+          .collection("users")
+          .doc(userPhone)
+          .collection("mestris")
+          .where("session", "==", session)
+          .where("createdAt", "!=", null)
+          .orderBy("createdAt", "desc")
+          .onSnapshot((snapshot) => {
+            if (!snapshot) {
+              setMestris([]);
+              setLoading(false);
+              return;
+            }
+            const list = snapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            setMestris(list);
             setLoading(false);
-            return;
-          }
-          const list = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          setMestris(list);
-          setLoading(false);
-        }, (error) => {
-          console.log(error);
-          setLoading(false);
-        });
+          }, (error) => {
+            console.log(error);
+            setLoading(false);
+          });
+      } catch (e) {
+        console.log("Load Data Error:", e);
+        setLoading(false);
+        setErrorMsg(language === "te" ? "డేటా లోడ్ అవ్వలేదు! ఇంటర్నెట్ చెక్ చేయండి." : "Failed to load data! Check connection.");
+        setShowErrorModal(true);
+      }
     };
 
     loadData();
@@ -224,6 +240,8 @@ export default function AttendanceScreen() {
 
     } catch (e) {
       console.log("Delete error:", e);
+      setErrorMsg(language === "te" ? "తొలగించడం విఫలమైంది! ఇంటర్నెట్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి." : "Failed to delete! Please check your connection.");
+      setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
@@ -396,9 +414,9 @@ export default function AttendanceScreen() {
                 </View>
 
                 <View style={styles.details}>
-                  <AppText style={styles.name} language={language}>{item.name}</AppText>
+                  <AppText style={styles.name} language={language} numberOfLines={1}>{item.name}</AppText>
                   <AppText style={styles.phone} language={language}>+91 - {item.phone || "----"}</AppText>
-                  <AppText style={styles.sub} language={language}>{item.village || "----"}</AppText>
+                  <AppText style={styles.sub} language={language} numberOfLines={1}>{item.village || "----"}</AppText>
                 </View>
               </TouchableOpacity>
 
@@ -508,6 +526,33 @@ export default function AttendanceScreen() {
               >
                 <AppText style={styles.modalWarningTextStandard} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔥 GLOBAL ERROR MODAL */}
+      <Modal visible={showErrorModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardWarning, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="warning-outline" size={36} color="#EF4444" />
+            </View>
+            <AppText style={[styles.modalTitleStandardWarning, { color: "#EF4444" }]} language={language}>
+              {language === "te" ? "లోపం జరిగింది" : "Error Occurred"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {errorMsg}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8}
+                style={[styles.modalWarningBtnStandard, { backgroundColor: "#EF4444" }]} 
+                onPress={() => setShowErrorModal(false)}
+              >
+                <AppText style={styles.modalWarningTextStandard} language={language}>
+                  {language === "te" ? "సరే" : "OK"}
                 </AppText>
               </TouchableOpacity>
             </View>

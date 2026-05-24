@@ -85,13 +85,23 @@ export default function PaymentWorkHistory() {
       });
 
       // 🔥 STEP 3: FILTER DATA
-      const list = snap.docs
-        .map(d => ({ id: d.id, ...(d.data() as any) }))
-        .filter(item =>
-          item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
-          item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
-          !paidIds.includes(item.id) // 🔥 DOUBLE SPEND PREVENTION LOGIC
-        );
+      const allList = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const list = allList.filter(item =>
+        item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
+        item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
+        !paidIds.includes(item.id) // 🔥 DOUBLE SPEND PREVENTION LOGIC
+      )
+      .sort((a, b) => {
+          const parseDate = (dStr: string) => {
+            if (!dStr) return 0;
+            const parts = dStr.split("/");
+            if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+            return new Date(dStr).getTime() || 0;
+          };
+          const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : parseDate(a.date);
+          const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : parseDate(b.date);
+          return timeB - timeA; // Descending (Latest first)
+        });
 
       setData(list);
 
@@ -176,10 +186,10 @@ export default function PaymentWorkHistory() {
       />
 
       <View style={styles.topInfoBox}>
-        <AppText style={styles.mainTitle} language={language}>
+        <AppText style={styles.mainTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
           {name}
         </AppText>
-        <AppText style={styles.subTitle} language={language}>
+        <AppText style={styles.subTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
           {crop} | {work}
         </AppText>
       </View>

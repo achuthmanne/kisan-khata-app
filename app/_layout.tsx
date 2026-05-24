@@ -8,6 +8,7 @@ import { PermissionsAndroid, Platform } from "react-native";
 import { MenuProvider } from 'react-native-popup-menu';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import NetworkOverlay from "@/components/NetworkOverlay";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -50,6 +51,7 @@ export default function RootLayout() {
   return (
     <LanguageProvider>
       <MenuProvider>
+        <NetworkOverlay />
         <Stack screenOptions={{ headerShown: false }} />
       </MenuProvider>
     </LanguageProvider>

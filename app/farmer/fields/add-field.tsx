@@ -184,9 +184,16 @@ const soilOptions = [
     if (!crop.trim()) newErrors.crop = language === "te" ? "పంటను ఎంచుకోండి*" : "Select Crop Name*";
     if (!nickname.trim()) newErrors.nickname = language === "te" ? "పొలం గుర్తు/ఆనవాలు నమోదు చేయండి*" : "Enter Field Nickname/Location*";
     if (!soilType.trim()) newErrors.soilType = language === "te" ? "నేల రకాన్ని ఎంచుకోండి*" : "Select Soil Type*";
-    if (!acres) newErrors.acres = language === "te" ? "ఎకరాలు నమోదు చేయండి*" : "Enter acres*";
+    
+    const acresNum = Number(acres);
+    if (!acres || isNaN(acresNum) || acresNum <= 0) newErrors.acres = language === "te" ? "సరైన ఎకరాలు నమోదు చేయండి*" : "Enter valid acres*";
+    
     if (!type) newErrors.type = language === "te" ? "పొలం రకం ఎంచుకోండి*" : "Select field type*";
-    if (type === "rent" && !rent) newErrors.rent = language === "te" ? "కౌలు మొత్తం నమోదు చేయండి*" : "Enter rent amount*";
+    
+    if (type === "rent") {
+      const rentNum = Number(rent);
+      if (!rent || isNaN(rentNum) || rentNum <= 0) newErrors.rent = language === "te" ? "సరైన కౌలు మొత్తం నమోదు చేయండి*" : "Enter valid rent amount*";
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -264,12 +271,18 @@ const soilOptions = [
   };
 
   const startVoice = async (target: "search" | "nickname" = "search") => {
-    Keyboard.dismiss();
-    const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-    if (!res.granted) return;
-    setVoiceTarget(target);
-    setIsListening(true);
-    ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-US", interimResults: true });
+    try {
+      Keyboard.dismiss();
+      const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!res.granted) return;
+      setVoiceTarget(target);
+      setIsListening(true);
+      ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-US", interimResults: true });
+    } catch (e) {
+      console.log("Voice Search Error:", e);
+      setErrorMsg(language === "te" ? "మీ ఫోన్ వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయడం లేదు." : "Voice search is not supported on your device.");
+      setShowErrorModal(true);
+    }
   };
 
   useSpeechRecognitionEvent("result", (event) => {
@@ -382,6 +395,7 @@ const soilOptions = [
               <TextInput
                 ref={nicknameRef}
                 value={nickname}
+                maxLength={40}
                 cursorColor="#16A34A"
                 selectionColor="#16A34A40"
                 onChangeText={(txt) => {

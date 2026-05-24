@@ -941,10 +941,8 @@ export default function Dashboard() {
           <AppText style={styles.sessionValue}>{activeSession || "Set Season"}</AppText>
         </View>
       </View>
-      <TouchableOpacity style={styles.powerButton} onPress={() => setSessionModal(true)}>
-        <LinearGradient colors={["#ff4d4d", "#b30000"]} style={styles.powerGradient}>
-          <Ionicons name="power" size={20} color="#fff" />
-        </LinearGradient>
+      <TouchableOpacity style={styles.powerButtonFlat} onPress={() => setSessionModal(true)}>
+        <Ionicons name="power" size={20} color="#EF4444" />
       </TouchableOpacity>
       {isAdmin && (
         <TouchableOpacity style={[styles.notifyBtn, { marginRight: 10, backgroundColor: "rgba(234, 179, 8, 0.2)" }]} activeOpacity={0.8} onPress={() => router.push("/farmer/schemes/admin-scheme" as any)}>
@@ -1135,8 +1133,7 @@ const styles = StyleSheet.create({
   sessionIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   sessionLabel: { fontSize: 12, color: '#6B7280' },
   sessionValue: { fontSize: 20, fontWeight: '600', color: '#1F2937' },
-  powerButton: { width: 44, height: 44, borderRadius: 14, overflow: "hidden" },
-  powerGradient: { flex: 1, justifyContent: "center", alignItems: "center" },
+  powerButtonFlat: { width: 44, height: 44, borderRadius: 14, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" },
   sectionHeader:{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", marginHorizontal:20, marginTop:25, marginBottom: 8 },
   sessionBox: { marginHorizontal: 20, marginTop: 10, marginBottom: 10, backgroundColor: "#ffffff", padding: 14, borderRadius: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#E5E7EB" },
   sectionTitle:{ fontSize:20, color:"#1F2937", fontFamily: "Mandali" },

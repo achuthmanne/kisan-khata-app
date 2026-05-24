@@ -487,7 +487,7 @@ export default function FieldsScreen() {
                   <Animated.View key={item.id} entering={FadeInDown.delay(index * 100)} style={styles.fieldCard}>
                     <View style={[styles.sideBar, { backgroundColor: cropColor }]} />
                     <View style={styles.fieldInfo}>
-                      <AppText style={styles.cropName}>
+                      <AppText style={styles.cropName} numberOfLines={2}>
                         {item.nickname ? `${item.crop} - ${item.nickname}` : item.crop}
                       </AppText>
                       <AppText style={styles.fieldMeta}>
@@ -583,7 +583,7 @@ export default function FieldsScreen() {
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity activeOpacity={0.8}
                 style={styles.modalWarningBtnStandard} 
-                onPress={() => setCantDeleteVisible(false)}
+                onPress={() => { setCantDeleteVisible(false); setSelectedItem(null); }}
               >
                 <AppText style={styles.modalWarningTextStandard} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}

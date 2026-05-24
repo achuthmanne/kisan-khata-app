@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   avatarText: { color: "#fff", fontSize: 16, fontWeight: "600", lineHeight: 20 },
   details: { flex: 1, gap: 4, marginLeft: 8 },
   name: { fontSize: 16, fontWeight: "600", color: "#0F172A", lineHeight: 24 },
-  sub: { fontSize: 14, color: "#64748B", lineHeight: 20 },
+  sub: { fontSize: 14, color: "#64748B", lineHeight: 26 },
   right: { justifyContent: "center", alignItems: "center" },
   percentText: { position: "absolute", fontSize: 10, fontWeight: "600" },
   circleWrapper: { width: 60, height: 60, justifyContent: "center", alignItems: "center" },

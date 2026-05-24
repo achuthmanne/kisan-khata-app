@@ -9,7 +9,9 @@ import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState, useRef } from "react";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
-import { LayoutAnimation, Platform, UIManager } from "react-native";
+import { LayoutAnimation, Platform, UIManager, Linking, ActivityIndicator } from "react-native";
+import { Image } from "expo-image";
+import { WebView } from "react-native-webview";
 import {
   FlatList,
   Modal,
@@ -43,6 +45,8 @@ export default function PaymentDetailHistory() {
   const [openWork, setOpenWork] = useState<string | null>(null);
 
   const [deleteId, setDeleteId] = useState("");
+  const [fullScreenImg, setFullScreenImg] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [summary, setSummary] = useState({ payments: 0, days: 0, paidDays: 0 });
   const [status, setStatus] = useState({ label: "", color: "#000" });
   const [modalVisible, setModalVisible] = useState(false);
@@ -223,7 +227,8 @@ export default function PaymentDetailHistory() {
     if (!phone) return;
 
     try {
-      const docRef = firestore()
+      const db = firestore();
+      const docRef = db
         .collection("users")
         .doc(phone)
         .collection("payments")
@@ -233,6 +238,26 @@ export default function PaymentDetailHistory() {
       const data = doc.data();
 
       if (data?.session !== activeSession) return;
+
+      // 🔥 FIX: Revert attendance records to unpaid status so they show up again
+      const attendanceIds = data?.selectedAttendanceIds || [];
+      if (attendanceIds.length > 0) {
+        const batch = db.batch();
+        attendanceIds.forEach((attId: string) => {
+          const attRef = db
+            .collection("users")
+            .doc(phone)
+            .collection("mestris")
+            .doc(mestriId as string)
+            .collection("attendance")
+            .doc(attId);
+          batch.update(attRef, {
+            isPaid: firestore.FieldValue.delete(),
+            paymentId: firestore.FieldValue.delete()
+          });
+        });
+        await batch.commit();
+      }
 
       if (isMounted.current) {
         setSummary((prev) => ({
@@ -420,6 +445,31 @@ export default function PaymentDetailHistory() {
                           const fromDate = dates[0];
                           const toDate = dates[dates.length - 1];
 
+                          const missingDates: string[] = [];
+                          if (dates.length > 1) {
+                            const parseD = (dStr: string) => {
+                              const parts = dStr.split("/");
+                              if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
+                              return new Date();
+                            };
+                            
+                            const start = parseD(fromDate);
+                            const end = parseD(toDate);
+                            let current = new Date(start);
+                            current.setDate(current.getDate() + 1);
+                            
+                            // Prevent infinite loops if dates are malformed
+                            let loops = 0;
+                            while (current < end && loops < 100) {
+                              const dStr = `${current.getDate().toString().padStart(2, '0')}/${(current.getMonth() + 1).toString().padStart(2, '0')}/${current.getFullYear()}`;
+                              if (!dates.includes(dStr)) {
+                                missingDates.push(dStr);
+                              }
+                              current.setDate(current.getDate() + 1);
+                              loops++;
+                            }
+                          }
+
                           const labels = {
                             morning: language === "te" ? "ఉదయం" : "Morning",
                             evening: language === "te" ? "సాయంత్రం" : "Evening",
@@ -427,6 +477,21 @@ export default function PaymentDetailHistory() {
                             days: language === "te" ? "రోజులు" : "Days",
                             workers: language === "te" ? "కూలీలు" : "Workers",
                             amount: language === "te" ? "మొత్తం నగదు" : "Total Amount"
+                          };
+
+                          const getPaymentModeLabel = (mode: string) => {
+                            if (!mode) return "";
+                            const m = mode.toLowerCase();
+                            if (language === "te") {
+                              if (m === "cash") return "క్యాష్";
+                              if (m === "upi") return "యూపీఐ";
+                              if (m === "both") return "రెండూ";
+                            } else {
+                              if (m === "cash") return "Cash";
+                              if (m === "upi") return "UPI";
+                              if (m === "both") return "Both";
+                            }
+                            return mode.charAt(0).toUpperCase() + mode.slice(1);
                           };
 
                           return (
@@ -440,7 +505,7 @@ export default function PaymentDetailHistory() {
                                 </View>
                                 <View style={styles.modeBox}>
                                   <Ionicons name="wallet-outline" size={14} color={workColor} />
-                                  <AppText style={styles.modeText} language={language}>{entry.paymentMode}</AppText>
+                                  <AppText style={styles.modeText} language={language}>{getPaymentModeLabel(entry.paymentMode)}</AppText>
                                 </View>
                               </View>
 
@@ -451,6 +516,13 @@ export default function PaymentDetailHistory() {
                                   <AppText style={{ fontSize: 12, color: "#6B7280", textAlign: 'center' }} language={language}>
                                     {fromDate} → {toDate}
                                   </AppText>
+                                  {missingDates.length > 0 && (
+                                    <View style={{ backgroundColor: "#FEF2F2", padding: 6, borderRadius: 6, marginTop: 4, marginHorizontal: 10 }}>
+                                      <AppText style={{ fontSize: 11, color: "#DC2626", textAlign: 'center' }} language={language}>
+                                        {language === "te" ? `సెలవు / పని లేదు: ${missingDates.join(", ")}` : `Holidays / No Work: ${missingDates.join(", ")}`}
+                                      </AppText>
+                                    </View>
+                                  )}
                                 </View>
                               )}
                               
@@ -503,6 +575,50 @@ export default function PaymentDetailHistory() {
                               </View>
 
                               <View style={styles.divider} />
+
+                              {entry.paymentMode === "both" && entry.splitDetails && (
+                                <View style={styles.splitBox}>
+                                  <View style={styles.splitItem}>
+                                    <AppText style={styles.splitLabel} language={language}>{language === "te" ? "క్యాష్" : "Cash"}</AppText>
+                                    <AppText style={styles.splitVal}>₹ {formatCurrency(entry.splitDetails.cash)}</AppText>
+                                  </View>
+                                  <View style={styles.splitDivider} />
+                                  <View style={styles.splitItem}>
+                                    <AppText style={styles.splitLabel} language={language}>{language === "te" ? "యూపీఐ" : "UPI"}</AppText>
+                                    <AppText style={styles.splitVal}>₹ {formatCurrency(entry.splitDetails.upi)}</AppText>
+                                  </View>
+                                </View>
+                              )}
+
+                              {entry.proofs && entry.proofs.length > 0 && (
+                                <View style={styles.proofsBox}>
+                                  <AppText style={styles.proofsLabel} language={language}>{language === "te" ? "ఆధారాలు" : "Proofs"}</AppText>
+                                  <View style={styles.proofsRow}>
+                                    {entry.proofs.map((proof: any, idx: number) => (
+                                      <TouchableOpacity 
+                                        key={idx} 
+                                        activeOpacity={0.8}
+                                        onPress={() => {
+                                          if (proof.type === "pdf") {
+                                            setPdfUrl(proof.url);
+                                          } else {
+                                            setFullScreenImg(proof.url);
+                                          }
+                                        }}
+                                        style={styles.proofThumbWrap}
+                                      >
+                                        {proof.type === "pdf" ? (
+                                          <View style={[styles.proofThumb, { backgroundColor: "#FEF2F2", justifyContent: "center", alignItems: "center" }]}>
+                                            <Ionicons name="document-text" size={20} color="#DC2626" />
+                                          </View>
+                                        ) : (
+                                          <Image source={{ uri: proof.url }} style={styles.proofThumb} contentFit="cover" />
+                                        )}
+                                      </TouchableOpacity>
+                                    ))}
+                                  </View>
+                                </View>
+                              )}
 
                               <View style={styles.bottomRow}>
                                 <View>
@@ -575,6 +691,60 @@ export default function PaymentDetailHistory() {
             </View>
           </View>
         </View>
+      </Modal>
+
+      {/* FULLSCREEN IMAGE MODAL */}
+      <Modal visible={!!fullScreenImg} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.fsOverlay}>
+          <View style={styles.fsHeader}>
+            <TouchableOpacity 
+              style={styles.fsCloseBtn} 
+              onPress={() => setFullScreenImg(null)}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          {fullScreenImg && (
+            <View style={styles.fsImageContainer}>
+              <Image 
+                source={{ uri: fullScreenImg }} 
+                style={styles.fsImage} 
+                contentFit="contain" 
+              />
+            </View>
+          )}
+        </View>
+      </Modal>
+
+      {/* FULLSCREEN PDF VIEWER */}
+      <Modal visible={!!pdfUrl} transparent animationType="slide" statusBarTranslucent>
+        <SafeAreaView style={styles.pdfOverlay}>
+          <View style={styles.pdfHeader}>
+            <AppText style={styles.pdfTitle} language={language}>{language === "te" ? "డాక్యుమెంట్" : "Document"}</AppText>
+            <TouchableOpacity 
+              style={styles.pdfCloseBtn} 
+              onPress={() => setPdfUrl(null)}
+            >
+              <Ionicons name="close" size={24} color="#111827" />
+            </TouchableOpacity>
+          </View>
+          {pdfUrl && (
+            <WebView 
+              source={{ uri: Platform.OS === "ios" ? pdfUrl : `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(pdfUrl)}` }} 
+              style={{ flex: 1, opacity: 0.99, overflow: 'hidden' }} 
+              startInLoadingState={true}
+              showsVerticalScrollIndicator={false}
+              showsHorizontalScrollIndicator={false}
+              androidHardwareAccelerationDisabled={false}
+              renderLoading={() => (
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff", position: "absolute", width: "100%", height: "100%" }}>
+                  <ActivityIndicator size="large" color="#16A34A" />
+                  <AppText style={{ color: "#6B7280", marginTop: 10 }}>{language === "te" ? "డాక్యుమెంట్ లోడ్ అవుతోంది..." : "Loading Document..."}</AppText>
+                </View>
+              )}
+            />
+          )}
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
@@ -662,5 +832,32 @@ const styles = StyleSheet.create({
   modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
   modalCancelTextStandard: { color: "#64748B", fontWeight: "500" },
   modalConfirmTextStandard: { color: "white", fontWeight: "500" },
-  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 }
+  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+
+  // SPLIT DETAILS
+  splitBox: { flexDirection: "row", marginTop: 8, marginBottom: 8, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB" },
+  splitItem: { flex: 1, alignItems: "center" },
+  splitDivider: { width: 1, backgroundColor: "#D1D5DB", marginHorizontal: 10 },
+  splitLabel: { fontSize: 10, color: "#6B7280", marginBottom: 2 },
+  splitVal: { fontSize: 13, fontWeight: "600", color: "#374151" },
+
+  // PROOFS
+  proofsBox: { marginTop: 4, marginBottom: 8 },
+  proofsLabel: { fontSize: 11, color: "#9CA3AF", textTransform: 'uppercase', marginBottom: 4 },
+  proofsRow: { flexDirection: "row", gap: 8 },
+  proofThumbWrap: { width: 44, height: 44 },
+  proofThumb: { width: "100%", height: "100%", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" },
+
+  // FULLSCREEN VIEWER
+  fsOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", zIndex: 9999, paddingTop: Platform.OS === 'android' ? 40 : 50 },
+  fsHeader: { width: "100%", alignItems: "flex-end", paddingRight: 20, marginBottom: 10 },
+  fsCloseBtn: { width: 44, height: 44, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 22, justifyContent: "center", alignItems: "center" },
+  fsImageContainer: { flex: 1, paddingBottom: 40, paddingHorizontal: 10 },
+  fsImage: { flex: 1, width: "100%", height: "100%" },
+
+  // PDF VIEWER
+  pdfOverlay: { flex: 1, backgroundColor: "#F3F4F6", zIndex: 9999, paddingTop: Platform.OS === 'android' ? 40 : 0 },
+  pdfHeader: { width: "100%", height: 60, backgroundColor: "#fff", flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  pdfTitle: { fontSize: 16, fontWeight: "600", color: "#111827" },
+  pdfCloseBtn: { width: 40, height: 40, backgroundColor: "#F3F4F6", borderRadius: 20, justifyContent: "center", alignItems: "center" }
 });

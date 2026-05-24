@@ -281,11 +281,11 @@ export default function PaymentsScreen() {
                 </View>
 
                 <View style={styles.details}>
-                  <AppText style={styles.name} language={language}>
+                  <AppText style={styles.name} language={language} numberOfLines={1} ellipsizeMode="tail">
                     {item.name}
                   </AppText>
 
-                  <AppText style={styles.sub} language={language}>
+                  <AppText style={styles.sub} language={language} numberOfLines={1} ellipsizeMode="tail">
                     {item.village || "----"}
                   </AppText>
                 </View>

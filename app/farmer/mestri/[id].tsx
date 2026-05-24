@@ -64,6 +64,9 @@ export default function MestriAttendance() {
   const [isListening, setIsListening] = useState(false);
   const [userCrops, setUserCrops] = useState<string[]>([]);
   
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  
   const uniqueKey = `${id}_${formattedDate}_${normalizedCrop}_${normalizedWork}`;
   
   const WORKS = [
@@ -81,31 +84,39 @@ export default function MestriAttendance() {
 
   useEffect(() => {
     const loadSession = async () => {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) return;
-      const doc = await firestore().collection("users").doc(phone).get();
-      setActiveSession(doc.data()?.activeSession || "");
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone) return;
+        const doc = await firestore().collection("users").doc(phone).get();
+        setActiveSession(doc.data()?.activeSession || "");
+      } catch (e) {
+        console.log("Load session error", e);
+      }
     };
     loadSession();
   }, []);
 
   useEffect(() => {
     const loadUserCrops = async () => {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) return;
-      const snap = await firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession).get();
-      const set = new Set<string>();
-      snap.forEach(doc => {
-        const data = doc.data();
-        if (data.crop) {
-          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
-          const formatted = data.nickname 
-            ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
-            : `${data.crop} - ${data.acres || 0} ${acresText}`;
-          set.add(formatted);
-        }
-      });
-      setUserCrops(Array.from(set));
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone) return;
+        const snap = await firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession).get();
+        const set = new Set<string>();
+        snap.forEach(doc => {
+          const data = doc.data();
+          if (data.crop) {
+            const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+            const formatted = data.nickname 
+              ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
+              : `${data.crop} - ${data.acres || 0} ${acresText}`;
+            set.add(formatted);
+          }
+        });
+        setUserCrops(Array.from(set));
+      } catch (e) {
+        console.log("Load crops error", e);
+      }
     };
     if (activeSession) loadUserCrops();
   }, [activeSession]);
@@ -119,7 +130,9 @@ export default function MestriAttendance() {
       setIsListening(true);
       ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-US", interimResults: true });
     } catch (e) {
-      console.log("voice error", e);
+      console.log("Voice error", e);
+      setErrorMsg(language === "te" ? "మీ ఫోన్ వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయడం లేదు." : "Voice search is not supported on your device.");
+      setShowErrorModal(true);
     }
   };
   
@@ -258,6 +271,8 @@ export default function MestriAttendance() {
     } catch (e) {
       setLoading(false);
       console.log("Attendance save error:", e);
+      setErrorMsg(language === "te" ? "హాజరు సేవ్ చేయడం విఫలమైంది! ఇంటర్నెట్ చెక్ చేయండి." : "Failed to save attendance! Check connection.");
+      setShowErrorModal(true);
     }
   };
 
@@ -271,14 +286,18 @@ export default function MestriAttendance() {
 
   useEffect(() => {
     const loadMestri = async () => {
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone || !id) return;
+      try {
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        if (!userPhone || !id) return;
 
-      const doc = await firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string).get();
-      const data = doc.data();
-      if (data) {
-        setMestriName(data.name || "");
-        setVillage(data.village || "");
+        const doc = await firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string).get();
+        const data = doc.data();
+        if (data) {
+          setMestriName(data.name || "");
+          setVillage(data.village || "");
+        }
+      } catch (e) {
+        console.log("Load mestri error", e);
       }
     };
     loadMestri();
@@ -579,6 +598,33 @@ export default function MestriAttendance() {
               {language === "te" ? "హాజరు విజయవంతంగా సేవ్ అయింది" : "Attendance Saved successfully"}
             </AppText>
           </Animated.View>
+        </View>
+      </Modal>
+
+      {/* 🔥 GLOBAL ERROR MODAL */}
+      <Modal visible={showErrorModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="warning-outline" size={36} color="#EF4444" />
+            </View>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#EF4444" }]} language={language}>
+              {language === "te" ? "లోపం జరిగింది" : "Error Occurred"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>
+              {errorMsg}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#EF4444" }]} 
+                onPress={() => setShowErrorModal(false)}
+              >
+                <AppText style={styles.modalInfoTextStandard} language={language}>
+                  {language === "te" ? "సరే" : "OK"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 

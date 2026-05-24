@@ -1,17 +1,21 @@
+// app/farmer/mestripayments/payment-success.tsx
+
 import AgriLoader from "@/components/AgriLoader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import storage from "@react-native-firebase/storage";
+import * as FileSystem from "expo-file-system";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import NetInfo from "@react-native-community/netinfo";
 import { BackHandler } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { Image } from "expo-image";
 
 import {
   Animated,
-  Dimensions,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -21,10 +25,11 @@ import {
   Modal
 } from "react-native";
 
-// 🔥 FULL BLOCK iOS SWIPE BACK
 export const unstable_settings = {
   gestureEnabled: false, 
 };
+
+type Proof = { uri: string, type: "image" | "pdf", name?: string };
 
 export default function PaymentSuccess() {
   const router = useRouter();
@@ -36,53 +41,38 @@ export default function PaymentSuccess() {
     totalDays, totalWorkers,
     totalMorning, totalEvening, totalFull,
     morningRate, eveningRate, fullRate,
-    amount, paymentMode
+    amount, paymentMode,
+    splitCash, splitUpi, proofs
   } = params;
 
   const [navigating, setNavigating] = useState(false);
   const [status, setStatus] = useState<"loading" | "success" | "failed">("loading");
+  const [errorDetails, setErrorDetails] = useState("");
   const [language, setLanguage] = useState<"en" | "te">("en");
   const [helpModal, setHelpModal] = useState(false);
   const scale = useRef(new Animated.Value(0)).current;
 
-  // Real Green Color
   const SUCCESS_GREEN = "#16A34A"; 
 
   let selectedIds: string[] = [];
+  try { selectedIds = typeof ids === "string" ? JSON.parse(ids) : Array.isArray(ids) ? ids : []; } catch { selectedIds = []; }
 
-  try {
-    selectedIds =
-      typeof ids === "string"
-        ? JSON.parse(ids)
-        : Array.isArray(ids)
-        ? ids
-        : [];
-  } catch {
-    selectedIds = [];
-  }
+  let parsedProofs: Proof[] = [];
+  try { parsedProofs = typeof proofs === "string" ? JSON.parse(proofs) : []; } catch { parsedProofs = []; }
 
   /* ---------- LOAD LANGUAGE ---------- */
   useFocusEffect(
     useCallback(() => {
-      const loadLang = async () => {
-        const lang = await AsyncStorage.getItem("APP_LANG");
+      AsyncStorage.getItem("APP_LANG").then(lang => {
         if (lang) setLanguage(lang as any);
-      };
-      loadLang();
+      });
     }, [])
   );
 
   /* ---------- BLOCK ANDROID BACK BUTTON ---------- */
   useEffect(() => {
-    const backAction = () => {
-      return true; // 🔥 blocks back press
-    };
-
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      backAction
-    );
-
+    const backAction = () => true; 
+    const subscription = BackHandler.addEventListener("hardwareBackPress", backAction);
     return () => subscription.remove();
   }, []);
 
@@ -92,59 +82,102 @@ export default function PaymentSuccess() {
 
     try {
       const net = await NetInfo.fetch();
-
-      if (!net.isConnected) {
-        setStatus("failed"); // 🔥 DIRECT FAIL NO INTERNET
-        return;
-      }
+      if (!net.isConnected) { setStatus("failed"); return; }
 
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) {
-        setStatus("failed");
-        return;
+      if (!phone) { setStatus("failed"); return; }
+
+      // 🔥 1. UPLOAD PROOFS (Images + PDF)
+      let uploadedProofs: { url: string, type: string, name?: string }[] = [];
+      if (parsedProofs.length > 0) {
+        for (let i = 0; i < parsedProofs.length; i++) {
+          try {
+            const proof = parsedProofs[i];
+            const ext = proof.type === "pdf" ? "pdf" : "jpg";
+            const fileName = `payments/${phone}/${Date.now()}_${i}.${ext}`;
+            const reference = storage().ref(fileName);
+
+            let uploadUri = proof.uri;
+            if (uploadUri.startsWith("content://")) {
+              const localUri = `${FileSystem.cacheDirectory}temp_upload_${Date.now()}_${i}.${ext}`;
+              await FileSystem.copyAsync({ from: uploadUri, to: localUri });
+              uploadUri = localUri;
+            }
+
+            await reference.putFile(uploadUri); // works with local file:// URIs reliably
+            const url = await reference.getDownloadURL();
+            uploadedProofs.push({ url, type: proof.type, name: proof.name || "" });
+          } catch (storageErr: any) {
+            console.log("Storage upload error:", storageErr);
+            // We continue even if storage fails, better to save payment without proof than fail completely
+          }
+        }
       }
 
+      // 🔥 2. SAVE FIRESTORE DOC
       const db = firestore();
-
       const userDoc = await db.collection("users").doc(phone).get();
-      const activeSession = userDoc.data()?.activeSession;
+      const activeSession = userDoc.data()?.activeSession || "default";
 
-      const paymentData = {
-        mestriId: id,
-        session: activeSession, // 🔥 IMPORTANT
-        selectedAttendanceIds: selectedIds,
-        crop, work, name, village, paymentMode,
-        totalAmount: Number(amount),
+      const paymentData: any = {
+        mestriId: id || "",
+        session: activeSession, 
+        selectedAttendanceIds: selectedIds || [],
+        crop: crop || "", 
+        work: work || "", 
+        name: name || "", 
+        village: village || "", 
+        paymentMode: paymentMode || "",
+        totalAmount: Number(amount) || 0,
+        proofs: uploadedProofs,
         details: {
-          totalDays: Number(totalDays),
-          totalWorkers: Number(totalWorkers),
-          morning: Number(totalMorning),
-          evening: Number(totalEvening),
-          full: Number(totalFull),
-          mRate: Number(morningRate),
-          eRate: Number(eveningRate),
-          fRate: Number(fullRate),
+          totalDays: Number(totalDays) || 0,
+          totalWorkers: Number(totalWorkers) || 0,
+          morning: Number(totalMorning) || 0,
+          evening: Number(totalEvening) || 0,
+          full: Number(totalFull) || 0,
+          mRate: Number(morningRate) || 0,
+          eRate: Number(eveningRate) || 0,
+          fRate: Number(fullRate) || 0,
         },
         createdAt: firestore.FieldValue.serverTimestamp()
       };
 
-      await db
-        .collection("users")
-        .doc(phone)
-        .collection("payments")
-        .add(paymentData);
+      if (paymentMode === "both") {
+        paymentData.splitDetails = {
+          cash: Number(splitCash),
+          upi: Number(splitUpi)
+        };
+      }
+
+      const batch = db.batch();
+      const paymentRef = db.collection("users").doc(phone).collection("payments").doc();
+      batch.set(paymentRef, paymentData);
+
+      selectedIds.forEach((attId) => {
+        const attRef = db
+          .collection("users")
+          .doc(phone)
+          .collection("mestris")
+          .doc(id as string)
+          .collection("attendance")
+          .doc(attId);
+        batch.update(attRef, { isPaid: true, paymentId: paymentRef.id });
+      });
+
+      await batch.commit();
 
       setStatus("success");
 
-      // 🔥 ANIMATION TRIGGER
       Animated.spring(scale, {
         toValue: 1,
         useNativeDriver: true,
         bounciness: 12
       }).start();
 
-    } catch (e) {
-      console.log(e);
+    } catch (e: any) {
+      console.log("Save error:", e);
+      setErrorDetails(e?.message || String(e));
       setStatus("failed"); 
     }
   };
@@ -156,12 +189,17 @@ export default function PaymentSuccess() {
     }
   }, []);
 
-  // Home ki velle function
   const handleGoHome = () => {
     if (navigating) return;
     setNavigating(true);
     setHelpModal(false);
     router.replace("/farmer/(tabs)");
+  };
+
+  const getPaymentModeBadge = () => {
+    if (paymentMode === "upi") return "UPI";
+    if (paymentMode === "both") return language === "te" ? "రెండు (Split)" : "Both";
+    return language === "te" ? "నగదు" : "Cash";
   };
 
   return (
@@ -186,32 +224,45 @@ export default function PaymentSuccess() {
                 {language === "te" ? "చెల్లింపు విజయవంతంగా జోడించబడింది!" : "Payment Added Successfully!"}
               </AppText>
 
-              <AppText style={styles.amountDisplay}>₹ {amount}</AppText>
+              <AppText style={styles.amountDisplay}>₹ {Number(amount).toLocaleString('en-IN')}</AppText>
 
-              {/* RECEIPT CARD */}
               <View style={[styles.card, { borderColor: SUCCESS_GREEN + "30" }]}>
                 <View style={styles.receiptHeader}>
-                   <View>
-                      <AppText style={styles.mestriName}>{name}</AppText>
-                      <AppText style={styles.villageName}>{village}</AppText>
+                   <View style={{ flex: 1 }}>
+                      <AppText style={styles.mestriName} numberOfLines={1} ellipsizeMode="tail">{name}</AppText>
+                      <AppText style={styles.villageName} numberOfLines={1} ellipsizeMode="tail">{village}</AppText>
                    </View>
                    <View style={[styles.modeBadge, { backgroundColor: SUCCESS_GREEN + "10", borderColor: SUCCESS_GREEN }]}>
                       <AppText style={[styles.modeText, { color: SUCCESS_GREEN }]} language={language}>
-                          {paymentMode === "upi" ? "UPI" : language === "te" ? "నగదు" : "Cash"}
+                          {getPaymentModeBadge()}
                       </AppText>
                    </View>
                 </View>
+
+                {paymentMode === "both" && (
+                  <View style={styles.splitBox}>
+                    <View style={styles.splitItem}>
+                      <AppText style={styles.splitLabel} language={language}>{language === "te" ? "క్యాష్ (Cash)" : "Cash"}</AppText>
+                      <AppText style={styles.splitVal}>₹ {Number(splitCash).toLocaleString('en-IN')}</AppText>
+                    </View>
+                    <View style={styles.splitDivider} />
+                    <View style={styles.splitItem}>
+                      <AppText style={styles.splitLabel} language={language}>{language === "te" ? "యూపీఐ (UPI)" : "UPI"}</AppText>
+                      <AppText style={styles.splitVal}>₹ {Number(splitUpi).toLocaleString('en-IN')}</AppText>
+                    </View>
+                  </View>
+                )}
 
                 <View style={styles.divider} />
 
                 <View style={styles.infoRow}>
                    <View style={styles.infoItem}>
                       <AppText style={styles.infoLabel} language={language}>{language === "te" ? "పంట" : "Crop"}</AppText>
-                      <AppText style={styles.infoValue}>{crop}</AppText>
+                      <AppText style={styles.infoValue} numberOfLines={1} ellipsizeMode="tail">{crop}</AppText>
                    </View>
-                   <View style={styles.infoItem}>
-                      <AppText style={styles.infoLabel} language={language}>{language === "te" ? "పని" : "Work"}</AppText>
-                      <AppText style={styles.infoValue}>{work}</AppText>
+                   <View style={styles.infoItemRight}>
+                      <AppText style={[styles.infoLabel, { textAlign: "right" }]} language={language}>{language === "te" ? "పని" : "Work"}</AppText>
+                      <AppText style={[styles.infoValue, { textAlign: "right" }]} numberOfLines={1} ellipsizeMode="tail">{work}</AppText>
                    </View>
                 </View>
 
@@ -220,11 +271,30 @@ export default function PaymentSuccess() {
                       <AppText style={styles.infoLabel} language={language}>{language === "te" ? "మొత్తం కార్మికులు" : "Workers"}</AppText>
                       <AppText style={styles.infoValue}>{totalWorkers}</AppText>
                    </View>
-                   <View style={styles.infoItem}>
-                      <AppText style={styles.infoLabel} language={language}>{language === "te" ? "మొత్తం రోజులు" : "Days"}</AppText>
-                      <AppText style={styles.infoValue}>{totalDays}</AppText>
+                   <View style={styles.infoItemRight}>
+                      <AppText style={[styles.infoLabel, { textAlign: "right" }]} language={language}>{language === "te" ? "మొత్తం రోజులు" : "Days"}</AppText>
+                      <AppText style={[styles.infoValue, { textAlign: "right" }]}>{totalDays}</AppText>
                    </View>
                 </View>
+
+                {parsedProofs.length > 0 && (
+                  <View style={styles.proofsBox}>
+                    <AppText style={styles.infoLabel} language={language}>{language === "te" ? "జోడించిన ఆధారాలు" : "Attached Proofs"}</AppText>
+                    <View style={styles.proofsRow}>
+                      {parsedProofs.map((proof, idx) => (
+                        <View key={idx} style={styles.proofWrap}>
+                          {proof.type === "image" ? (
+                            <Image source={{ uri: proof.uri }} style={styles.proofImage} contentFit="cover" />
+                          ) : (
+                            <View style={[styles.proofImage, { backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" }]}>
+                              <Ionicons name="document-text" size={24} color="#DC2626" />
+                            </View>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
 
                 <View style={styles.dashedDivider} />
 
@@ -236,7 +306,6 @@ export default function PaymentSuccess() {
             </View>
           </ScrollView>
 
-          {/* BOTTOM BUTTONS */}
           <View style={styles.bottomBtns}>
             <View style={styles.rowBtns}>
               <TouchableOpacity activeOpacity={0.8} style={[styles.subBtn, { borderColor: "#D1D5DB", backgroundColor: "#fff" }]} onPress={() => setHelpModal(true)}>
@@ -271,9 +340,15 @@ export default function PaymentSuccess() {
 
           <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 6, textAlign: 'center' }}>
             {language === "te"
-              ? "ఇంటర్నెట్ కనెక్షన్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి"
-              : "Check your internet and try again"}
+              ? "దయచేసి మీ ఇంటర్నెట్ కనెక్షన్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి."
+              : "Check your internet connection and try again."}
           </AppText>
+          
+          {errorDetails ? (
+            <AppText style={{ fontSize: 11, color: "#9CA3AF", marginTop: 10, textAlign: 'center', marginHorizontal: 20 }}>
+              Error: {errorDetails}
+            </AppText>
+          ) : null}
 
           <TouchableOpacity style={styles.retryBtn} onPress={saveData}>
             <AppText style={{ color: "#fff", fontWeight: "600" }}>
@@ -283,7 +358,6 @@ export default function PaymentSuccess() {
         </View>
       )}
 
-      {/* HELP MODAL - PREMIUM THEME */}
       <Modal visible={helpModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
@@ -307,17 +381,12 @@ export default function PaymentSuccess() {
             </View>
             
             <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity 
-                activeOpacity={0.8} 
-                style={styles.modalInfoBtnStandard} 
-                onPress={() => setHelpModal(false)}
-              >
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard} onPress={() => setHelpModal(false)}>
                 <AppText style={styles.modalInfoTextStandard} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got it"}
                 </AppText>
               </TouchableOpacity>
             </View>
-
           </View>
         </View>
       </Modal>
@@ -328,12 +397,7 @@ export default function PaymentSuccess() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   scrollContent: { paddingBottom: 220, flexGrow: 1 }, 
-  fullCenter: {
-    flex: 1,
-    justifyContent: "center", 
-    alignItems: "center",     
-    paddingHorizontal: 20
-  },
+  fullCenter: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 },
   centerContainer: { alignItems: "center", paddingHorizontal: 20, paddingTop: 50 },
   tickWrap: { width: 100, height: 100, borderRadius: 50, justifyContent: "center", alignItems: "center", marginBottom: 10 },
   title: { fontSize: 18, fontWeight: "600", textAlign: 'center', paddingHorizontal: 20 },
@@ -343,26 +407,33 @@ const styles = StyleSheet.create({
   receiptHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mestriName: { fontSize: 18, fontWeight: "600", color: "#111827" },
   villageName: { fontSize: 14, color: "#6B7280" },
-  modeBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  modeBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, borderWidth: 1, marginLeft: 10 },
   modeText: { fontSize: 11, fontWeight: "600" },
   
   divider: { height: 1, backgroundColor: "#F3F4F6", marginVertical: 15 },
   dashedDivider: { height: 1, width: '100%', borderStyle: 'dashed', borderWidth: 0.8, borderColor: '#D1D5DB', marginVertical: 15 },
   
+  // SPLIT STYLES
+  splitBox: { flexDirection: "row", marginTop: 15, padding: 12, backgroundColor: "#F9FAFB", borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+  splitItem: { flex: 1, alignItems: "center" },
+  splitDivider: { width: 1, backgroundColor: "#D1D5DB", marginHorizontal: 10 },
+  splitLabel: { fontSize: 11, color: "#6B7280", marginBottom: 4 },
+  splitVal: { fontSize: 15, fontWeight: "700", color: "#374151" },
+
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   infoItem: { flex: 1 },
+  infoItemRight: { flex: 1, alignItems: "flex-end" },
   infoLabel: { fontSize: 12, color: "#9CA3AF", textTransform: 'uppercase', marginBottom: 2 },
   infoValue: { fontSize: 15, fontWeight: "600", color: "#374151" },
   
+  proofsBox: { marginTop: 5 },
+  proofsRow: { flexDirection: "row", gap: 10, marginTop: 8 },
+  proofWrap: { width: 50, height: 50 },
+  proofImage: { width: "100%", height: "100%", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" },
+
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dateText: { fontSize: 11, color: "#9CA3AF" },
-  retryBtn: {
-    marginTop: 20,
-    backgroundColor: "#DC2626",
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 12
-  },
+  retryBtn: { marginTop: 20, backgroundColor: "#DC2626", paddingVertical: 12, paddingHorizontal: 30, borderRadius: 12 },
   bottomBtns: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 30, backgroundColor: 'rgba(240,253,244,0.9)' },
   rowBtns: { flexDirection: "row", gap: 10, marginBottom: 12 },
   subBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: "center", borderWidth: 1, flexDirection: "row", justifyContent: "center", gap: 6 },
@@ -371,7 +442,6 @@ const styles = StyleSheet.create({
   confirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 18 },
   confirmText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 
-  // UNIFIED PREMIUM MODAL CLASSES
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },

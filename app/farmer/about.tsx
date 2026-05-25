@@ -2,7 +2,7 @@
 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"; // 🔥 MaterialCommunityIcons యాడ్ చేశాం
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   Dimensions,
   FlatList,
@@ -21,7 +21,22 @@ const { width } = Dimensions.get("window");
 
 export default function AboutUs() {
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const APP_VERSION = "1.1.0"; 
+  const APP_VERSION = "1.0.0"; 
+  const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    // Scroll all the way to the end to show all services, then back to start
+    const timer1 = setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 800);
+    const timer2 = setTimeout(() => {
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }, 2200);
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+    };
+  }, []);
 
   useEffect(() => {
     const loadLang = async () => {
@@ -49,23 +64,26 @@ export default function AboutUs() {
     madeIn: language === "te" ? "భారతదేశంలో ❤️ తో తయారైంది" : "Made with ❤️ in India",
     
     // HIGHLIGHT FEATURES
-    f1: language === "te" ? "హాజరు & జీతాలు" : "Attendance & Pay",
-    f2: language === "te" ? "ఖర్చులు & అమ్మకాలు" : "Expenses & Sales",
-    f3: language === "te" ? "లాభనష్టాల నివేదిక" : "Profit/Loss Report",
-    f4: language === "te" ? "వాహనాల లెక్కలు" : "Vehicle Logs",
-    f5: language === "te" ? "వాతావరణం & మార్కెట్" : "Weather & Market",
-    f6: language === "te" ? "100% భద్రత" : "100% Secure",
+    f1: language === "te" ? "స్మార్ట్ హాజరు" : "Smart Attendance",
+    f2: language === "te" ? "పంటల లెక్కలు" : "Crop Financials",
+    f3: language === "te" ? "వాహనాల నిర్వహణ" : "Vehicle Logs",
+    f4: language === "te" ? "మార్కెట్ & వాతావరణం" : "Market & Weather",
+    f5: language === "te" ? "ప్రభుత్వ పథకాలు" : "Govt Schemes",
+    f6: language === "te" ? "అగ్రి క్యాలిక్యులేటర్లు" : "Agri Calculators",
+    f7: language === "te" ? "అగ్రి కనెక్ట్" : "Agri Connect",
+    f8: language === "te" ? "100% భద్రత" : "100% Secure",
   };
 
   // 🔥 MULTI-COLORED FEATURES ARRAY WITH ICON FAMILY
   const appFeatures = [
     { id: "1", title: t.f1, iconName: "people-outline", family: "Ionicons", bgColor: "#E0F2FE", iconColor: "#0284C7" },
     { id: "2", title: t.f2, iconName: "wallet-outline", family: "Ionicons", bgColor: "#DCFCE7", iconColor: "#16A34A" },
-    { id: "3", title: t.f3, iconName: "pie-chart-outline", family: "Ionicons", bgColor: "#F3E8FF", iconColor: "#9333EA" },
-    // 🔥 TRACTOR ICON FROM MATERIAL COMMUNITY ICONS
-    { id: "4", title: t.f4, iconName: "tractor-variant", family: "MaterialCommunity", bgColor: "#FEF3C7", iconColor: "#D97706" }, 
-    { id: "5", title: t.f5, iconName: "partly-sunny-outline", family: "Ionicons", bgColor: "#FFE4E6", iconColor: "#E11D48" },
-    { id: "6", title: t.f6, iconName: "shield-checkmark-outline", family: "Ionicons", bgColor: "#E0E7FF", iconColor: "#4F46E5" },
+    { id: "3", title: t.f3, iconName: "tractor-variant", family: "MaterialCommunity", bgColor: "#FEF3C7", iconColor: "#D97706" }, 
+    { id: "4", title: t.f4, iconName: "partly-sunny-outline", family: "Ionicons", bgColor: "#FFE4E6", iconColor: "#E11D48" },
+    { id: "5", title: t.f5, iconName: "document-text-outline", family: "Ionicons", bgColor: "#F3E8FF", iconColor: "#9333EA" },
+    { id: "6", title: t.f6, iconName: "calculator-variant-outline", family: "MaterialCommunity", bgColor: "#E0E7FF", iconColor: "#4F46E5" },
+    { id: "7", title: t.f7, iconName: "handshake-outline", family: "Ionicons", bgColor: "#FFEDD5", iconColor: "#EA580C" },
+    { id: "8", title: t.f8, iconName: "shield-checkmark-outline", family: "Ionicons", bgColor: "#ECFCCB", iconColor: "#65A30D" },
   ];
 
   return (
@@ -115,6 +133,7 @@ export default function AboutUs() {
           <AppText style={styles.featuresTitle} language={language}>{t.featuresTitle}</AppText>
           
           <FlatList
+            ref={flatListRef}
             data={appFeatures}
             horizontal
             showsHorizontalScrollIndicator={false}

@@ -31,7 +31,7 @@ import {
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
-
+import AnimatedReanimated, { useSharedValue, withTiming, withRepeat, withSequence, useAnimatedStyle, Easing } from "react-native-reanimated";
 const { width } = Dimensions.get("window");
 
 /* ---------------- TRANSLATIONS ---------------- */
@@ -188,8 +188,8 @@ export default function Dashboard() {
   };
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const swipeAnim = useRef(new Animated.Value(0)).current;
-  const priceScroll = useRef(new Animated.Value(0)).current;
+  const swipeShared = useSharedValue(0);
+  const priceShared = useSharedValue(0);
 
   /* ---------------- BACK BUTTON BLOCKER ---------------- */
   useFocusEffect(
@@ -372,10 +372,14 @@ export default function Dashboard() {
   },[]);
 
   useEffect(()=>{
-    Animated.loop(Animated.sequence([
-      Animated.timing(swipeAnim,{ toValue:10, duration:700, useNativeDriver:true }),
-      Animated.timing(swipeAnim,{ toValue:0, duration:700, useNativeDriver:true })
-    ])).start();
+    swipeShared.value = withRepeat(
+      withSequence(
+        withTiming(10, { duration: 700, easing: Easing.linear }),
+        withTiming(0, { duration: 700, easing: Easing.linear })
+      ),
+      -1, // infinite loop
+      false
+    );
   },[]);
 
   useEffect(()=>{
@@ -388,11 +392,24 @@ export default function Dashboard() {
   },[activeHeaderCard]);
 
   useEffect(()=>{
-    Animated.loop(Animated.sequence([
-      Animated.timing(priceScroll,{ toValue:-60, duration:2500, useNativeDriver:true }),
-      Animated.timing(priceScroll,{ toValue:0, duration:0, useNativeDriver:true })
-    ])).start();
+    // We use a quick jump for the reset so it looks seamless
+    priceShared.value = withRepeat(
+      withSequence(
+        withTiming(-60, { duration: 2500, easing: Easing.linear }),
+        withTiming(0, { duration: 0 })
+      ),
+      -1,
+      false
+    );
   },[]);
+
+  const swipeAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeShared.value }]
+  }));
+
+  const priceAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: priceShared.value }]
+  }));
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -853,9 +870,9 @@ export default function Dashboard() {
                           <View style={styles.rightTopSection}>
                             <View style={styles.forecastRow}>
                               <AppText style={styles.openText} language={language}>{t.forecast}</AppText>
-                              <Animated.View style={[styles.swipeIcon, { transform:[{translateX:swipeAnim}] }]}>
+                              <AnimatedReanimated.View style={[styles.swipeIcon, swipeAnimatedStyle]}>
                                 <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
-                              </Animated.View>
+                              </AnimatedReanimated.View>
                             </View>
                             <AppText style={styles.temp} language={language}>{temp ?? "--"}°C</AppText>
                           </View>
@@ -873,13 +890,13 @@ export default function Dashboard() {
                         </View>
                         <View style={styles.marketSeeMore}>
                           <AppText style={styles.openText} language={language}>{language==="te" ? "ఇంకా చూడండి" : "See More"}</AppText>
-                          <Animated.View style={[styles.swipeIcon, { transform:[{translateX:swipeAnim}] }]}>
+                          <AnimatedReanimated.View style={[styles.swipeIcon, swipeAnimatedStyle]}>
                             <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
-                          </Animated.View>
+                          </AnimatedReanimated.View>
                         </View>
                       </View>
                       <View style={{height:80,overflow:"hidden",marginTop:4}}>
-                        <Animated.View style={{ transform:[{translateY:priceScroll}] }}>
+                        <AnimatedReanimated.View style={priceAnimatedStyle}>
                           {priceLoading ? (
                             <View style={styles.priceLoadingBox}>
                               <Animated.View><Ionicons name="sync-outline" size={18} color="white"/></Animated.View>
@@ -908,7 +925,7 @@ export default function Dashboard() {
                               })}
                             </>
                           )}
-                        </Animated.View>
+                        </AnimatedReanimated.View>
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -962,9 +979,9 @@ export default function Dashboard() {
           }
         }}>
         <Text style={[styles.swipeText, { fontFamily: "Mandali" }]}>{language === "te" ? "స్వైప్" : "Swipe"}</Text>
-        <Animated.View style={[styles.swipeIcon, { transform:[{translateX:swipeAnim}] }]}>
+        <AnimatedReanimated.View style={[styles.swipeIcon, swipeAnimatedStyle]}>
           <Ionicons name={scrollForward ? "chevron-forward-outline" : "chevron-back-outline"} size={16} color="#9CA3AF" />
-        </Animated.View>
+        </AnimatedReanimated.View>
       </TouchableOpacity>
     </View>
 

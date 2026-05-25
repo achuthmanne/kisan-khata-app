@@ -87,31 +87,36 @@ export default function PaymentSuccess() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) { setStatus("failed"); return; }
 
-      // 🔥 1. UPLOAD PROOFS (Images + PDF)
+      // 🔥 1. UPLOAD PROOFS (Images + PDF) - CONCURRENT UPLOAD FOR SPEED
       let uploadedProofs: { url: string, type: string, name?: string }[] = [];
       if (parsedProofs.length > 0) {
-        for (let i = 0; i < parsedProofs.length; i++) {
+        const uploadTasks = parsedProofs.map(async (proof, i) => {
           try {
-            const proof = parsedProofs[i];
             const ext = proof.type === "pdf" ? "pdf" : "jpg";
             const fileName = `payments/${phone}/${Date.now()}_${i}.${ext}`;
             const reference = storage().ref(fileName);
 
             let uploadUri = proof.uri;
-            if (uploadUri.startsWith("content://")) {
+            // @ts-ignore
+            if (uploadUri.startsWith("content://") && FileSystem.cacheDirectory) {
+              // @ts-ignore
               const localUri = `${FileSystem.cacheDirectory}temp_upload_${Date.now()}_${i}.${ext}`;
               await FileSystem.copyAsync({ from: uploadUri, to: localUri });
               uploadUri = localUri;
             }
 
-            await reference.putFile(uploadUri); // works with local file:// URIs reliably
+            await reference.putFile(uploadUri);
             const url = await reference.getDownloadURL();
-            uploadedProofs.push({ url, type: proof.type, name: proof.name || "" });
-          } catch (storageErr: any) {
+            return { url, type: proof.type, name: proof.name || "" };
+          } catch (storageErr) {
             console.log("Storage upload error:", storageErr);
-            // We continue even if storage fails, better to save payment without proof than fail completely
+            return null; // Don't fail the whole payment if one image fails
           }
-        }
+        });
+
+        // Run all uploads concurrently
+        const results = await Promise.all(uploadTasks);
+        uploadedProofs = results.filter(Boolean) as any[];
       }
 
       // 🔥 2. SAVE FIRESTORE DOC
@@ -434,20 +439,20 @@ const styles = StyleSheet.create({
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dateText: { fontSize: 11, color: "#9CA3AF" },
   retryBtn: { marginTop: 20, backgroundColor: "#DC2626", paddingVertical: 12, paddingHorizontal: 30, borderRadius: 12 },
-  bottomBtns: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 20, paddingTop: 30, backgroundColor: 'rgba(240,253,244,0.9)' },
-  rowBtns: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  subBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: "center", borderWidth: 1, flexDirection: "row", justifyContent: "center", gap: 6 },
+  bottomBtns: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 16, paddingTop: 20, backgroundColor: 'rgba(240,253,244,0.9)' },
+  rowBtns: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  subBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center", borderWidth: 1, flexDirection: "row", justifyContent: "center", gap: 6 },
   
-  doneWrapper: { borderRadius: 18, overflow: "hidden", elevation: 2, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5, shadowOffset: {width: 0, height: 2} },
-  confirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 16, borderRadius: 18 },
-  confirmText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  doneWrapper: { borderRadius: 14, overflow: "hidden", elevation: 2, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5, shadowOffset: {width: 0, height: 2} },
+  confirmBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, paddingVertical: 14, borderRadius: 14 },
+  confirmText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
-  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalButtonsStandard: { flexDirection: "row", justifyContent: "center", width: '100%' },
   modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 12 },
   modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#16A34A", marginTop: 10, textAlign: "center" },
-  modalInfoBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
-  modalInfoTextStandard: { color: "white", fontWeight: "600", fontSize: 16 },
+  modalInfoBtnStandard: { paddingHorizontal: 30, paddingVertical: 10, borderRadius: 10, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
+  modalInfoTextStandard: { color: "white", fontWeight: "600", fontSize: 15 },
 });

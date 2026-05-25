@@ -32,7 +32,7 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   // 🔥 APP VERSION (నువ్వు అప్‌డేట్ ఇచ్చిన ప్రతిసారీ ఇక్కడ మార్చుకో బ్రో)
-  const APP_VERSION = "1.1.0";
+  const APP_VERSION = "1.0.0";
 
   // --- STATE ---
   const [loading, setLoading] = useState(true);

@@ -1,23 +1,14 @@
+import { useLanguage } from "@/context/LanguageContext";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNetInfo } from "@react-native-community/netinfo";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Modal, StatusBar, StyleSheet, View } from "react-native";
 import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
 import AppText from "./AppText";
 
 export default function NetworkOverlay() {
   const netInfo = useNetInfo();
-  const [language, setLanguage] = useState<"te" | "en">("te");
-
-  // Load language once
-  useEffect(() => {
-    const loadLang = async () => {
-      const lang = await AsyncStorage.getItem("APP_LANG");
-      if (lang) setLanguage(lang as "te" | "en");
-    };
-    loadLang();
-  }, []);
+  const { language } = useLanguage();
 
   // We consider it offline ONLY if isConnected is explicitly false.
   // OR if isInternetReachable is explicitly false (e.g. WiFi is ON but router has no internet, or Mobile Data ON but no balance)

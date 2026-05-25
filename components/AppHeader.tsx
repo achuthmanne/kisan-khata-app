@@ -15,7 +15,7 @@ export default function AppHeader({ title, subtitle, language, onDownload }: any
   return (
     <LinearGradient
       colors={["#1B5E20", "#2E7D32"]}
-      style={[styles.header, { paddingTop: safeTop + 10 }]}
+      style={[styles.header, { paddingTop: safeTop }]}
     >
       {/* TOP ROW */}
       <View style={styles.topRow}>

@@ -28,15 +28,33 @@ import CustomTabBar from "../../../components/CustomTabBar";
 
 import AnimatedReanimated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
-/* 🔥 INSTAGRAM-STYLE PREMIUM TOGGLE WITH REANIMATED FOR 60FPS SMOOTHNESS */
+/* 🔥 INSTAGRAM-STYLE PREMIUM TOGGLE WITH LOCAL STATE FOR ZERO-STUTTER 60FPS */
 const InstagramToggle = React.memo(({ isEnabled, onToggle }: { isEnabled: boolean, onToggle: () => void }) => {
+  const [localState, setLocalState] = useState(isEnabled);
   const progress = useSharedValue(isEnabled ? 1 : 0);
 
+  // Sync with external state if it changes outside
   useEffect(() => {
+    setLocalState(isEnabled);
     progress.value = withTiming(isEnabled ? 1 : 0, {
       duration: 250,
     });
   }, [isEnabled]);
+
+  const handlePress = () => {
+    const nextState = !localState;
+    setLocalState(nextState);
+    
+    // Start the animation immediately on the UI thread
+    progress.value = withTiming(nextState ? 1 : 0, {
+      duration: 250,
+    });
+    
+    // Delay the heavy context update so it doesn't block the animation start
+    setTimeout(() => {
+      onToggle();
+    }, 150);
+  };
 
   const trackAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -55,7 +73,7 @@ const InstagramToggle = React.memo(({ isEnabled, onToggle }: { isEnabled: boolea
   });
 
   return (
-    <TouchableOpacity activeOpacity={1} onPress={onToggle}>
+    <TouchableOpacity activeOpacity={1} onPress={handlePress}>
       <AnimatedReanimated.View
         style={[{
           width: 52,

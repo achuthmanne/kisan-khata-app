@@ -186,10 +186,10 @@ export default function PaymentWorkHistory() {
       />
 
       <View style={styles.topInfoBox}>
-        <AppText style={styles.mainTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
+        <AppText style={[styles.mainTitle, { flex: 1, marginRight: 10 }]} language={language} numberOfLines={1} ellipsizeMode="tail">
           {name}
         </AppText>
-        <AppText style={styles.subTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
+        <AppText style={[styles.subTitle, { flexShrink: 1, maxWidth: '55%' }]} language={language} numberOfLines={1} ellipsizeMode="tail">
           {crop} | {work}
         </AppText>
       </View>
@@ -542,9 +542,9 @@ const styles = StyleSheet.create({
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 15, lineHeight: 24 },
-  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%', justifyContent: "center" },
   modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 12 },
   modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#16A34A", marginTop: 10, textAlign: "center" },
-  modalInfoBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
+  modalInfoBtnStandard: { paddingHorizontal: 30, paddingVertical: 10, borderRadius: 10, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
   modalInfoTextStandard: { color: "white", fontWeight: "600", fontSize: 16 },
 });

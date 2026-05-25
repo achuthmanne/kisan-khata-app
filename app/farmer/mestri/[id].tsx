@@ -327,10 +327,10 @@ export default function MestriAttendance() {
       >
         {/* 🔥 PREMIUM MESTRI INFO BOX */}
         <View style={styles.topInfoBox}>
-          <AppText style={styles.mainTitle} language={language}>
+          <AppText style={[styles.mainTitle, { flex: 1, marginRight: 10 }]} language={language} numberOfLines={1} ellipsizeMode="tail">
             {mestriName}
           </AppText>
-          <AppText style={styles.subTitle} language={language}>
+          <AppText style={[styles.subTitle, { flexShrink: 1, maxWidth: '50%' }]} language={language} numberOfLines={1} ellipsizeMode="tail">
             {village}
           </AppText>
         </View>

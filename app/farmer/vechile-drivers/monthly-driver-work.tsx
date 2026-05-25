@@ -5,7 +5,11 @@ import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import storage from "@react-native-firebase/storage";
 import { useFocusEffect } from "@react-navigation/native";
+import * as DocumentPicker from "expo-document-picker";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -14,12 +18,15 @@ import {
   Linking,
   Modal,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Platform
 } from "react-native";
+import { WebView } from "react-native-webview";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 
@@ -31,6 +38,11 @@ type CycleItem = {
   previousAdvance: number;
   monthlySalary: number;
   isCleared: boolean;
+  isPaymentLocked?: boolean;
+  paymentMode?: string;
+  splitCash?: string;
+  splitUpi?: string;
+  proofs?: any[];
   entries?: WorkItem[];
   createdAt: any;
 };
@@ -83,6 +95,7 @@ export default function MonthlyDriverHistory() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardDate, setOnboardDate] = useState<Date | null>(null);
   const [onboardAdvance, setOnboardAdvance] = useState("");
+  const [onboardError, setOnboardError] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // New Month
@@ -96,6 +109,34 @@ export default function MonthlyDriverHistory() {
   // Status/Clear toggle
   const [clearId, setClearId] = useState<string | null>(null);
   const [showMissingDaysWarning, setShowMissingDaysWarning] = useState(false);
+  const [deleteCycleId, setDeleteCycleId] = useState<string | null>(null);
+  const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
+
+  // Payment Lock Feature
+  type Proof = { uri: string, type: "image" | "pdf", name?: string };
+  const [lockModalVisible, setLockModalVisible] = useState(false);
+  const [lockCycleId, setLockCycleId] = useState<string | null>(null);
+  const [lockBalance, setLockBalance] = useState(0);
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "both" | "">("");
+  const [splitCash, setSplitCash] = useState("");
+  const [splitUpi, setSplitUpi] = useState("");
+  const [proofs, setProofs] = useState<Proof[]>([]);
+  const [photoModal, setPhotoModal] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
+
+  // In-app proof viewer state
+  const [viewerProof, setViewerProof] = useState<{url: string, type: string} | null>(null);
+
+  // Missing Attendance Error Modal
+  const [errorModal, setErrorModal] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Early Settlement (Driver Left) State
+  const [earlySettlementModal, setEarlySettlementModal] = useState(false);
+  const [earlyCycle, setEarlyCycle] = useState<CycleItem | null>(null);
+  const [earlyFutureDays, setEarlyFutureDays] = useState<any[]>([]);
+  const [earlyBalance, setEarlyBalance] = useState(0);
+  const [earlyCuttingInput, setEarlyCuttingInput] = useState("");
 
   /* ---------------- LOAD ---------------- */
   useEffect(() => {
@@ -211,6 +252,23 @@ export default function MonthlyDriverHistory() {
 
   const handleCreateFirstCycle = async () => {
     if (!onboardDate) return;
+
+    const selectedDate = new Date(onboardDate);
+    selectedDate.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const maxAllowedDate = new Date(today);
+    maxAllowedDate.setDate(today.getDate() + 1);
+
+    if (selectedDate.getTime() > maxAllowedDate.getTime()) {
+      setOnboardError(
+         language === "te" 
+           ? "భవిష్యత్తు తేదీలను ముందే ఎంచుకోలేరు. దయచేసి పాత తేదీ, ఈ రోజు లేదా రేపటి తేదీలలో ఒకదాన్ని ఎంచుకోండి." 
+           : "Future dates are not allowed. Please select a past date, today, or tomorrow."
+      );
+      return;
+    }
+
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
 
@@ -264,15 +322,30 @@ export default function MonthlyDriverHistory() {
     const selectedNewMonthDate = new Date(newMonthDate);
     selectedNewMonthDate.setHours(0,0,0,0);
 
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const maxAllowedDate = new Date(today);
+    maxAllowedDate.setDate(today.getDate() + 1);
+
+    if (selectedNewMonthDate.getTime() > maxAllowedDate.getTime()) {
+      setNewMonthError(
+         language === "te" 
+           ? "భవిష్యత్తు తేదీలను ముందే ఎంచుకోలేరు. దయచేసి పాత తేదీ, ఈ రోజు లేదా రేపటి తేదీలలో ఒకదాన్ని ఎంచుకోండి." 
+           : "Future dates are not allowed. Please select a past date, today, or tomorrow."
+      );
+      return;
+    }
+
     if (selectedNewMonthDate.getTime() < minNewMonthDate.getTime()) {
         const oldCompletion = new Date(minNewMonthDate);
         oldCompletion.setDate(oldCompletion.getDate() - 1);
         const fDate = oldCompletion.toLocaleDateString('en-GB').replace(/\//g, '-');
+        const nextDate = minNewMonthDate.toLocaleDateString('en-GB').replace(/\//g, '-');
         
         setNewMonthError(
            language === "te" 
-             ? `పాత నెల తేదీ (${fDate}) తో పూర్తయింది. దయచేసి ఆ తర్వాతి తేదీని ఎంచుకోండి.` 
-             : `Old month completed on (${fDate}). Please select a later date.`
+             ? `పాత నెల (${fDate}) తో పూర్తయింది. దయచేసి కొత్త నెల కోసం (${nextDate}) లేదా ఆ తర్వాతి తేదీని ఎంచుకోండి.` 
+             : `Old month completed on (${fDate}). Please select (${nextDate}) or a later date.`
         );
         return;
     }
@@ -343,6 +416,7 @@ export default function MonthlyDriverHistory() {
   };
 
   const handleToggleClear = async () => {
+    // This is now used for unlocking!
     if (!clearId) return;
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
@@ -353,10 +427,204 @@ export default function MonthlyDriverHistory() {
       .collection("drivers").doc(dId)
       .collection("cycles").doc(clearId)
       .update({
-        isCleared: true
+        isCleared: false,
+        paymentMode: firestore.FieldValue.delete(),
+        splitCash: firestore.FieldValue.delete(),
+        splitUpi: firestore.FieldValue.delete(),
+        proofs: firestore.FieldValue.delete(),
       });
       
     setClearId(null);
+  };
+
+  const handleEarlySettle = async () => {
+    if (!earlyCycle || earlyFutureDays.length === 0) return;
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    if (!userPhone || !vId || !dId) return;
+
+    const userDoc = await firestore().collection("users").doc(userPhone).get();
+    const activeSession = userDoc.data()?.activeSession;
+    if (!activeSession) return;
+
+    setEarlySettlementModal(false);
+    
+    // We attach the custom cutting amount to the FIRST future day.
+    const customCut = parseFloat(earlyCuttingInput) || 0;
+    const finalBalance = earlyBalance - customCut;
+
+    const batch = firestore().batch();
+    
+    earlyFutureDays.forEach((fd, index) => {
+      const entryRef = firestore()
+        .collection("users").doc(userPhone)
+        .collection("vehicles").doc(vId)
+        .collection("drivers").doc(dId)
+        .collection("entries").doc();
+
+      batch.set(entryRef, {
+        cycleId: earlyCycle.id,
+        date: fd.dateStr,
+        dateRaw: fd.dateObj.toISOString(),
+        attendance: "absent",
+        work: "",
+        cuttingReason: language === "te" ? "పని మానేశాడు" : "Driver Left",
+        advanceAmount: "",
+        cuttingAmount: index === 0 ? customCut.toString() : "0",
+        workMode: null,
+        session: activeSession,
+        createdAt: firestore.FieldValue.serverTimestamp()
+      });
+    });
+
+    // We can open the modal right away optimistically
+    setLockBalance(finalBalance);
+    setLockCycleId(earlyCycle.id);
+    setPaymentMode("");
+    setSplitCash("");
+    setSplitUpi("");
+    setProofs([]);
+    setLockModalVisible(true);
+
+    try {
+      await batch.commit();
+    } catch (e) {
+      console.error("Error with early settlement:", e);
+    }
+    
+    setEarlyCycle(null);
+    setEarlyFutureDays([]);
+    setEarlyBalance(0);
+    setEarlyCuttingInput("");
+  };
+
+  const handleConfirmLock = async () => {
+    if (!lockCycleId) return;
+    
+    // Validation
+    const safeNum = (v: any) => isNaN(Number(v)) ? 0 : Number(v);
+    if (lockBalance > 0 && paymentMode === "both") {
+      if (safeNum(splitCash) + safeNum(splitUpi) !== lockBalance) {
+        return; // UI will block it anyway, but extra safety
+      }
+    }
+    if (lockBalance > 0 && !paymentMode) return;
+
+    setIsLocking(true);
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    if (!userPhone || !vId || !dId) {
+       setIsLocking(false);
+       return;
+    }
+
+    try {
+      // 1. Upload Proofs
+      let uploadedProofs: { url: string, type: string, name?: string }[] = [];
+      if (proofs.length > 0) {
+        for (let i = 0; i < proofs.length; i++) {
+            const proof = proofs[i];
+            const ext = proof.type === "pdf" ? "pdf" : "jpg";
+            const fileName = `proof_${Date.now()}_${i}.${ext}`;
+            const refPath = `users/${userPhone}/vehicles/${vId}/drivers/${dId}/cycles/${lockCycleId}/proofs/${fileName}`;
+            const reference = storage().ref(refPath);
+            let uploadUri = proof.uri;
+            if (proof.type === "image" && uploadUri.startsWith('file://')) {
+              uploadUri = uploadUri.replace('file://', '');
+            }
+            await reference.putFile(uploadUri);
+            const url = await reference.getDownloadURL();
+            uploadedProofs.push({ url, type: proof.type, name: proof.name || "" });
+        }
+      }
+
+      // 2. Update Document
+      await firestore()
+        .collection("users").doc(userPhone)
+        .collection("vehicles").doc(vId)
+        .collection("drivers").doc(dId)
+        .collection("cycles").doc(lockCycleId)
+        .update({
+          isCleared: true,
+          isPaymentLocked: true,
+          paymentMode: lockBalance > 0 ? paymentMode : null,
+          splitCash: paymentMode === "both" ? splitCash : null,
+          splitUpi: paymentMode === "both" ? splitUpi : null,
+          proofs: uploadedProofs.length > 0 ? uploadedProofs : null,
+        });
+
+      setLockModalVisible(false);
+    } catch (e) {
+      console.error("Error locking payment:", e);
+    } finally {
+      setIsLocking(false);
+    }
+  };
+
+  
+  const handleDeleteEntryConfirm = async () => {
+    if (!deleteEntryId) return;
+    try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (phone && vehicleId && driverId) {
+        const vIdStr = Array.isArray(vehicleId) ? vehicleId[0] : vehicleId;
+        const dIdStr = Array.isArray(driverId) ? driverId[0] : driverId;
+        
+        await firestore()
+          .collection("users")
+          .doc(phone)
+          .collection("vehicles")
+          .doc(vIdStr)
+          .collection("drivers")
+          .doc(dIdStr)
+          .collection("entries")
+          .doc(deleteEntryId)
+          .delete();
+      }
+      setDeleteEntryId(null);
+    } catch (e) {
+      console.log("Delete Entry Error: ", e);
+    }
+  };
+
+  const handleDeleteCycleConfirm = async () => {
+    if (!deleteCycleId) return;
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    if (!userPhone || !vId || !dId) return;
+
+    try {
+        const batch = firestore().batch();
+        
+        const cycleRef = firestore()
+          .collection("users").doc(userPhone)
+          .collection("vehicles").doc(vId)
+          .collection("drivers").doc(dId)
+          .collection("cycles").doc(deleteCycleId);
+        
+        batch.delete(cycleRef);
+
+        const otherCycles = cycles.filter(c => c.id !== deleteCycleId);
+        if (otherCycles.length > 0) {
+           const newestOldCycle = otherCycles[0];
+           const cycleToDelete = cycles.find(c => c.id === deleteCycleId);
+           if (cycleToDelete && cycleToDelete.isActive) {
+               const oldCycleRef = firestore()
+                  .collection("users").doc(userPhone)
+                  .collection("vehicles").doc(vId)
+                  .collection("drivers").doc(dId)
+                  .collection("cycles").doc(newestOldCycle.id);
+               
+               batch.update(oldCycleRef, {
+                   isActive: true,
+                   endDateRaw: null
+               });
+           }
+        }
+
+        setDeleteCycleId(null);
+        await batch.commit();
+
+    } catch (e) {
+        console.error("Error deleting cycle:", e);
+    }
   };
 
   const generateDaysForCycle = (cycle: CycleItem) => {
@@ -543,7 +811,12 @@ export default function MonthlyDriverHistory() {
             let subtitleColor = "#6B7280";
             let subtitleText = cycle.isActive ? (language === "te" ? "ప్రస్తుత నెల" : "Active Month") : (language === "te" ? "గత నెల" : "Past Month");
 
-            if (isPendingPayment) {
+            if (cycle.isCleared) {
+               headerBg = "#F9FAFB";
+               sidebarColor = "#9CA3AF";
+               subtitleColor = "#9CA3AF";
+               subtitleText = language === "te" ? "పూర్తయింది (లాక్)" : "Completed (Locked)";
+            } else if (isPendingPayment) {
                headerBg = "#FEF2F2";
                sidebarColor = "#DC2626";
                subtitleColor = "#DC2626";
@@ -552,12 +825,14 @@ export default function MonthlyDriverHistory() {
                headerBg = "#F0FDF4";
                sidebarColor = "#16A34A";
                subtitleColor = "#16A34A";
-            } else if (cycle.isCleared) {
-               headerBg = "#F9FAFB";
-               sidebarColor = "#9CA3AF";
-               subtitleColor = "#9CA3AF";
-               subtitleText = language === "te" ? "గత నెల (లాక్)" : "Past Month (Locked)";
+               subtitleText = language === "te" ? "ప్రస్తుత నెల" : "Active Month";
             }
+            
+            const cycleDays = generateDaysForCycle(cycle);
+            const todayNum = new Date().setHours(0,0,0,0);
+            const hasMissing = cycleDays.some(d => d.dateObj.getTime() <= todayNum && (!d.entries || d.entries.length === 0));
+            const futureDays = cycleDays.filter(d => d.dateObj.getTime() > todayNum && (!d.entries || d.entries.length === 0));
+            const hasFutureDays = futureDays.length > 0;
             
             return (
               <View style={[styles.cropCard, cycle.isActive && { borderColor: "#E5E7EB", borderWidth: 1 }]}>
@@ -623,11 +898,11 @@ export default function MonthlyDriverHistory() {
                               if (day.entries.length === 0) {
                                 if (!cycle.isActive || new Date(day.dateObj).getTime() < new Date().getTime()) {
                                   absentD += 1;
-                                  dailyLog.push(`📅 *${day.dateStr}*\n❌ మిస్ అయ్యింది`);
+                                  dailyLog.push(`• *${day.dateStr}*\n❌ మిస్ అయ్యింది`);
                                 }
                               } else {
                                 const e = day.entries[0];
-                                let dayMsg = `📅 *${day.dateStr}*\n`;
+                                let dayMsg = `• *${day.dateStr}*\n`;
 
                                 if (e.work === "సగం రోజు (Half Day)") {
                                   absentD += 0.5;
@@ -639,34 +914,34 @@ export default function MonthlyDriverHistory() {
                                 } else {
                                   presentD += 1;
                                   if (e.work) {
-                                      dayMsg += `✅ ${e.work}\n`;
+                                      dayMsg += `✔ ${e.work}\n`;
                                   } else {
-                                      dayMsg += `✅ హాజరు (Present)\n`;
+                                      dayMsg += `✔ హాజరు (Present)\n`;
                                   }
                                 }
                                 
                                 if (e.customerName) {
-                                  dayMsg += `👤 రైతు: ${e.customerName}\n`;
+                                  dayMsg += `• రైతు: ${e.customerName}\n`;
                                 }
 
                                 if (e.workMode === "hourly") {
                                   const sTime = e.startTimeRaw ? new Date(e.startTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                   const eTime = e.endTimeRaw ? new Date(e.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
-                                  dayMsg += `⏱️ పని: ${sTime} - ${eTime} (${e.totalHoursStr})\n`;
+                                  dayMsg += `• పని: ${sTime} - ${eTime} (${e.totalHoursStr})\n`;
                                   if (e.hasBreak) {
                                     const bs = e.breakStartTimeRaw ? new Date(e.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                     const be = e.breakEndTimeRaw ? new Date(e.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                     dayMsg += `☕ బ్రేక్: ${bs} - ${be}\n`;
                                   }
                                 } else if (e.workMode === "acres") {
-                                  dayMsg += `🚜 విస్తీర్ణం: ${e.acresWorked} ఎకరాలు\n`;
+                                  dayMsg += `విస్తీర్ణం: ${e.acresWorked} ఎకరాలు\n`;
                                 }
 
                                 if (e.advanceAmount && Number(e.advanceAmount) > 0) {
-                                  dayMsg += `💰 అడ్వాన్స్: ₹${e.advanceAmount}\n`;
+                                  dayMsg += `• అడ్వాన్స్: ₹${e.advanceAmount}\n`;
                                 }
                                 if (e.cuttingAmount && Number(e.cuttingAmount) > 0) {
-                                  dayMsg += `✂️ కోత: ₹${e.cuttingAmount}\n`;
+                                  dayMsg += `• కోత: ₹${e.cuttingAmount}\n`;
                                 }
                                 if (e.cuttingReason) {
                                   dayMsg += `📌 కోత కారణం: ${e.cuttingReason}\n`;
@@ -675,19 +950,37 @@ export default function MonthlyDriverHistory() {
                               }
                             });
 
-                            let msg = `🚜 *Kisan Khata - Driver Report*\n`;
-                            msg += `👤 *డ్రైవర్ పేరు:* ${dName || 'Driver'}\n`;
-                            msg += `📅 *నెల:* ${startStr} - ${endStr}\n\n`;
-                            msg += `💵 *నెల జీతం:* ₹${cycle.monthlySalary}\n`;
-                            msg += `✂️ *అడ్వాన్స్ + కోత:* ₹${totalAdvance}\n`;
-                            msg += `💰 *ఇవ్వాల్సిన బ్యాలెన్స్:* ₹${balance}\n\n`;
-                            msg += `📋 *హాజరు వివరాలు:*\n`;
+                            let msg = `*Kisan Khata - Driver Report*\n`;
+                            msg += `• *డ్రైవర్ పేరు:* ${dName || 'Driver'}\n`;
+                            msg += `• *నెల:* ${startStr} - ${endStr}\n\n`;
+                            msg += `• *నెల జీతం:* ₹${cycle.monthlySalary}\n`;
+                            msg += `• *అడ్వాన్స్ + కోత:* ₹${totalAdvance}\n`;
+                            msg += `• *ఇవ్వాల్సిన బ్యాలెన్స్:* ₹${balance}\n\n`;
+                            msg += `• *హాజరు వివరాలు:*\n`;
                             msg += `- మొత్తం రోజులు: ${days.length}\n`;
                             msg += `- హాజరైన రోజులు: ${presentD}\n`;
                             msg += `- కోత (Absent): ${absentD}\n`;
                             
+                            if (cycle.isCleared) {
+                                msg += `\n✔ *చెల్లింపు పూర్తయింది (Payment Cleared)*\n`;
+                                if (cycle.paymentMode) {
+                                    let pMode = cycle.paymentMode === "cash" ? "Cash" : cycle.paymentMode === "upi" ? "UPI" : "Cash + UPI";
+                                    msg += `- చెల్లింపు విధానం: ${pMode}\n`;
+                                    if (cycle.paymentMode === "both") {
+                                        msg += `  • క్యాష్: ₹${cycle.splitCash || 0}\n`;
+                                        msg += `  • యూపీఐ: ₹${cycle.splitUpi || 0}\n`;
+                                    }
+                                }
+                                if (cycle.proofs && cycle.proofs.length > 0) {
+                                    msg += `\n• *ఆధారాలు (Proofs):*\n`;
+                                    cycle.proofs.forEach((p, idx) => {
+                                        msg += `${idx + 1}. ${p.url}\n`;
+                                    });
+                                }
+                            }
+                            
                             if (dailyLog.length > 0) {
-                                msg += `\n📝 *రోజువారీ పనుల వివరాలు:*\n\n`;
+                                msg += `\n• *రోజువారీ పనుల వివరాలు:*\n\n`;
                                 msg += dailyLog.join('\n\n');
                             }
 
@@ -701,46 +994,142 @@ export default function MonthlyDriverHistory() {
                         </TouchableOpacity>
                       )}
 
-                      {/* CLEAR STATUS (SHOW FOR PAST CYCLES, OR ACTIVE CYCLES >= 28 DAYS) */}
+                      {/* BULK LEAVE BUTTON */}
+                      {hasMissing && (
+                           <TouchableOpacity
+                             style={{
+                               flexDirection: "row",
+                               alignItems: "center",
+                               justifyContent: "center",
+                               backgroundColor: "#FEF2F2",
+                               paddingVertical: 10,
+                               borderRadius: 8,
+                               marginTop: 15,
+                               borderWidth: 1,
+                               borderColor: "#FECACA"
+                             }}
+                             onPress={() => {
+                               router.push({
+                                 pathname: "/farmer/vechile-drivers/add-batch-absent",
+                                 params: { vehicleId: vId, driverId: dId, cycleId: cycle.id, balance: balance }
+                               });
+                             }}
+                           >
+                             <Ionicons name="calendar-outline" size={20} color="#DC2626" />
+                             <AppText style={{ color: "#DC2626", fontWeight: "600", marginLeft: 8 }}>
+                               {language === "te" ? "ఒకేసారి ఎక్కువ సెలవులు నమోదు" : "Add Bulk Leaves"}
+                             </AppText>
+                           </TouchableOpacity>
+                      )}
+
+                      {/* DELETE OR CLEAR STATUS */}
                       {(() => {
-                         let showToggle = !cycle.isActive;
-                         if (cycle.isActive) {
-                           const startMs = new Date(cycle.startDateRaw).getTime();
-                           const todayMs = new Date().getTime();
-                           const diffDays = Math.floor((todayMs - startMs) / (1000 * 60 * 60 * 24));
-                           if (diffDays >= 28) showToggle = true;
+                         if (cycleEntries.length === 0) {
+                             return (
+                               <TouchableOpacity 
+                                  activeOpacity={0.8}
+                                  style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", marginTop: 15, paddingVertical: 10, backgroundColor: "#FEF2F2", borderRadius: 8, borderWidth: 1, borderColor: "#FECACA" }}
+                                  onPress={() => setDeleteCycleId(cycle.id)}
+                               >
+                                  <Ionicons name="trash-outline" size={18} color="#DC2626" style={{ marginRight: 6 }} />
+                                  <AppText style={{ color: "#DC2626", fontWeight: "600", fontFamily: "Mandali" }}>{language === "te" ? "తప్పు నెల అయితే డిలీట్ చేయండి" : "Delete Month (No entries)"}</AppText>
+                               </TouchableOpacity>
+                             );
                          }
+
+                         // As long as there is at least 1 entry, show the toggle (user request)
+                         let showToggle = true;
+                         
                          if (!showToggle) return null;
                          
                          return (
-                           <View style={[styles.statusRow, { marginTop: 15, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 8 }]}>
-                             <AppText style={[styles.statusText, { color: cycle.isCleared ? "#16A34A" : "#DC2626" }]}>
-                               {cycle.isCleared
-                                 ? (language === "te" ? "చెల్లింపు పూర్తయింది (లాక్)" : "Payment Cleared (Locked)")
-                                 : (language === "te" ? "డబ్బులు ఇవ్వాలి (పెండింగ్)" : "Payment Pending")}
-                             </AppText>
-                             <TouchableOpacity
-                               activeOpacity={cycle.isCleared ? 1 : 0.8}
-                               disabled={cycle.isCleared}
-                               style={[styles.toggle, { backgroundColor: cycle.isCleared ? "#16A34A" : "#DC2626", opacity: cycle.isCleared ? 0.6 : 1 }]}
-                               onPress={() => {
-                                 if (cycle.isCleared) return;
-                                 
-                                 const days = generateDaysForCycle(cycle);
-                                 const todayMs = new Date().setHours(0,0,0,0);
-                                 const hasMissingDays = days.some(d => 
-                                   d.dateObj.getTime() <= todayMs && d.entries.length === 0
-                                 );
-                                 if (hasMissingDays) {
-                                    setShowMissingDaysWarning(true);
-                                    return;
-                                 }
+                           <View>
+                             <View style={[styles.statusRow, { marginTop: 15, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 8 }]}>
+                               <AppText style={[styles.statusText, { color: cycle.isCleared ? "#16A34A" : "#DC2626" }]}>
+                                 {cycle.isCleared
+                                   ? (language === "te" ? "చెల్లింపు పూర్తయింది (లాక్)" : "Payment Cleared (Locked)")
+                                   : (language === "te" ? "డబ్బులు ఇవ్వాలి (పెండింగ్)" : "Payment Pending")}
+                               </AppText>
+                               <TouchableOpacity
+                                 activeOpacity={cycle.isCleared ? 1 : 0.8}
+                                 style={[styles.toggle, { backgroundColor: cycle.isCleared ? "#16A34A" : "#DC2626" }]}
+                                 onPress={() => {
+                                   if (cycle.isCleared) {
+                                     // Unlock logic (asks for confirmation via setClearId)
+                                     // wait, we changed it to just use clearId for unlocking
+                                     setClearId(cycle.id);
+                                     return;
+                                   }
 
-                                 setClearId(cycle.id);
-                               }}
-                             >
-                               <View style={[styles.toggleCircle, { alignSelf: cycle.isCleared ? "flex-end" : "flex-start" }]} />
-                             </TouchableOpacity>
+                                   if (hasMissing) {
+                                     setErrorMsg(language === "te" ? "ముందుగా అన్ని రోజుల హాజరు పూర్తి చేయండి!" : "Please complete attendance for all past days first!");
+                                     setErrorModal(true);
+                                     return;
+                                   }
+
+                                   if (hasFutureDays) {
+                                     setEarlyCycle(cycle);
+                                     setEarlyFutureDays(futureDays);
+                                     setEarlyBalance(balance);
+                                     setEarlyCuttingInput("");
+                                     setEarlySettlementModal(true);
+                                     return;
+                                   }
+
+                                   // Standard Lock logic
+                                   setLockBalance(balance);
+                                   setLockCycleId(cycle.id);
+                                   setPaymentMode("");
+                                   setSplitCash("");
+                                   setSplitUpi("");
+                                   setProofs([]);
+                                   setLockModalVisible(true);
+                                 }}
+                               >
+                                 <View style={[styles.toggleCircle, { alignSelf: cycle.isCleared ? "flex-end" : "flex-start" }]} />
+                               </TouchableOpacity>
+                             </View>
+
+                             {cycle.isCleared && (cycle.paymentMode || (cycle.proofs && cycle.proofs.length > 0)) && (
+                               <View style={{ marginTop: 10, padding: 12, backgroundColor: "#F0FDF4", borderRadius: 8, borderWidth: 1, borderColor: "#DCFCE7" }}>
+                                 {cycle.paymentMode && (
+                                   <AppText style={{ color: "#16A34A", fontSize: 13, fontWeight: "600", marginBottom: cycle.paymentMode === "both" ? 2 : 6 }} language={language}>
+                                     {language === "te" ? "చెల్లింపు విధానం:" : "Payment Mode:"} {cycle.paymentMode === "cash" ? "Cash" : cycle.paymentMode === "upi" ? "UPI" : "Cash + UPI"}
+                                   </AppText>
+                                 )}
+                                 {cycle.paymentMode === "both" && (
+                                   <AppText style={{ color: "#16A34A", fontSize: 12, marginBottom: 8, fontWeight: "500" }} language={language}>
+                                     {language === "te" ? `క్యాష్: ₹${cycle.splitCash || 0} | యూపీఐ: ₹${cycle.splitUpi || 0}` : `Cash: ₹${cycle.splitCash || 0} | UPI: ₹${cycle.splitUpi || 0}`}
+                                   </AppText>
+                                 )}
+                                 {cycle.proofs && cycle.proofs.length > 0 && (
+                                   <View style={{ marginTop: 4 }}>
+                                     <AppText style={{ color: "#16A34A", fontSize: 12, fontWeight: "600", marginBottom: 6 }} language={language}>
+                                       {language === "te" ? "ఆధారాలు:" : "Proofs:"}
+                                     </AppText>
+                                     <View style={{ flexDirection: "row", gap: 10 }}>
+                                       {cycle.proofs.map((p, idx) => (
+                                         <TouchableOpacity 
+                                            key={idx} 
+                                            activeOpacity={0.8} 
+                                            onPress={() => {
+                                              setViewerProof({ url: p.url, type: p.type });
+                                            }}
+                                         >
+                                           {p.type === "image" ? (
+                                             <Image source={{ uri: p.url }} style={{ width: 50, height: 50, borderRadius: 8 }} />
+                                           ) : (
+                                             <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center" }}>
+                                               <Ionicons name="document-text" size={24} color="#16A34A" />
+                                             </View>
+                                           )}
+                                         </TouchableOpacity>
+                                       ))}
+                                     </View>
+                                   </View>
+                                 )}
+                               </View>
+                             )}
                            </View>
                          );
                       })()}
@@ -826,6 +1215,18 @@ export default function MonthlyDriverHistory() {
 
                                   {/* RIGHT COLUMN: Money Details */}
                                   <View style={{ alignItems: "flex-end", minWidth: 100 }}>
+                                    {cycle.isCleared ? (
+                                       <View style={{ padding: 6, marginBottom: 8, backgroundColor: "#DCFCE7", borderRadius: 20, alignSelf: "flex-end" }}>
+                                          <Ionicons name="lock-closed" size={16} color="#16A34A" />
+                                       </View>
+                                    ) : (
+                                       <TouchableOpacity 
+                                          onPress={() => setDeleteEntryId(e.id)} 
+                                          style={{ padding: 6, marginBottom: 8, backgroundColor: "#FEE2E2", borderRadius: 20, alignSelf: "flex-end" }}
+                                       >
+                                          <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                                       </TouchableOpacity>
+                                    )}
                                     {e.advanceAmount && Number(e.advanceAmount) > 0 && (
                                         <View style={{ backgroundColor: "#F0FDF4", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 6 }}>
                                           <AppText style={{ color: "#16A34A", fontWeight: "600", fontSize: 15 }}>
@@ -845,10 +1246,14 @@ export default function MonthlyDriverHistory() {
                                 </View>
 
                                 {/* REASON BLOCK */}
-                                {e.cuttingAmount && Number(e.cuttingAmount) > 0 && e.cuttingReason && (
+                                {!!e.cuttingReason && (
                                   <View style={{ backgroundColor: "#F9FAFB", padding: 10, borderRadius: 8, marginTop: 12, borderWidth: 1, borderColor: "#E5E7EB" }}>
                                     <AppText style={{ color: "#4B5563", fontSize: 14, fontWeight: "600", lineHeight: 24 }}>
-                                      <AppText style={{ color: "#374151", fontWeight: "600" }}>{language === "te" ? "కోతకి గల కారణం: " : "Reason for deduction: "}</AppText>
+                                      <AppText style={{ color: "#374151", fontWeight: "600" }}>
+                                        {language === "te" 
+                                           ? (e.work === "సెలవు" ? "సెలవుకి కారణం: " : "కారణం: ") 
+                                           : "Reason: "}
+                                      </AppText>
                                       {e.cuttingReason}
                                     </AppText>
                                   </View>
@@ -945,7 +1350,7 @@ export default function MonthlyDriverHistory() {
       <Modal visible={showOnboarding} transparent animationType="slide">
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={styles.modalIconBgStandard}>
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#f5e8e8" }]}>
                <Ionicons name="calendar-outline" size={36} color="#e44830" />
             </View>
             <AppText style={styles.modalTitleStandard}>{language === "te" ? "ప్రస్తుత నెల ప్రారంభం" : "Start Current Month"}</AppText>
@@ -964,6 +1369,14 @@ export default function MonthlyDriverHistory() {
                 </TouchableOpacity>
             </View>
 
+            {!!onboardError && (
+                <View style={{ width: "100%", alignItems: "center", marginBottom: 15 }}>
+                    <AppText style={{ color: "#DC2626", fontSize: 13, fontFamily: "Mandali", fontWeight: "600", textAlign: "center" }}>
+                        {onboardError}
+                    </AppText>
+                </View>
+            )}
+
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => { setShowOnboarding(false); router.back(); }}>
                 <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
@@ -980,8 +1393,8 @@ export default function MonthlyDriverHistory() {
       <Modal visible={showNewMonthModal} transparent animationType="slide">
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={styles.modalIconBgStandard}>
-               <Ionicons name="refresh-outline" size={36} color="#e44830" />
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#f5e8e8" }]}>
+              <Ionicons name="calendar-outline" size={36} color="#e44830" />
             </View>
             <AppText style={styles.modalTitleStandard}>{language === "te" ? "కొత్త నెల ప్రారంభించండి" : "Start New Month"}</AppText>
             
@@ -1028,27 +1441,27 @@ export default function MonthlyDriverHistory() {
         </View>
       </Modal>
 
-      {/* CLEAR MODAL */}
+      {/* CLEAR MODAL (NOW UNLOCK MODAL) */}
       <Modal visible={!!clearId} transparent animationType="fade">
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandard, { backgroundColor: "#DCFCE7" }]}>
-              <Ionicons name="checkmark-done" size={36} color="#16A34A" />
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEF2F2" }]}>
+              <Ionicons name="lock-open-outline" size={36} color="#DC2626" />
             </View>
-            <AppText style={[styles.modalTitleStandard, { color: "#16A34A" }]}>
-              {language === "te" ? "చెల్లింపు పూర్తయ్యిందా?" : "Confirm Clearance"}
+            <AppText style={[styles.modalTitleStandard, { color: "#DC2626" }]} language={language}>
+              {language === "te" ? "లాక్ తీసేయాలా?" : "Unlock Payment?"}
             </AppText>
-            <AppText style={styles.modalSubStandard}>
+            <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
-                ? "లాక్ చేసిన తర్వాత మళ్లీ మార్చలేరు. డ్రైవర్ కి పూర్తి డబ్బులు ఇస్తేనే లాక్ చేయండి."
-                : "Once locked, it cannot be changed. Turn this on only if you have paid the driver in full."}
+                ? "ఈ నెల పేమెంట్ లాక్ తీసేయాలనుకుంటున్నారా? లాక్ తీసేస్తే, పేమెంట్ మోడ్ మరియు ఆధారాలు డిలీట్ అవుతాయి."
+                : "Do you want to unlock this month's payment? Payment mode and proofs will be deleted."}
             </AppText>
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setClearId(null)}>
-                <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+                <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
               </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#16A34A" }]} onPress={handleToggleClear}>
-                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "అవును" : "Confirm"}</AppText>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#DC2626" }]} onPress={handleToggleClear}>
+                <AppText style={styles.modalConfirmTextStandard} language={language}>{language === "te" ? "అవును, అన్‌లాక్ చేయి" : "Yes, Unlock"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1072,7 +1485,60 @@ export default function MonthlyDriverHistory() {
             </AppText>
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#DC2626", width: "100%" }]} onPress={() => setShowMissingDaysWarning(false)}>
-                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "సరే" : "OK"}</AppText>
+                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "అర్థమైంది" : "Understood"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      
+      {/* DELETE ENTRY MODAL */}
+      <Modal visible={!!deleteEntryId} transparent animationType="fade">
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="trash-outline" size={36} color="#DC2626" />
+            </View>
+            <AppText style={styles.modalTitleStandard}>{language === "te" ? "ఎంట్రీని తొలగించాలా?" : "Delete Entry?"}</AppText>
+            <AppText style={styles.modalSubStandard}>
+              {language === "te" 
+                ? "ఈ రోజు చేసిన పని ఎంట్రీని మీరు శాశ్వతంగా తొలగించాలనుకుంటున్నారా?" 
+                : "Are you sure you want to permanently delete this work entry?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setDeleteEntryId(null)}>
+                <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#DC2626" }]} onPress={handleDeleteEntryConfirm}>
+                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* DELETE MONTH MODAL */}
+      <Modal visible={!!deleteCycleId} transparent animationType="fade">
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="trash-outline" size={36} color="#DC2626" />
+            </View>
+            <AppText style={[styles.modalTitleStandard, { color: "#DC2626" }]}>
+              {language === "te" ? "నెల తొలగించాలా?" : "Delete Month?"}
+            </AppText>
+            <AppText style={styles.modalSubStandard}>
+              {language === "te"
+                ? "ఈ నెలలో ఎలాంటి పనులు నమోదు కాలేదు. ఇది పొరపాటున క్రియేట్ చేసినదైతే, దీన్ని సురక్షితంగా తొలగించవచ్చు."
+                : "No work entries are found in this month. You can safely delete it if created by mistake."}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setDeleteCycleId(null)}>
+                <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#DC2626" }]} onPress={handleDeleteCycleConfirm}>
+                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -1082,7 +1548,7 @@ export default function MonthlyDriverHistory() {
       <DateTimePickerModal
         isVisible={showDatePicker}
         mode="date"
-        onConfirm={(d) => { setOnboardDate(d); setShowDatePicker(false); }}
+        onConfirm={(d) => { setOnboardDate(d); setOnboardError(""); setShowDatePicker(false); }}
         onCancel={() => setShowDatePicker(false)}
       />
       <DateTimePickerModal
@@ -1091,6 +1557,315 @@ export default function MonthlyDriverHistory() {
         onConfirm={(d) => { setNewMonthDate(d); setNewMonthError(""); setShowNewMonthPicker(false); }}
         onCancel={() => setShowNewMonthPicker(false)}
       />
+
+    
+      {/* PHOTO UPLOAD MODAL */}
+      <Modal visible={photoModal} transparent animationType="slide" statusBarTranslucent>
+        <TouchableOpacity style={styles.bottomSheetOverlay} activeOpacity={1} onPress={() => setPhotoModal(false)}>
+          <View style={styles.bottomSheetContent}>
+            <View style={styles.bsHeader}>
+              <View style={styles.bsHeaderLeft}>
+                <View style={styles.bsIconBg}>
+                  <Ionicons name="cloud-upload" size={22} color="#2563EB" />
+                </View>
+                <AppText style={styles.bsTitle} language={language}>
+                  {language === "te" ? "ఆధారం అప్లోడ్ చేయండి" : "Upload Proof"}
+                </AppText>
+              </View>
+              <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+                <Ionicons name="close" size={26} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+              setPhotoModal(false);
+              if (proofs.length >= 2) return;
+              const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.2 });
+              if (!result.canceled) setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "image" }]);
+            }}>
+              <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
+              <View>
+                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+              setPhotoModal(false);
+              if (proofs.length >= 2) return;
+              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.2 });
+              if (!result.canceled) setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "image" }]);
+            }}>
+              <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
+              <View>
+                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+              setPhotoModal(false);
+              if (proofs.length >= 2) return;
+              try {
+                const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
+                if (!result.canceled && result.assets && result.assets.length > 0) {
+                  setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "pdf", name: result.assets[0].name }]);
+                }
+              } catch(e){}
+            }}>
+              <View style={[styles.bsOptionIcon, { backgroundColor: "#FEF2F2" }]}><Ionicons name="document-text" size={24} color="#DC2626" /></View>
+              <View>
+                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "PDF డాక్యుమెంట్" : "PDF Document"}</AppText>
+                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "రసీదు ఫైల్ ఎంచుకోండి" : "Upload a receipt file"}</AppText>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* EARLY SETTLEMENT MODAL */}
+      <Modal visible={earlySettlementModal} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { padding: 0, overflow: 'hidden' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, alignItems: "center", width: '100%' }}>
+              <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEF3C7" }]}>
+                <Ionicons name="warning-outline" size={34} color="#D97706" />
+              </View>
+
+              <AppText style={[styles.modalTitleStandard, { color: "#1F2937" }]} language={language}>
+                {language === "te" ? "డ్రైవర్ పని మానేశాడా?" : "Driver Left?"}
+              </AppText>
+
+              <AppText style={[styles.modalSubStandard, { marginBottom: 20 }]} language={language}>
+                {language === "te" 
+                  ? "ఈ నెల ఇంకా పూర్తి కాలేదు. డ్రైవర్ పని మానేశాడా? మిగిలిన రోజులకి సెలవు వేసి, ఫైనల్ లెక్క సెటిల్ చేయాలా?" 
+                  : "This month is not over. Did the driver quit? Settle the final account for the days worked?"}
+              </AppText>
+
+              <View style={{ width: "100%", backgroundColor: "#F3F4F6", borderRadius: 12, padding: 15, marginBottom: 20 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+                  <AppText style={{ fontSize: 14, color: "#4B5563", fontFamily: "Mandali" }} language={language}>{language === "te" ? "మిగిలిన రోజులు:" : "Remaining Days:"}</AppText>
+                  <AppText style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>{earlyFutureDays.length}</AppText>
+                </View>
+                
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
+                  <AppText style={{ fontSize: 14, color: "#4B5563", fontFamily: "Mandali" }} language={language}>{language === "te" ? "ప్రస్తుత బ్యాలెన్స్:" : "Current Balance:"}</AppText>
+                  <AppText style={{ fontSize: 14, fontWeight: "600", color: "#1F2937" }}>₹{earlyBalance}</AppText>
+                </View>
+
+                <AppText style={{ fontSize: 14, color: "#4B5563", marginBottom: 6, fontFamily: "Mandali" }} language={language}>{language === "te" ? "కోత విధించే మొత్తం (Custom Cut):" : "Custom Cutting Amount:"}</AppText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: "#fff", borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 10, paddingHorizontal: 10, height: 44, marginBottom: 4 }}>
+                  <AppText style={styles.rs}>₹</AppText>
+                  <TextInput 
+                    keyboardType="numeric" 
+                    style={styles.inputText} 
+                    value={earlyCuttingInput} 
+                    onChangeText={setEarlyCuttingInput} 
+                    placeholder="0" 
+                    placeholderTextColor={'#9CA3AF'} 
+                  />
+                </View>
+                <AppText style={{ fontSize: 12, color: "#6B7280", fontFamily: "Mandali", marginBottom: 12 }} language={language}>
+                  {language === "te" ? "(గమనిక: మీకు నచ్చిన అమౌంట్ మార్చుకోవచ్చు)" : "(Note: You can enter your own amount)"}
+                </AppText>
+
+                <View style={{ height: 1, backgroundColor: "#D1D5DB", marginVertical: 8 }} />
+                
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                  <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }} language={language}>{language === "te" ? "ఫైనల్ బ్యాలెన్స్:" : "Final Balance:"}</AppText>
+                  <AppText style={{ fontSize: 18, fontWeight: "700", color: "#16A34A" }}>₹{earlyBalance - (parseFloat(earlyCuttingInput) || 0)}</AppText>
+                </View>
+              </View>
+
+              <View style={styles.modalButtonsStandard}>
+                <TouchableOpacity style={styles.modalCancelBtnStandard} onPress={() => { setEarlySettlementModal(false); setEarlyCycle(null); }}>
+                  <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.9} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#D97706" }]} onPress={handleEarlySettle}>
+                  <AppText style={styles.modalConfirmTextStandard} language={language}>{language === "te" ? "అవును, సెటిల్ చేయి" : "Yes, Settle"}</AppText>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* LOCK MODAL */}
+      <Modal visible={lockModalVisible} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { padding: 0, overflow: 'hidden', maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, alignItems: "center", width: '100%' }}>
+              <View style={[styles.modalIconBgStandard, { backgroundColor: "#DCFCE7" }]}>
+                <Ionicons name="wallet-outline" size={34} color="#16A34A" />
+              </View>
+
+              <AppText style={[styles.modalTitleStandard, { color: "#1F2937" }]} language={language}>
+                {language === "te" ? "చెల్లింపు నిర్ధారణ" : "Confirm Payment"}
+              </AppText>
+
+              {lockBalance > 0 ? (
+                <>
+                  <AppText style={[styles.modalSubStandard, { marginBottom: 15 }]} language={language}>
+                    {language === "te" 
+                      ? `మీరు బ్యాలెన్స్ ₹${lockBalance} కి ఎలా చెల్లించారు?` 
+                      : `How did you pay the balance ₹${lockBalance}?`}
+                  </AppText>
+
+                  <View style={{ flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 12, padding: 4, width: "100%", marginTop: 5, marginBottom: 10 }}>
+                    <TouchableOpacity
+                      style={[{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" }, paymentMode === "cash" && { backgroundColor: "#16A34A", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }]}
+                      onPress={() => setPaymentMode("cash")}
+                    >
+                      <AppText style={[{ fontSize: 14, color: "#6B7280", fontWeight: "500", fontFamily: "Mandali" }, paymentMode === "cash" && { color: "#ffffff", fontWeight: "600" }]}>
+                        {language === "te" ? "నగదు" : "Cash"}
+                      </AppText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" }, paymentMode === "upi" && { backgroundColor: "#16A34A", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }]}
+                      onPress={() => setPaymentMode("upi")}
+                    >
+                      <AppText style={[{ fontSize: 14, color: "#6B7280", fontWeight: "500", fontFamily: "Mandali" }, paymentMode === "upi" && { color: "#ffffff", fontWeight: "600" }]}>
+                        {language === "te" ? "ఆన్‌లైన్ పే" : "Online Pay"}
+                      </AppText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" }, paymentMode === "both" && { backgroundColor: "#16A34A", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }]}
+                      onPress={() => setPaymentMode("both")}
+                    >
+                      <AppText style={[{ fontSize: 14, color: "#6B7280", fontWeight: "500", fontFamily: "Mandali" }, paymentMode === "both" && { color: "#ffffff", fontWeight: "600" }]}>
+                        {language === "te" ? "రెండూ" : "Both"}
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+
+                  {paymentMode === "both" && (
+                    <View style={{ width: "100%", marginTop: 20 }}>
+                      <View style={styles.splitBox}>
+                        <View style={styles.splitInputWrap}>
+                          <AppText style={styles.splitLabel} language={language}>{language === "te" ? "క్యాష్ ఎంత?" : "Cash Amount"}</AppText>
+                          <View style={styles.splitInputInner}>
+                            <AppText style={styles.rs}>₹</AppText>
+                            <TextInput keyboardType="numeric" style={styles.inputText} value={splitCash} onChangeText={setSplitCash} placeholder="0" placeholderTextColor={'#9CA3AF'} />
+                          </View>
+                        </View>
+                        <View style={styles.splitInputWrap}>
+                          <AppText style={styles.splitLabel} language={language}>{language === "te" ? "యూపీఐ ఎంత?" : "UPI Amount"}</AppText>
+                          <View style={styles.splitInputInner}>
+                            <AppText style={styles.rs}>₹</AppText>
+                            <TextInput keyboardType="numeric" style={styles.inputText} value={splitUpi} onChangeText={setSplitUpi} placeholder="0" placeholderTextColor={'#9CA3AF'} />
+                          </View>
+                        </View>
+                      </View>
+                      
+                      {(splitCash !== "" || splitUpi !== "") && ((isNaN(Number(splitCash))?0:Number(splitCash)) + (isNaN(Number(splitUpi))?0:Number(splitUpi)) !== lockBalance) && (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, paddingHorizontal: 5, gap: 5 }}>
+                          <Ionicons name="information-circle" size={16} color="#DC2626" />
+                          <AppText style={{ color: "#DC2626", fontSize: 12, fontWeight: "500", flex: 1 }} language={language}>
+                            {language === "te" ? `క్యాష్, యూపీఐ రెండూ కలిపితే మొత్తం ₹${lockBalance} కి సమానం అవ్వాలి.` : `Sum of Cash & UPI must equal ₹${lockBalance}.`}
+                          </AppText>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <AppText style={[styles.modalSubStandard, { marginBottom: 15 }]} language={language}>
+                  {language === "te" 
+                    ? `బ్యాలెన్స్ ₹0 కాబట్టి, చెల్లింపు విధానం అవసరం లేదు. ఈ నెలను లాక్ చేయాలా?` 
+                    : `Balance is ₹0. No payment method required. Do you want to lock this month?`}
+                </AppText>
+              )}
+
+              {/* UPLOAD PROOFS */}
+              <View style={styles.proofsContainer}>
+                <AppText style={styles.proofsTitle} language={language}>{language === "te" ? "ఆధారాలు (Proofs) - Max 2" : "Upload Proofs - Max 2"}</AppText>
+                <View style={styles.imagesRow}>
+                  {proofs.map((proof, idx) => (
+                    <View key={idx} style={styles.imagePreviewWrap}>
+                      {proof.type === "image" ? (
+                        <Image source={{ uri: proof.uri }} style={styles.imagePreview} contentFit="cover" />
+                      ) : (
+                        <View style={[styles.imagePreview, { backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" }]}>
+                          <Ionicons name="document-text" size={28} color="#DC2626" />
+                        </View>
+                      )}
+                      <TouchableOpacity style={styles.removeImageBtn} onPress={() => setProofs(prev => prev.filter((_, i) => i !== idx))}>
+                        <Ionicons name="close-circle" size={24} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {proofs.length < 2 && (
+                    <TouchableOpacity style={[styles.addImageBtn, { borderColor: "#16A34A" }]} onPress={() => setPhotoModal(true)}>
+                      <Ionicons name="cloud-upload-outline" size={24} color="#16A34A" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              <View style={[styles.modalButtonsStandard, { marginTop: 20 }]}>
+                <TouchableOpacity style={styles.modalCancelBtnStandard} onPress={() => setLockModalVisible(false)} disabled={isLocking}>
+                  <AppText style={styles.modalCancelTextStandard} language={language}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={isLocking || (lockBalance > 0 && !paymentMode) || (lockBalance > 0 && paymentMode === "both" && ((isNaN(Number(splitCash))?0:Number(splitCash)) + (isNaN(Number(splitUpi))?0:Number(splitUpi)) !== lockBalance))}
+                  activeOpacity={0.9}
+                  style={[styles.modalConfirmBtnStandard, { backgroundColor: (isLocking || (lockBalance > 0 && !paymentMode) || (lockBalance > 0 && paymentMode === "both" && ((isNaN(Number(splitCash))?0:Number(splitCash)) + (isNaN(Number(splitUpi))?0:Number(splitUpi)) !== lockBalance))) ? "#D1D5DB" : "#16A34A" }]}
+                  onPress={handleConfirmLock}
+                >
+                  <AppText style={styles.modalConfirmTextStandard} language={language}>{isLocking ? (language === "te" ? "భద్రపరుస్తోంది..." : "Saving...") : (language === "te" ? "లెక్క భద్రపరచండి" : "Save Record")}</AppText>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ERROR MODAL */}
+      <Modal visible={errorModal} transparent animationType="fade">
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEF2F2" }]}>
+              <Ionicons name="alert-circle-outline" size={36} color="#EF4444" />
+            </View>
+            <AppText style={[styles.modalTitleStandard, { color: "#EF4444" }]} language={language}>
+              {language === "te" ? "గమనిక" : "Attention"}
+            </AppText>
+            <AppText style={styles.modalSubStandard} language={language}>{errorMsg}</AppText>
+            <View style={{ width: "100%", marginTop: 15 }}>
+              <TouchableOpacity activeOpacity={0.8} style={[{ backgroundColor: "#EF4444", paddingVertical: 14, borderRadius: 12, alignItems: "center" }]} onPress={() => setErrorModal(false)}>
+                <AppText style={[{ color: "white", fontWeight: "600", fontSize: 16 }]} language={language}>{language === "te" ? "అర్థమైంది" : "Understood"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* IMAGE VIEWER MODAL */}
+      <Modal visible={!!viewerProof} transparent animationType="fade" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" }}>
+          <TouchableOpacity 
+            style={{ position: "absolute", top: 50, right: 20, zIndex: 10, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.2)", justifyContent: "center", alignItems: "center" }}
+            onPress={() => setViewerProof(null)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          {viewerProof?.type === "image" ? (
+            <Image 
+              source={{ uri: viewerProof.url }} 
+              style={{ width: "100%", height: "100%" }} 
+              contentFit="contain" 
+            />
+          ) : viewerProof?.type === "pdf" ? (
+            <View style={{ width: "100%", height: "100%", paddingTop: 100 }}>
+              <WebView 
+                source={{ uri: Platform.OS === 'android' ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(viewerProof.url)}` : viewerProof.url }}
+                style={{ flex: 1, backgroundColor: "transparent" }}
+                startInLoadingState
+              />
+            </View>
+          ) : null}
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -1123,5 +1898,32 @@ const styles = StyleSheet.create({
   modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
   modalCancelTextStandard: { color: "#64748B", fontWeight: "600" },
   modalConfirmTextStandard: { color: "white", fontWeight: "600" },
-  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  radioRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16, width: "100%", paddingHorizontal: 10 },
+  radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, justifyContent: "center", alignItems: "center" },
+  radioInner: { width: 12, height: 12, borderRadius: 6 },
+  radioText: { fontSize: 15, fontWeight: "600", color: "#111827" },
+  splitBox: { flexDirection: "row", gap: 15, width: "100%", backgroundColor: "#F3F4F6", padding: 15, borderRadius: 14 },
+  splitInputWrap: { flex: 1 },
+  splitLabel: { fontSize: 12, fontWeight: "600", color: "#4B5563", marginBottom: 6 },
+  splitInputInner: { flexDirection: 'row', alignItems: 'center', backgroundColor: "#fff", borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 10, paddingHorizontal: 10, height: 44 },
+  proofsContainer: { width: "100%", marginTop: 25, paddingHorizontal: 10 },
+  proofsTitle: { fontSize: 13, fontWeight: "600", color: "#4B5563", marginBottom: 12 },
+  imagesRow: { flexDirection: "row", gap: 15 },
+  addImageBtn: { width: 60, height: 60, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", justifyContent: "center", alignItems: "center", backgroundColor: "#FAFAFA" },
+  imagePreviewWrap: { width: 60, height: 60, borderRadius: 12 },
+  imagePreview: { width: "100%", height: "100%", borderRadius: 12 },
+  removeImageBtn: { position: "absolute", top: -8, right: -8, backgroundColor: "#fff", borderRadius: 12 },
+  bottomSheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  bottomSheetContent: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, elevation: 15 },
+  bsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  bsHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bsIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#F0FDF4", justifyContent: 'center', alignItems: 'center' },
+  bsTitle: { fontSize: 18, fontWeight: '600', color: "#111827" },
+  bsOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", gap: 15 },
+  bsOptionIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  bsOptionTitle: { fontSize: 15, fontWeight: '600', color: "#1F2937", marginBottom: 2 },
+  bsOptionSub: { fontSize: 12, color: "#6B7280" },
+  rs: { marginLeft: 4, marginRight: 2, fontSize: 13, color: "#374151" },
+  inputText: { flex: 1, fontSize: 14, fontWeight: "600", color: "#111827" }
 });

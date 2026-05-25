@@ -13,8 +13,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  Linking
+  Linking,
+  TextInput,
+  Image,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView
 } from "react-native";
+import { WebView } from "react-native-webview";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
+import storage from "@react-native-firebase/storage";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 
 type WorkItem = {
@@ -35,6 +46,9 @@ type WorkItem = {
   finalAmount?: string;
   notes?: string;
   paymentStatus?: string;
+  paymentMode?: string;
+  splitDetails?: { cash: number; upi: number };
+  proofs?: { type: "image" | "pdf"; uri: string }[];
   createdAt?: any;
 };
 
@@ -59,6 +73,17 @@ export default function OwnerWork() {
   const [newStatus, setNewStatus] = useState<"pending" | "paid">("paid");
 
   const [actionLoading, setActionLoading] = useState(false); 
+
+  // 🔥 NEW STATES FOR 2-STEP PAYMENT
+  const [step1ModalVisible, setStep1ModalVisible] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"cash" | "upi" | "both">("cash");
+  const [splitCash, setSplitCash] = useState("");
+  const [splitUpi, setSplitUpi] = useState("");
+  const [proofs, setProofs] = useState<{ type: "image" | "pdf"; uri: string; name?: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
+  const [viewerPdf, setViewerPdf] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const isMounted = useRef(true); 
 
@@ -162,16 +187,80 @@ export default function OwnerWork() {
     }
   };
 
+  const handlePickDocument = async () => {
+    if (proofs.length >= 2) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf"],
+        copyToCacheDirectory: true
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setProofs([...proofs, { type: "pdf", uri: result.assets[0].uri, name: result.assets[0].name }]);
+      }
+    } catch (error) {
+      console.log("Doc Pick Error:", error);
+    }
+  };
+
+  const handlePickImage = async (useCamera: boolean) => {
+    if (proofs.length >= 2) return;
+    try {
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+      };
+      
+      const result = useCamera 
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+        
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setProofs([...proofs, { type: "image", uri: result.assets[0].uri }]);
+      }
+    } catch (error) {
+      console.log("Image Pick Error:", error);
+    }
+  };
+
+  const removeProof = (index: number) => {
+    setProofs(proofs.filter((_, i) => i !== index));
+  };
+
  /* ---------------- LOCK & AUTO-ADD EXPENSE (BATCH WRITE) ---------------- */
   const handleStatusUpdate = async () => {
-    if (actionLoading) return;
+    if (actionLoading || uploading) return;
     try {
       setActionLoading(true);
+      setUploading(true);
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone || !statusId || !oId) return;
 
       const userDoc = await firestore().collection("users").doc(userPhone).get();
       const activeSession = userDoc.data()?.activeSession;
+
+      // Upload proofs
+      const uploadedProofs: { type: "image" | "pdf"; uri: string }[] = [];
+      
+      for (let i = 0; i < proofs.length; i++) {
+        const proof = proofs[i];
+        let fileUri = proof.uri;
+        try {
+          if (Platform.OS === "android" && proof.uri.startsWith("content://")) {
+            const ext = proof.type === "pdf" ? ".pdf" : ".jpg";
+            // @ts-ignore
+            const tempUri = `${FileSystem.cacheDirectory}proof_${Date.now()}_${i}${ext}`;
+            await FileSystem.copyAsync({ from: proof.uri, to: tempUri });
+            fileUri = tempUri;
+          }
+          const fileName = `owners/${oId}/payments/${statusId}_${Date.now()}_${i}`;
+          const ref = storage().ref(fileName);
+          await ref.putFile(fileUri);
+          const downloadUrl = await ref.getDownloadURL();
+          uploadedProofs.push({ type: proof.type, uri: downloadUrl });
+        } catch (uploadError) {
+          console.log("Upload Error:", uploadError);
+        }
+      }
 
       const entryRef = firestore()
         .collection("users").doc(userPhone)
@@ -186,9 +275,20 @@ export default function OwnerWork() {
 
       const batch = firestore().batch();
 
-      batch.update(entryRef, {
-        paymentStatus: newStatus 
-      });
+      const updateData: any = {
+        paymentStatus: newStatus,
+        paymentMode: paymentMode,
+        proofs: uploadedProofs
+      };
+
+      if (paymentMode === "both") {
+        updateData.splitDetails = {
+          cash: Number(splitCash),
+          upi: Number(splitUpi)
+        };
+      }
+
+      batch.update(entryRef, updateData);
 
       if (totalAmountNum > 0) {
         const expenseRef = firestore()
@@ -215,7 +315,13 @@ export default function OwnerWork() {
     } finally {
       if (isMounted.current) {
         setStatusId(null);
+        setStep1ModalVisible(false);
+        setProofs([]);
+        setPaymentMode("cash");
+        setSplitCash("");
+        setSplitUpi("");
         setActionLoading(false);
+        setUploading(false);
       }
     }
   };
@@ -260,6 +366,12 @@ export default function OwnerWork() {
     );
   };
 
+  const activeEntry = data.find(w => w.id === statusId);
+  const activeAmount = activeEntry ? Number(activeEntry.finalAmount?.toString().replace(/,/g, "") || 0) : 0;
+  const isSplitValid = paymentMode === "both" 
+    ? (Number(splitCash || 0) + Number(splitUpi || 0) === activeAmount)
+    : true;
+
   /* ---------------- UI ---------------- */
   return (
     <SafeAreaView style={styles.safe}>
@@ -276,8 +388,8 @@ export default function OwnerWork() {
           <Ionicons name="information-circle" size={20} color="#0284C7" />
           <AppText style={styles.infoText} language={language}>
             {language === "te" 
-              ? "గమనిక: పనికి సంబంధించిన చెల్లింపు పూర్తయిన తర్వాత లాక్ బటన్ నొక్కండి. లాక్ చేసిన తర్వాత రికార్డును తొలగించడం కుదరదు." 
-              : "Note: Mark as paid once the payment is completed. Locked records cannot be deleted."}
+              ? "గమనిక: చెల్లింపు పూర్తయిన తర్వాత లాక్ బటన్ నొక్కండి. లాక్ చేసిన తర్వాత ఈ రికార్డు ఆటోమేటిక్‌గా ఖర్చుల ఖాతాలో యాడ్ అవుతుంది, ఆ తర్వాత దీనిని తొలగించడం కుదరదు." 
+              : "Note: Mark as paid once the payment is completed. Once locked, this record is automatically added to Expenses and cannot be deleted."}
           </AppText>
         </View>
       )}
@@ -461,12 +573,64 @@ export default function OwnerWork() {
                         </View>
                       ) : null}
 
+                      {/* PAYMENT DETAILS (IF PAID) */}
+                      {isPaid && work.paymentMode && (
+                        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#E5E7EB" }}>
+                          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: work.paymentMode === "both" ? 6 : 0 }}>
+                            <Ionicons name="card-outline" size={16} color="#4B5563" style={{ marginRight: 6 }} />
+                            <AppText style={{ fontSize: 13, color: "#4B5563", fontFamily: "Mandali", fontWeight: "600" }}>
+                              {language === "te" ? "చెల్లింపు విధానం:" : "Payment Mode:"} 
+                              <AppText style={{ color: "#1F2937" }}>
+                                {work.paymentMode === "cash" ? " Cash" : work.paymentMode === "upi" ? " UPI" : " Cash + UPI"}
+                              </AppText>
+                            </AppText>
+                          </View>
+                          {work.paymentMode === "both" && (
+                            <View style={{ flexDirection: "row", gap: 16, marginLeft: 22 }}>
+                              <AppText style={{ fontSize: 13, color: "#6B7280", fontFamily: "Mandali" }}>
+                                Cash: <AppText style={{ color: "#1F2937", fontWeight: "600" }}>₹{work.splitCash || work.splitDetails?.cash || 0}</AppText>
+                              </AppText>
+                              <AppText style={{ fontSize: 13, color: "#6B7280", fontFamily: "Mandali" }}>
+                                UPI: <AppText style={{ color: "#1F2937", fontWeight: "600" }}>₹{work.splitUpi || work.splitDetails?.upi || 0}</AppText>
+                              </AppText>
+                            </View>
+                          )}
+                        </View>
+                      )}
+
+                      {/* UPLOADED PROOFS IN APP VIEWER */}
+                      {isPaid && work.proofs && work.proofs.length > 0 && (
+                        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: "#E5E7EB" }}>
+                          <AppText style={{ fontSize: 13, color: "#6B7280", fontFamily: "Mandali", marginBottom: 8 }}>
+                            {language === "te" ? "ఆధారాలు (Proofs):" : "Attached Proofs:"}
+                          </AppText>
+                          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
+                            {work.proofs.map((p: any, idx: number) => (
+                              <TouchableOpacity key={idx} activeOpacity={0.8} onPress={() => {
+                                const urlToUse = p.url || p.uri;
+                                if(p.type === "pdf" || urlToUse?.endsWith(".pdf")) setViewerPdf(urlToUse);
+                                else setViewerImage(urlToUse);
+                              }}>
+                                {p.type === "image" ? (
+                                  <Image source={{ uri: p.url || p.uri }} style={{ width: 60, height: 60, borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" }} resizeMode="cover" />
+                                ) : (
+                                  <View style={{ width: 60, height: 60, borderRadius: 8, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", borderWidth: 1, borderColor: "#FCA5A5" }}>
+                                    <Ionicons name="document-text" size={24} color="#DC2626" />
+                                  </View>
+                                )}
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+
                     </View>
                   );
                 })}
 
                 {/* WHATSAPP SHARE BUTTON FOR CROP */}
-                {isOpen && item.list.length > 0 && (
+                {item.list.length > 0 && (
                   <View style={{ padding: 14, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#F9FAFB" }}>
                     <TouchableOpacity
                       style={{
@@ -481,26 +645,30 @@ export default function OwnerWork() {
                         let totalPayable = 0;
                         let totalAdvance = 0;
                         let balanceDue = 0;
-                        const dailyLog: string[] = [];
+                        let msg = `🚜 *Kisan Khata - Owner Report*\n`;
+                        msg += `👤 *యజమాని పేరు:* ${oName || 'Owner'}\n`;
+                        msg += `🌾 *పంట:* ${item.crop}\n\n`;
+                        
+                        msg += `📝 *పనుల వివరాలు:*\n\n`;
 
-                        item.list.forEach((work: any) => {
+                        item.list.forEach((work: any, index: number) => {
                           const payable = Number(work.payableAmount?.toString().replace(/,/g, "") || 0);
                           const advance = Number(work.advanceAmount?.toString().replace(/,/g, "") || 0);
-                          const final = Number(work.finalAmount?.toString().replace(/,/g, "") || 0);
+                          const finalAmount = Number(work.finalAmount?.toString().replace(/,/g, "") || 0);
                           
                           totalPayable += payable;
                           totalAdvance += advance;
-                          balanceDue += final;
+                          balanceDue += finalAmount;
 
-                          let wMsg = `📅 *${work.date}*\n`;
-                          wMsg += `✅ ${work.work}\n`;
+                          msg += `*${index + 1}. తేదీ:* ${work.date}\n`;
+                          msg += `✅ *పని:* ${work.work}\n`;
                           
                           if (work.acres) {
-                            wMsg += `🚜 విస్తీర్ణం: ${work.acres} ఎకరాలు\n`;
+                            msg += `🚜 *విస్తీర్ణం:* ${work.acres} ఎకరాలు\n`;
                           } else if (work.workType === "time") {
-                            wMsg += `⏱️ సమయం: ${work.hrs || 0}h ${work.mins || 0}m\n`;
+                            msg += `⏱️ *సమయం:* ${work.hrs || 0}h ${work.mins || 0}m\n`;
                           } else if (work.saalluCount) {
-                            wMsg += `🌾 సాళ్లు: ${work.saalluCount}\n`;
+                            msg += `🌾 *సాళ్లు:* ${work.saalluCount}\n`;
                           }
 
                           let rateStr = "";
@@ -511,28 +679,42 @@ export default function OwnerWork() {
                           } else {
                             rateStr = `₹${work.ratePerSaalu || 0} / సాలు`;
                           }
-                          wMsg += `🏷️ ధర: ${rateStr}\n`;
-                          wMsg += `💵 బిల్లు: ₹${payable.toLocaleString('en-IN')}\n`;
-                          if (advance > 0) wMsg += `💰 అడ్వాన్స్: ₹${advance.toLocaleString('en-IN')}\n`;
+                          msg += `🏷️ *ధర:* ${rateStr}\n`;
                           
-                          if (work.notes) {
-                            wMsg += `📌 నోట్: ${work.notes}\n`;
+                          msg += `💵 *బిల్లు:* ₹${payable.toLocaleString('en-IN')}\n`;
+                          if (advance > 0) msg += `💰 *అడ్వాన్స్:* ₹${advance.toLocaleString('en-IN')}\n`;
+                          if (finalAmount > 0) msg += `⚠️ *బ్యాలెన్స్:* ₹${finalAmount.toLocaleString('en-IN')}\n`;
+
+                          if (work.paymentStatus === "paid") {
+                              msg += `✅ *స్టేటస్:* చెల్లింపు పూర్తయింది (Paid)\n`;
+                              if (work.paymentMode) {
+                                  let pMode = work.paymentMode === "cash" ? "Cash" : work.paymentMode === "upi" ? "UPI" : "Cash + UPI";
+                                  msg += `- విధానం: ${pMode}\n`;
+                                  if (work.paymentMode === "both") {
+                                      msg += `  • క్యాష్: ₹${work.splitDetails?.cash || work.splitCash || 0}\n`;
+                                      msg += `  • యూపీఐ: ₹${work.splitDetails?.upi || work.splitUpi || 0}\n`;
+                                  }
+                              }
+                          } else {
+                              msg += `❌ *స్టేటస్:* పూర్తి కాలేదు (Pending)\n`;
                           }
-                          dailyLog.push(wMsg.trim());
+
+                          if (work.proofs && work.proofs.length > 0) {
+                              msg += `📎 *ఆధారాలు (Proofs):*\n`;
+                              work.proofs.forEach((p: any, idx: number) => {
+                                  msg += `  ${idx + 1}. ${p.uri}\n`;
+                              });
+                          }
+                          if (work.notes) {
+                              msg += `📌 *నోట్స్:* ${work.notes}\n`;
+                          }
+                          msg += `\n-----------------------\n\n`;
                         });
 
-                        let msg = `🚜 *Kisan Khata - Owner Report*\n`;
-                        msg += `👤 *యజమాని పేరు:* ${oName || 'Owner'}\n`;
-                        msg += `🌾 *పంట:* ${item.crop}\n\n`;
-                        
+                        msg += `📊 *మొత్తం సారాంశం (Summary):*\n`;
                         msg += `💵 *మొత్తం బిల్లు:* ₹${totalPayable.toLocaleString('en-IN')}\n`;
                         msg += `💰 *మొత్తం అడ్వాన్స్:* ₹${totalAdvance.toLocaleString('en-IN')}\n`;
-                        msg += `⚠️ *ఇవ్వాల్సిన బ్యాలెన్స్:* ₹${balanceDue.toLocaleString('en-IN')}\n\n`;
-                        
-                        if (dailyLog.length > 0) {
-                          msg += `📝 *పనుల వివరాలు:*\n\n`;
-                          msg += dailyLog.join('\n\n');
-                        }
+                        msg += `⚠️ *ఇవ్వాల్సిన బ్యాలెన్స్:* ₹${balanceDue.toLocaleString('en-IN')}\n`;
 
                         Linking.openURL(`whatsapp://send?text=${encodeURIComponent(msg)}`);
                       }}
@@ -565,54 +747,243 @@ export default function OwnerWork() {
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* DELETE MODAL */}
-      <Modal visible={!!deleteId} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalIconBg}>
-              <Ionicons name="trash-outline" size={36} color="#e44830" />
-            </View>
-            <AppText style={styles.modalTitleStandard}>{language === "te" ? "తొలగించాలా?" : "Delete Work?"}</AppText>
-            <AppText style={styles.modalSubStandard}>
-              {language === "te" ? "ఈ పనిని పూర్తిగా తొలగించాలనుకుంటున్నారా?" : "Are you sure you want to completely delete this work?"}
-            </AppText>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtn} onPress={() => setDeleteId(null)} disabled={actionLoading}>
-                <AppText style={styles.modalCancelText}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalConfirmBtn} onPress={handleDelete} disabled={actionLoading}>
-                <AppText style={styles.modalConfirmText}>
-                  {actionLoading ? (language === "te" ? "తొలగిస్తోంది..." : "Deleting...") : (language === "te" ? "తొలగించు" : "Delete")}
+      
+      
+      {/* LOCK MODAL */}
+      <Modal visible={!!statusId} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { padding: 0, overflow: 'hidden', maxHeight: '90%' }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, alignItems: "center", width: '100%' }}>
+              <View style={[styles.modalIconBgStandard, { backgroundColor: "#DCFCE7" }]}>
+                <Ionicons name="wallet-outline" size={34} color="#16A34A" />
+              </View>
+
+              <AppText style={[styles.modalTitleStandard, { color: "#1F2937" }]}>
+                {language === "te" ? "చెల్లింపు నిర్ధారణ" : "Confirm Payment"}
+              </AppText>
+
+              {activeAmount > 0 ? (
+                <>
+                  <AppText style={[styles.modalSubStandard, { marginBottom: 15 }]}>
+                    {language === "te" 
+                      ? `మీరు బ్యాలెన్స్ ₹${activeAmount} కి ఎలా చెల్లించారు?` 
+                      : `How did you pay the balance ₹${activeAmount}?`}
+                  </AppText>
+
+                  <View style={{ flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 12, padding: 4, width: "100%", marginTop: 5, marginBottom: 10 }}>
+                    <TouchableOpacity
+                      style={[{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" }, paymentMode === "cash" && { backgroundColor: "#16A34A", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }]}
+                      onPress={() => setPaymentMode("cash")}
+                    >
+                      <AppText style={[{ fontSize: 14, color: "#6B7280", fontWeight: "500", fontFamily: "Mandali" }, paymentMode === "cash" && { color: "#ffffff", fontWeight: "600" }]}>
+                        {language === "te" ? "నగదు" : "Cash"}
+                      </AppText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" }, paymentMode === "upi" && { backgroundColor: "#16A34A", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }]}
+                      onPress={() => setPaymentMode("upi")}
+                    >
+                      <AppText style={[{ fontSize: 14, color: "#6B7280", fontWeight: "500", fontFamily: "Mandali" }, paymentMode === "upi" && { color: "#ffffff", fontWeight: "600" }]}>
+                        {language === "te" ? "ఆన్‌లైన్ పే" : "Online Pay"}
+                      </AppText>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center", justifyContent: "center" }, paymentMode === "both" && { backgroundColor: "#16A34A", elevation: 2, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } }]}
+                      onPress={() => setPaymentMode("both")}
+                    >
+                      <AppText style={[{ fontSize: 14, color: "#6B7280", fontWeight: "500", fontFamily: "Mandali" }, paymentMode === "both" && { color: "#ffffff", fontWeight: "600" }]}>
+                        {language === "te" ? "రెండూ" : "Both"}
+                      </AppText>
+                    </TouchableOpacity>
+                  </View>
+
+                  {paymentMode === "both" && (
+                    <View style={{ width: "100%", marginTop: 20 }}>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", width: "100%" }}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                          <AppText style={{ fontSize: 12, color: "#4B5563", marginBottom: 6, fontFamily: "Mandali" }}>{language === "te" ? "క్యాష్ ఎంత?" : "Cash Amount"}</AppText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: "#fff", borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 10, paddingHorizontal: 10, height: 44 }}>
+                            <AppText style={{ fontSize: 16, color: "#6B7280", marginRight: 5 }}>₹</AppText>
+                            <TextInput keyboardType="numeric" style={{ flex: 1, fontSize: 16, color: "#1F2937", fontFamily: "Mandali", paddingVertical: 0 }} value={splitCash} onChangeText={setSplitCash} placeholder="0" placeholderTextColor={'#9CA3AF'} />
+                          </View>
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 8 }}>
+                          <AppText style={{ fontSize: 12, color: "#4B5563", marginBottom: 6, fontFamily: "Mandali" }}>{language === "te" ? "యూపీఐ ఎంత?" : "UPI Amount"}</AppText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: "#fff", borderWidth: 1, borderColor: "#D1D5DB", borderRadius: 10, paddingHorizontal: 10, height: 44 }}>
+                            <AppText style={{ fontSize: 16, color: "#6B7280", marginRight: 5 }}>₹</AppText>
+                            <TextInput keyboardType="numeric" style={{ flex: 1, fontSize: 16, color: "#1F2937", fontFamily: "Mandali", paddingVertical: 0 }} value={splitUpi} onChangeText={setSplitUpi} placeholder="0" placeholderTextColor={'#9CA3AF'} />
+                          </View>
+                        </View>
+                      </View>
+                      
+                      {(splitCash !== "" || splitUpi !== "") && ((isNaN(Number(splitCash))?0:Number(splitCash)) + (isNaN(Number(splitUpi))?0:Number(splitUpi)) !== activeAmount) && (
+                        <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, paddingHorizontal: 5, gap: 5 }}>
+                          <Ionicons name="information-circle" size={16} color="#DC2626" />
+                          <AppText style={{ color: "#DC2626", fontSize: 12, fontWeight: "500", flex: 1 }}>
+                            {language === "te" ? `క్యాష్, యూపీఐ రెండూ కలిపితే మొత్తం ₹${activeAmount} కి సమానం అవ్వాలి.` : `Sum of Cash & UPI must equal ₹${activeAmount}.`}
+                          </AppText>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <AppText style={[styles.modalSubStandard, { marginBottom: 15 }]}>
+                  {language === "te" 
+                    ? `బ్యాలెన్స్ ₹0 కాబట్టి, చెల్లింపు విధానం అవసరం లేదు. ఈ పనిని లాక్ చేయాలా?` 
+                    : `Balance is ₹0. No payment method required. Do you want to lock this work?`}
                 </AppText>
-              </TouchableOpacity>
-            </View>
+              )}
+
+              {/* UPLOAD PROOFS */}
+              <View style={{ width: "100%", marginTop: 20, marginBottom: 25 }}>
+                <AppText style={{ fontSize: 13, color: "#6B7280", marginBottom: 12, fontWeight: "600", fontFamily: "Mandali" }}>{language === "te" ? "ఆధారాలు (Proofs) - Max 2" : "Upload Proofs - Max 2"}</AppText>
+                <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+                  {proofs.map((proof, idx) => (
+                    <View key={idx} style={{ position: "relative" }}>
+                      {proof.type === "image" ? (
+                        <Image source={{ uri: proof.uri }} style={{ width: 70, height: 70, borderRadius: 10, backgroundColor: "#E5E7EB" }} />
+                      ) : (
+                        <View style={[{ width: 70, height: 70, borderRadius: 10, backgroundColor: "#E5E7EB" }, { backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" }]}>
+                          <Ionicons name="document-text" size={28} color="#DC2626" />
+                        </View>
+                      )}
+                      <TouchableOpacity style={{ position: "absolute", top: -8, right: -8, backgroundColor: "#fff", borderRadius: 12 }} onPress={() => setProofs(prev => prev.filter((_, i) => i !== idx))}>
+                        <Ionicons name="close-circle" size={24} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                  {proofs.length < 2 && (
+                    <TouchableOpacity style={[{ width: 70, height: 70, borderRadius: 10, backgroundColor: "#E5E7EB" }, { backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#16A34A", borderStyle: "dashed", justifyContent: "center", alignItems: "center" }]} onPress={() => setStep1ModalVisible(true)}>
+                      <Ionicons name="cloud-upload-outline" size={24} color="#16A34A" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.modalButtonsStandard}>
+                <TouchableOpacity style={styles.modalCancelBtnStandard} onPress={() => { setStatusId(null); setPaymentMode("cash"); setSplitCash(""); setSplitUpi(""); setProofs([]); }} disabled={actionLoading || uploading}>
+                  <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  activeOpacity={0.9} 
+                  onPress={handleStatusUpdate}
+                  disabled={actionLoading || uploading || (activeAmount > 0 && !paymentMode) || (activeAmount > 0 && paymentMode === "both" && ((isNaN(Number(splitCash))?0:Number(splitCash)) + (isNaN(Number(splitUpi))?0:Number(splitUpi)) !== activeAmount))}
+                  style={[styles.modalConfirmBtnStandard, { backgroundColor: (actionLoading || uploading || (activeAmount > 0 && !paymentMode) || (activeAmount > 0 && paymentMode === "both" && ((isNaN(Number(splitCash))?0:Number(splitCash)) + (isNaN(Number(splitUpi))?0:Number(splitUpi)) !== activeAmount))) ? "#D1D5DB" : "#16A34A" }]}
+                >
+                  {actionLoading || uploading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "లాక్ చేయి" : "Lock Payment"}</AppText>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
 
-     {/* PAYMENT MODAL */}
-      <Modal visible={!!statusId} transparent animationType="fade">
-        <View style={styles.overlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.iconBg1}>
-              <Ionicons name="checkmark-done" size={36} color="#16A34A" />
-            </View>
-            <AppText style={styles.modalTitle}>
-              {language === "te" ? "చెల్లింపు పూర్తయ్యిందా?" : "Confirm Payment"}
-            </AppText>
-            <AppText style={styles.modalSub}>
-              {language === "te"
-                ? "ఈ పనికి సంబంధించిన చెల్లింపు పూర్తిగా పూర్తయిందని మీరు ఖచ్చితంగా అనుకుంటున్నారా?\n\nఒక్కసారి 'అవును' నొక్కితే, ఈ పని శాశ్వతంగా లాక్ చేయబడుతుంది మరియు ఈ మొత్తం ఆటోమేటిక్ గా మీ 'ఖర్చుల' ఖాతాలో (Expenses) నమోదు అవుతుంది."
-                : "Are you sure the payment for this work is fully completed?\n\nOnce you press 'confirm', this work will be permanently locked and the total amount will be automatically added to your 'Expenses'."}
-            </AppText>
-            <View style={styles.modalRow}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.cancelBtn} onPress={() => setStatusId(null)} disabled={actionLoading}>
-                <AppText>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.deleteConfirmBtn} onPress={handleStatusUpdate} disabled={actionLoading}>
-                <AppText style={{ color: "#ffffff", fontWeight: "600" }}>
-                  {actionLoading ? (language === "te" ? "లాక్ చేస్తోంది..." : "Locking...") : (language === "te" ? "అవును" : "Confirm")}
+      {/* PHOTO UPLOAD MODAL */}
+      <Modal visible={step1ModalVisible} transparent animationType="slide" statusBarTranslucent>
+        <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }} activeOpacity={1} onPress={() => setStep1ModalVisible(false)}>
+          <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginRight: 12 }}>
+                  <Ionicons name="cloud-upload" size={22} color="#2563EB" />
+                </View>
+                <AppText style={{ fontSize: 18, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>
+                  {language === "te" ? "ఆధారం అప్లోడ్ చేయండి" : "Upload Proof"}
                 </AppText>
+              </View>
+              <TouchableOpacity onPress={() => setStep1ModalVisible(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+                <Ionicons name="close" size={26} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
+              setStep1ModalVisible(false);
+              handlePickImage(true);
+            }}>
+              <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
+              <View>
+                <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+                <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
+              setStep1ModalVisible(false);
+              handlePickImage(false);
+            }}>
+              <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
+              <View>
+                <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+                <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
+              setStep1ModalVisible(false);
+              handlePickDocument();
+            }}>
+              <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#FEF2F2" }]}><Ionicons name="document-text" size={24} color="#DC2626" /></View>
+              <View>
+                <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "PDF డాక్యుమెంట్" : "PDF Document"}</AppText>
+                <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "రసీదు ఫైల్ ఎంచుకోండి" : "Upload a receipt file"}</AppText>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* FULLSCREEN PROOF VIEWER MODAL */}
+      <Modal visible={!!viewerImage || !!viewerPdf} transparent animationType="fade" statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" }}>
+          
+          <TouchableOpacity 
+            style={{ position: "absolute", top: Platform.OS === 'ios' ? 50 : 30, right: 20, zIndex: 10, padding: 10, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 30 }} 
+            onPress={() => { setViewerImage(null); setViewerPdf(null); }}
+          >
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+
+          {viewerImage ? (
+            <Image 
+              source={{ uri: viewerImage }} 
+              style={{ width: "95%", height: "80%", borderRadius: 10 }} 
+              resizeMode="contain"
+            />
+          ) : viewerPdf ? (
+            <View style={{ width: "95%", height: "80%", borderRadius: 10, overflow: 'hidden', backgroundColor: "#fff" }}>
+              <WebView 
+                source={{ uri: Platform.OS === 'android' ? `https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(viewerPdf)}` : viewerPdf }} 
+                style={{ flex: 1 }} 
+                startInLoadingState={true}
+              />
+            </View>
+          ) : null}
+
+        </View>
+      </Modal>
+
+      {/* DELETE MODAL */}
+      <Modal visible={!!deleteId} transparent animationType="fade">
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={styles.modalIconBgStandard}>
+              <Ionicons name="trash-outline" size={36} color="#e44830" />
+            </View>
+            <AppText style={styles.modalTitleStandard}>{language === "te" ? "తొలగించాలా?" : "Delete Work?"}</AppText>
+            <AppText style={styles.modalSubStandard}>
+              {language === "te" ? "ఈ పనిని తొలగించాలనుకుంటున్నారా?" : "Are you sure you want to delete this work?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setDeleteId(null)}>
+                <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "రద్దు చేయి" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalConfirmBtnStandard} onPress={handleDelete}>
+                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
               </TouchableOpacity>
             </View>
           </View>
@@ -665,14 +1036,14 @@ const styles = StyleSheet.create({
   deleteConfirmBtn1: { flex: 1, paddingVertical: 14, backgroundColor: "#DC2626", borderRadius: 12, alignItems: "center" },
   
   // UNIFIED PREMIUM MODAL CLASSES
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
-  modalContent: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
-  modalTitleStandard: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
-  modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25 },
-  modalButtons: { flexDirection: "row", gap: 10 },
-  modalCancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
-  modalConfirmBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
-  modalCancelText: { color: "#64748B", fontWeight: "500" },
-  modalConfirmText: { color: "white", fontWeight: "500" },
-  modalIconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" },
+  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center", elevation: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
+  modalTitleStandard: { fontSize: 20, fontWeight: "500", marginVertical: 10, fontFamily: "Mandali" },
+  modalSubStandard: { textAlign: "center", color: "#6B7280", marginBottom: 25, fontFamily: "Mandali", fontSize: 14, lineHeight: 20 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: "100%" },
+  modalCancelBtnStandard: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalConfirmBtnStandard: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600", fontSize: 15, fontFamily: "Mandali" },
+  modalConfirmTextStandard: { color: "white", fontWeight: "600", fontSize: 15, fontFamily: "Mandali" },
+  modalIconBgStandard: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 });

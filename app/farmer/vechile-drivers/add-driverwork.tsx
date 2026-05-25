@@ -435,10 +435,47 @@ export default function AddDriverWork() {
           .collection("entries")
           .where("session", "==", activeSession)
           .where("date", "==", date)
-          .where("work", "==", work.trim())
           .get();
 
-        if (!duplicateCheck.empty) {
+        let isDuplicate = false;
+        
+        duplicateCheck.forEach(doc => {
+           const d = doc.data();
+           let matches = (d.work || "") === work.trim() && (d.customerName || "") === customerName.trim();
+           
+           const isSameTime = (raw1: string | null, date2: Date | null) => {
+               if (!raw1 && !date2) return true;
+               if (!raw1 || !date2) return false;
+               const d1 = new Date(raw1);
+               return d1.getHours() === date2.getHours() && d1.getMinutes() === date2.getMinutes();
+           };
+
+           if (matches) {
+               if (dPaymentType === "monthly") {
+                   if (d.attendance !== attendance) matches = false;
+                   if (attendance === "absent") {
+                       // No cutting fields in this form
+                   } else {
+                       if (d.workMode !== workMode) matches = false;
+                       if (workMode === "hourly") {
+                           if (!isSameTime(d.startTimeRaw, startTime) || !isSameTime(d.endTimeRaw, endTime)) matches = false;
+                       } else if (workMode === "acres") {
+                           if ((d.acresWorked || "") !== acresWorked.trim()) matches = false;
+                       }
+                   }
+               } else {
+                   if (d.workMode !== workMode) matches = false;
+                   if (workMode === "hourly") {
+                       if (!isSameTime(d.startTimeRaw, startTime) || !isSameTime(d.endTimeRaw, endTime)) matches = false;
+                   } else if (workMode === "acres") {
+                       if ((d.acresWorked || "") !== acresWorked.trim()) matches = false;
+                   }
+               }
+           }
+           if (matches) isDuplicate = true;
+        });
+
+        if (isDuplicate) {
           if (isMounted.current) {
             setSaving(false);
             setShowDuplicateModal(true); 
@@ -469,7 +506,7 @@ export default function AddDriverWork() {
       <StatusBar barStyle="light-content" />
 
       <AppHeader
-        title={language === "te" ? "పని నమోదు (డ్రైవర్)" : "Add Work (Driver)"}
+        title={language === "te" ? "పని నమోదు" : "Add Work"}
         subtitle={language === "te" ? "వివరాలు నమోదు చేయండి" : "Enter details"}
         language={language}
       />

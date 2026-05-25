@@ -161,11 +161,11 @@ export default function PaymentDetails() {
 
       {/* 🔥 UX: Simple and Clean Top Info Box */}
       <View style={styles.topInfoBox}>
-        <AppText style={styles.mainTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
+        <AppText style={[styles.mainTitle, { flex: 1, marginRight: 10 }]} language={language} numberOfLines={1} ellipsizeMode="tail">
           {name}
         </AppText>
         
-        <AppText style={styles.subTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
+        <AppText style={[styles.subTitle, { flexShrink: 1, maxWidth: '50%' }]} language={language} numberOfLines={1} ellipsizeMode="tail">
           {village}
         </AppText>
       </View>

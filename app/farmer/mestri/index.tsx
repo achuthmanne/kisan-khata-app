@@ -414,9 +414,9 @@ export default function AttendanceScreen() {
                 </View>
 
                 <View style={styles.details}>
-                  <AppText style={styles.name} language={language} numberOfLines={1}>{item.name}</AppText>
+                  <AppText style={styles.name} language={language} numberOfLines={1} ellipsizeMode="tail">{item.name}</AppText>
                   <AppText style={styles.phone} language={language}>+91 - {item.phone || "----"}</AppText>
-                  <AppText style={styles.sub} language={language} numberOfLines={1}>{item.village || "----"}</AppText>
+                  <AppText style={styles.sub} language={language} numberOfLines={1} ellipsizeMode="tail">{item.village || "----"}</AppText>
                 </View>
               </TouchableOpacity>
 

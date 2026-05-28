@@ -90,75 +90,71 @@ const getWeatherConfig = (main: string, lang: string) => {
   return { icon: "partly-sunny", color: "#F59E0B", text: main.charAt(0).toUpperCase() + main.slice(1) };
 };
 
-const getAgriAdvice = (main: string, temp: number, windSpeed: number, humidity: number, rainChance: number, lang: string, hour: number) => {
+const getAgriAdvice = (main: string, temp: number, windSpeed: number, humidity: number, rainChance: number, lang: string, hour: number): { text: string, type: 'danger' | 'warning' | 'info' | 'success' } => {
   const m = main.toLowerCase();
   const isNight = hour >= 19 || hour < 5;
   const isMorning = hour >= 5 && hour < 11;
   const isAfternoon = hour >= 11 && hour < 16;
+  
+  const currentMonth = new Date().getMonth();
+  const isSummer = currentMonth === 3 || currentMonth === 4;
+  const isKharif = currentMonth >= 5 && currentMonth <= 9;
+  const isRabi = currentMonth >= 10 || currentMonth <= 2;
 
-  // 1. Extreme Danger (Lightning / Storms)
+  // 1. Extreme Danger
   if (m.includes("thunderstorm") || m.includes("storm") || m.includes("tornado") || m.includes("squall")) {
-     return lang === "te" 
-       ? "⚠️ పిడుగులు పడే ప్రమాదం ఉంది. పొలంలో చెట్ల కింద ఉండకండి. తక్షణమే సురక్షిత ప్రాంతానికి వెళ్ళండి." 
-       : "⚠️ Danger of lightning/storm. Do not stand under trees. Go to a safe place immediately.";
+     return { type: "danger", text: lang === "te" ? "⚠️ వాతావరణం చాలా ప్రమాదకరం. ఉరుములు మెరుపులు ఉన్నాయి. చెట్ల కింద ఉండకండి." : "⚠️ Danger of lightning/storm. Do not stand under trees. Go to a safe place immediately." };
   }
 
-  // 2. Rain / Rain Chance (Wastes pesticide)
+  // 2. SUMMER
+  if (isSummer) {
+    if (m.includes("rain") || m.includes("drizzle") || rainChance >= 40) {
+      return { type: "info", text: lang === "te" ? "🌧️ వేసవి వర్షాలు! పచ్చిరొట్ట ఎరువులు (జీలుగ, జనుము) చల్లుకోవడానికి మరియు వేసవి దుక్కులు దున్నడానికి ఇది మంచి సమయం." : "🌧️ Summer rains! Excellent time to sow green manure crops and do deep summer plowing." };
+    }
+    if (temp > 35) {
+      return { type: "warning", text: lang === "te" ? "🔥 ఎండలు తీవ్రంగా ఉన్నాయి. పొలాన్ని ఖాళీగా వదిలేయకుండా, లోతుగా దుక్కులు (Summer Plowing) చేస్తే నేలలోని ఫంగస్, గుడ్లు నశిస్తాయి." : "🔥 Extreme heat. Do deep summer plowing to expose and kill soil-borne pests and fungus." };
+    }
+    return { type: "info", text: lang === "te" ? "☀️ ఇది వేసవి కాలం. రాబోయే ఖరీఫ్ సీజన్ కి మీ పొలాన్ని, విత్తనాలను సిద్ధం చేసుకోండి." : "☀️ Summer season. Prepare your land and seeds for the upcoming Kharif season." };
+  }
+
+  // 3. GROWING SEASONS
   if (m.includes("rain") || m.includes("drizzle") || m.includes("snow") || rainChance >= 40) {
-     return lang === "te" 
-       ? "🌧️ వర్షం పడే అవకాశం ఉంది. ఇప్పుడు మందులు కొడితే కడిగిపోయి డబ్బులు వృధా అవుతాయి. వాతావరణం చూసి పిచికారీ చేయండి." 
-       : "🌧️ Rain expected. Spraying now will wash away pesticides and waste money. Do not spray.";
+     return { type: "warning", text: lang === "te" ? "🌧️ వర్షం పడే సూచనలు ఉన్నాయి. పురుగుల మందులు (Pesticides) మరియు మందు కట్టలు (Fertilizers) వేయడం వాయిదా వేయండి." : "🌧️ Rain expected. Spraying pesticides or applying fertilizers now will wash them away." };
   }
 
-  // 3. Time Sense: NIGHT
   if (isNight) {
-     return lang === "te" 
-       ? "🌙 చీకటి పడింది. రాత్రి పూట పొలంలో పాములు/విష కీటకాల ప్రమాదం ఉంటుంది. వ్యవసాయ పనులకు విశ్రాంతి ఇవ్వండి." 
-       : "🌙 It's night time. High risk of snake/insect bites in the field. Rest and plan for tomorrow.";
+     return { type: "info", text: lang === "te" ? "🌙 రాత్రి పూట పొలంలో పాములు/విష కీటకాల ప్రమాదం ఉంటుంది. పిచికారీ పనులు రేపు ఉదయం చేసుకోండి." : "🌙 Night time, high risk of snakes/insects. Wait until tomorrow morning for field works." };
   }
 
-  // 4. High Wind (Causes drift)
   if (windSpeed > 15) {
-     return lang === "te" 
-       ? "💨 గాలి తీవ్రత ఎక్కువగా ఉంది. ఇప్పుడు మందు కొడితే పక్క పొలాలకు లేదా మీ కళ్ళలో పడే ప్రమాదం ఉంది. గాలి తగ్గాకే పిచికారీ చేయండి." 
-       : "💨 High wind. Spraying now risks chemical drift to other fields or into your eyes. Wait for wind to stop.";
+     return { type: "warning", text: lang === "te" ? "💨 గాలి తీవ్రత ఎక్కువగా ఉంది. పిచికారీ చేస్తే మందు పక్కపొలానికి లేదా మీ కళ్లలో పడే ప్రమాదం ఉంది." : "💨 High wind. Spraying now risks chemical drift to other fields or into your eyes." };
   }
 
-  // 5. Extreme Heat (Evaporation & Leaf Burn)
   if (temp > 35) {
      if (isAfternoon) {
-        return lang === "te" 
-          ? "🔥 మండుటెండలో మందు కొట్టకండి. ఆకులు మాడిపోతాయి మరియు మందు ఆవిరైపోతుంది. సాయంత్రం 4 తర్వాతే పిచికారీ చేయండి." 
-          : "🔥 High heat. Do not spray now as leaves may burn and chemicals will evaporate. Wait until evening.";
+        return { type: "warning", text: lang === "te" ? "🔥 ఎండలు మండుతున్నాయి. ఈ సమయంలో మందు కొడితే ఆకులు మాడిపోతాయి. సాయంత్రం 4 గంటల తర్వాత మందు పిచికారీ చేయండి." : "🔥 High heat! Spraying now will burn leaves and evaporate chemicals. Wait until evening." };
      } else if (isMorning) {
-        return lang === "te" 
-          ? "🔥 ఈరోజు ఎండ తీవ్రత ఎక్కువగా ఉంటుంది. మందు కొడితే త్వరగా ఆవిరైపోతుంది. ఉదయం 10 లోపే పిచికారీ పూర్తి చేయండి." 
-          : "🔥 Today will be very hot. Finish spraying before 10 AM before the sun gets too strong.";
-     } else {
-        return lang === "te" 
-          ? "🔥 ఎండ ఇంకా తీవ్రంగానే ఉంది. కొద్దిగా చల్లబడ్డాక మందు కొట్టండి." 
-          : "🔥 It is still hot. Wait for it to cool down a bit before spraying.";
+        return { type: "warning", text: lang === "te" ? "🔥 ఈరోజు ఎండ తీవ్రత ఎక్కువగా ఉంటుంది. ఉదయం 10 లోపే పిచికారీ మరియు ఎరువుల పనులు పూర్తి చేయండి." : "🔥 Today will be very hot. Finish spraying and fertilizer application before 10 AM." };
      }
   }
 
-  // 6. Dew / Cold (Chemicals drip off)
-  if (temp < 15 || (isMorning && humidity > 85)) {
-     return lang === "te" 
-       ? "❄️ ఆకుల మీద మంచు ఎక్కువగా ఉంది. మంచు ఆరిన తర్వాతే మందు కొట్టండి, లేదంటే మందు కింద పడిపోతుంది." 
-       : "❄️ Heavy dew. Wait for dew to dry before spraying, else pesticide will drip off into the soil.";
+  if (isRabi && (temp < 15 || (isMorning && humidity > 85))) {
+     return { type: "info", text: lang === "te" ? "❄️ ఆకుల మీద మంచు ఎక్కువగా ఉంది. మంచు పూర్తిగా ఆరిన తర్వాతే, మందు లేదా పురుగులని నివారించే మందు కొట్టండి." : "❄️ Heavy dew. Wait for dew to dry before spraying, else chemicals will drip off." };
   }
 
-  // 7. High Humidity / Fungus Risk
-  if (humidity > 85 && (m.includes("clouds") || m.includes("mist") || m.includes("haze") || m.includes("fog"))) {
-     return lang === "te" 
-       ? "☁️ గాలిలో తేమ ఎక్కువగా ఉండి మబ్బులు పట్టాయి. బూజు/ఫంగస్ తెగుళ్లు వేగంగా వ్యాపిస్తాయి. పొలాన్ని జాగ్రత్తగా గమనించండి." 
-       : "☁️ High humidity and cloudy. High risk of fungal diseases spreading. Monitor your crops closely.";
+  if (humidity > 85 && (m.includes("clouds") || m.includes("mist") || m.includes("fog"))) {
+     return { type: "warning", text: lang === "te" ? "☁️ గాలిలో తేమ ఎక్కువగా ఉంది. తెగుళ్లు/బూజు తెగుళ్లు వేగంగా వ్యాపించే ప్రమాదం ఉంది. ముందుస్తు జాగ్రత్తలు తీసుకోండి." : "☁️ High humidity and cloudy. High risk of fungal diseases and sucking pests spreading." };
   }
 
-  // 8. Perfect Conditions
-  return lang === "te" 
-    ? "✅ వాతావరణం చాలా అనుకూలంగా ఉంది. మందులు కొట్టడానికి, ఎరువులు వేయడానికి ఇది సరైన సమయం." 
-    : "✅ Perfect weather conditions. Excellent time for spraying pesticides or applying fertilizers.";
+  if (isKharif) {
+     return { type: "success", text: lang === "te" ? "✅ వాతావరణం చాలా అనుకూలంగా ఉంది. మందులు పిచికారీ చేసుకోవడానికి, కలుపు తీయడానికి లేదా ఎరువులు వేయడానికి ఇది మంచి సమయం." : "✅ Perfect weather. Excellent time for spraying pesticides, weeding, or applying fertilizers." };
+  }
+  
+  if (isRabi) {
+     return { type: "success", text: lang === "te" ? "✅ వాతావరణం అనుకూలంగా ఉంది. రబీ పంటలకు మందు పిచికారీ మరియు యాజమాన్య పనులు చేసుకోవచ్చు." : "✅ Perfect conditions for winter crop management and spraying." };
+  }
+
+  return { type: "success", text: lang === "te" ? "✅ వాతావరణం వ్యవసాయ పనులకు అనుకూలంగా ఉంది." : "✅ Weather is suitable for agricultural activities." };
 };
 
 /* ---------------- 1. ADVANCED WEATHER ---------------- */
@@ -216,6 +212,7 @@ export const getAdvancedWeather = functions.https.onRequest(async (req, res) => 
     const windKmH = Math.round(currentData.wind.speed * 3.6);
     const rainChanceVal = forecastData.list[0]?.pop ? Math.round(forecastData.list[0].pop * 100) : 0;
     
+    const adviceObj = getAgriAdvice(currentMain, currentData.main.temp, windKmH, currentData.main.humidity, rainChanceVal, lang, currentHour);
     const current = {
       temp: Math.round(currentData.main.temp),
       condition: currentConfig.text,
@@ -225,8 +222,8 @@ export const getAdvancedWeather = functions.https.onRequest(async (req, res) => 
       wind: windKmH,
       pressure: currentData.main.pressure,
       visibility: (currentData.visibility / 1000).toFixed(1),
-      advice: getAgriAdvice(currentMain, currentData.main.temp, windKmH, currentData.main.humidity, rainChanceVal, lang, currentHour),
-      isGood: !["rain", "storm", "thunderstorm", "drizzle"].includes(currentMain.toLowerCase()) && windKmH < 15 && currentData.main.temp <= 35 && rainChanceVal < 40,
+      advice: adviceObj.text,
+      adviceType: adviceObj.type,
       uv: 6,
       rainChance: rainChanceVal
     };

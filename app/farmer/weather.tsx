@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
-  StyleSheet,
-  ScrollView,
+  Alert,
+  Animated,
   Dimensions,
-  TouchableOpacity,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StatusBar,
-  Animated,
-  Alert
+  StyleSheet,
+  TouchableOpacity,
+  View
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import * as Location from "expo-location";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from "@react-navigation/native"; 
 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
@@ -84,7 +84,47 @@ const getDisplayCondition = (cond: string, currentLang: string) => {
   return dict[cond.trim()] || cond;
 };
 
+
+const getAdviceConfig = (type: string, lang: string) => {
+  switch (type) {
+    case 'danger':
+      return {
+        boxStyle: styles.adviceDanger,
+        icon: "warning",
+        color: "#DC2626",
+        title: lang === "te" ? "ప్రమాద హెచ్చరిక" : "Danger Alert",
+        textColor: "#7F1D1D"
+      };
+    case 'warning':
+      return {
+        boxStyle: styles.adviceWarning,
+        icon: "alert-circle",
+        color: "#D97706",
+        title: lang === "te" ? "వాతావరణ హెచ్చరిక" : "Weather Warning",
+        textColor: "#92400E"
+      };
+    case 'info':
+      return {
+        boxStyle: styles.adviceInfo,
+        icon: "information-circle",
+        color: "#2563EB",
+        title: lang === "te" ? "వ్యవసాయ సలహా" : "Agri Advice",
+        textColor: "#1E3A8A"
+      };
+    case 'success':
+    default:
+      return {
+        boxStyle: styles.adviceSuccess,
+        icon: "checkmark-circle",
+        color: "#15803D",
+        title: lang === "te" ? "మంచి సమయం" : "Perfect Weather",
+        textColor: "#14532D"
+      };
+  }
+};
+
 export default function WeatherScreen() {
+
   const [language, setLanguage] = useState<"te" | "en">("te");
   const t = translations[language];
 
@@ -327,23 +367,27 @@ export default function WeatherScreen() {
             <AppText style={styles.mainCondition} language={language}>{getDisplayCondition(currentWeather?.condition, language)}</AppText>
           </View>
 
-          {/* 💡 AGRI ADVICE */}
-          <View style={[styles.adviceBox, currentWeather?.isGood ? styles.adviceGood : styles.adviceBad]}>
-            <View style={styles.adviceHeader}>
-              <Ionicons 
-                name={currentWeather?.isGood ? "information-circle" : "warning"} 
-                size={18} 
-                color={currentWeather?.isGood ? "#15803D" : "#DC2626"} 
-              />
-              <AppText style={[styles.adviceTitle, { color: currentWeather?.isGood ? "#15803D" : "#DC2626" }]} language={language}>
-                {currentWeather?.isGood ? (language === "te" ? "ముఖ్య గమనిక" : "Important Note") : (language === "te" ? "వాతావరణ హెచ్చరిక" : "Weather Alert")}
-              </AppText>
-            </View>
-            <AppText style={[styles.adviceText, { color: currentWeather?.isGood ? "#14532D" : "#7F1D1D" }]} language={language}>
-              {currentWeather?.advice}
-            </AppText>
-          </View>
-
+          {/* 🌍 AGRI ADVICE */}
+          {(() => {
+            const adviceConf = getAdviceConfig(currentWeather?.adviceType || (currentWeather?.isGood ? 'success' : 'warning'), language);
+            return (
+              <View style={[styles.adviceBox, adviceConf.boxStyle]}>
+                <View style={styles.adviceHeader}>
+                  <Ionicons 
+                    name={adviceConf.icon as any} 
+                    size={20} 
+                    color={adviceConf.color} 
+                  />
+                  <AppText style={[styles.adviceTitle, { color: adviceConf.color }]} language={language}>
+                    {adviceConf.title}
+                  </AppText>
+                </View>
+                <AppText style={[styles.adviceText, { color: adviceConf.textColor }]} language={language}>
+                  {currentWeather?.advice}
+                </AppText>
+              </View>
+            );
+          })()}
           {/* 📊 WEATHER GRID */}
           <View style={styles.gridContainer}>
             <View style={styles.gridBox}>
@@ -429,11 +473,13 @@ const styles = StyleSheet.create({
   mainTemp: { fontSize: 70, color: "#1F2937", fontWeight: "bold", includeFontPadding: false, marginTop: 5 },
   mainCondition: { fontSize: 20, color: "#4B5563", marginTop: -5 },
   adviceBox: { padding: 16, borderRadius: 16, marginBottom: 25, borderWidth: 1 },
-  adviceGood: { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" },
-  adviceBad: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
-  adviceHeader: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
-  adviceTitle: { fontSize: 18, fontWeight: "600", marginLeft: 6 },
-  adviceText: { fontSize: 14, lineHeight: 20 },
+  adviceSuccess: { backgroundColor: "#F0FDF4", borderColor: "#BBF7D0" },
+  adviceDanger: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
+  adviceWarning: { backgroundColor: "#FFFBEB", borderColor: "#FDE68A" },
+  adviceInfo: { backgroundColor: "#EFF6FF", borderColor: "#BFDBFE" },
+  adviceHeader: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", marginBottom: 8 },
+  adviceTitle: { fontSize: 18, fontWeight: "600", marginLeft: 6, flexShrink: 1, top: -1 }, // slightly adjust top if Telugu font renders low
+  adviceText: { fontSize: 16, lineHeight: 26 },
   gridContainer: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 12, marginBottom: 25 },
   gridBox: { width: (width - 52) / 2, backgroundColor: "white", padding: 16, borderRadius: 16, alignItems: "center", borderWidth: 1, borderColor: "#E5E7EB" },
   gridLabel: { fontSize: 13, color: "#6B7280", marginTop: 8, marginBottom: 4 },

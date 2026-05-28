@@ -70,7 +70,7 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F7F6" }}>
       <StatusBar barStyle="light-content" backgroundColor="#1B5E20" />
       
-      <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={{ position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 60, paddingHorizontal: 20, paddingBottom: 10 }}>
+      <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={{ position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 10 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Animated.View style={{ width: 50, height: 50, borderRadius: 25, marginRight: 10, backgroundColor: "rgba(255,255,255,0.12)", opacity: pulseAnim }} />
@@ -83,7 +83,7 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
         </View>
       </LinearGradient>
 
-      <View style={{ flex: 1, paddingTop: 110 }}>
+      <View style={{ flex: 1, paddingTop: 95 }}>
         <View>
           <LinearGradient colors={["#1B5E20","#1B5E20"]} style={{ paddingTop: 28, paddingBottom: 15, paddingHorizontal: 20, justifyContent: "center" }}>
             <View style={{ alignItems: "center", justifyContent: "center" }}>
@@ -814,7 +814,7 @@ export default function Dashboard() {
       onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingTop: 110 }}
+      contentContainerStyle={{ paddingTop: 95 }}
       refreshControl={ <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2E7D32"]} tintColor="#2E7D32" /> }
     >
       <Animated.View>
@@ -1100,7 +1100,7 @@ const styles = StyleSheet.create({
   header:{ paddingTop:28, paddingBottom:15, paddingHorizontal:20, justifyContent:"center" },
   headerCarousel:{ alignItems:"center", justifyContent:"center" },
   headerSvg:{ marginTop:-1, alignSelf:"center" },
-  stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 60, paddingHorizontal: 20, paddingBottom: 5 },
+  stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 5 },
   headerRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:5 },
   profileRow:{ flexDirection:"row", alignItems:"center", flexShrink: 1 },
   profileImage:{ width:50, height:50, borderRadius:25, marginRight:10 },

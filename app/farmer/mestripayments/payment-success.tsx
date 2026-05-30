@@ -4,25 +4,25 @@ import AgriLoader from "@/components/AgriLoader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
 import storage from "@react-native-firebase/storage";
 import * as FileSystem from "expo-file-system";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import NetInfo from "@react-native-community/netinfo";
 import { BackHandler } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Image } from "expo-image";
 
 import {
   Animated,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   TouchableOpacity,
-  View,
-  Modal
+  View
 } from "react-native";
 
 export const unstable_settings = {
@@ -38,7 +38,7 @@ export default function PaymentSuccess() {
   
   const {
     id, ids, crop, work, name, village,
-    totalDays, totalWorkers,
+    totalDays, totalWorkers, totalAcres, 
     totalMorning, totalEvening, totalFull,
     morningRate, eveningRate, fullRate,
     amount, paymentMode,
@@ -87,7 +87,7 @@ export default function PaymentSuccess() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) { setStatus("failed"); return; }
 
-      // 🔥 1. UPLOAD PROOFS (Images + PDF) - CONCURRENT UPLOAD FOR SPEED
+      // 1. UPLOAD PROOFS (Images + PDF) - CONCURRENT UPLOAD FOR SPEED
       let uploadedProofs: { url: string, type: string, name?: string }[] = [];
       if (parsedProofs.length > 0) {
         const uploadTasks = parsedProofs.map(async (proof, i) => {
@@ -110,16 +110,15 @@ export default function PaymentSuccess() {
             return { url, type: proof.type, name: proof.name || "" };
           } catch (storageErr) {
             console.log("Storage upload error:", storageErr);
-            return null; // Don't fail the whole payment if one image fails
+            return null; 
           }
         });
 
-        // Run all uploads concurrently
         const results = await Promise.all(uploadTasks);
         uploadedProofs = results.filter(Boolean) as any[];
       }
 
-      // 🔥 2. SAVE FIRESTORE DOC
+      // 2. SAVE FIRESTORE DOC
       const db = firestore();
       const userDoc = await db.collection("users").doc(phone).get();
       const activeSession = userDoc.data()?.activeSession || "default";
@@ -138,6 +137,7 @@ export default function PaymentSuccess() {
         details: {
           totalDays: Number(totalDays) || 0,
           totalWorkers: Number(totalWorkers) || 0,
+          totalAcres: Number(totalAcres) || 0, 
           morning: Number(totalMorning) || 0,
           evening: Number(totalEvening) || 0,
           full: Number(totalFull) || 0,
@@ -260,6 +260,7 @@ export default function PaymentSuccess() {
 
                 <View style={styles.divider} />
 
+                {/* ROW 1: CROP & WORK */}
                 <View style={styles.infoRow}>
                    <View style={styles.infoItem}>
                       <AppText style={styles.infoLabel} language={language}>{language === "te" ? "పంట" : "Crop"}</AppText>
@@ -271,35 +272,45 @@ export default function PaymentSuccess() {
                    </View>
                 </View>
 
+                {/* ROW 2: WORKERS & ACRES */}
                 <View style={styles.infoRow}>
                    <View style={styles.infoItem}>
                       <AppText style={styles.infoLabel} language={language}>{language === "te" ? "మొత్తం కార్మికులు" : "Workers"}</AppText>
-                      <AppText style={styles.infoValue}>{totalWorkers}</AppText>
+                      <AppText style={styles.infoValue}>{totalWorkers || 0}</AppText>
                    </View>
                    <View style={styles.infoItemRight}>
-                      <AppText style={[styles.infoLabel, { textAlign: "right" }]} language={language}>{language === "te" ? "మొత్తం రోజులు" : "Days"}</AppText>
-                      <AppText style={[styles.infoValue, { textAlign: "right" }]}>{totalDays}</AppText>
+                      <AppText style={[styles.infoLabel, { textAlign: "right" }]} language={language}>{language === "te" ? "మొత్తం ఎకరాలు" : "Total Acres"}</AppText>
+                      <AppText style={[styles.infoValue, { textAlign: "right" }]}>{totalAcres || 0}</AppText>
                    </View>
                 </View>
 
-                {parsedProofs.length > 0 && (
-                  <View style={styles.proofsBox}>
-                    <AppText style={styles.infoLabel} language={language}>{language === "te" ? "జోడించిన ఆధారాలు" : "Attached Proofs"}</AppText>
-                    <View style={styles.proofsRow}>
-                      {parsedProofs.map((proof, idx) => (
-                        <View key={idx} style={styles.proofWrap}>
-                          {proof.type === "image" ? (
-                            <Image source={{ uri: proof.uri }} style={styles.proofImage} contentFit="cover" />
-                          ) : (
-                            <View style={[styles.proofImage, { backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" }]}>
-                              <Ionicons name="document-text" size={24} color="#DC2626" />
+                {/* 🔥 ROW 3: PROOFS & DAYS (HORIZONTALLY ALIGNED) */}
+                <View style={[styles.infoRow, { alignItems: 'flex-start' }]}>
+                   <View style={styles.infoItem}>
+                      <AppText style={styles.infoLabel} language={language}>{language === "te" ? "జోడించిన ఆధారాలు" : "Attached Proofs"}</AppText>
+                      {parsedProofs.length > 0 ? (
+                        <View style={styles.proofsRow}>
+                          {parsedProofs.map((proof, idx) => (
+                            <View key={idx} style={styles.proofWrap}>
+                              {proof.type === "image" ? (
+                                <Image source={{ uri: proof.uri }} style={styles.proofImage} contentFit="cover" />
+                              ) : (
+                                <View style={[styles.proofImage, { backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" }]}>
+                                  <Ionicons name="document-text" size={24} color="#DC2626" />
+                                </View>
+                              )}
                             </View>
-                          )}
+                          ))}
                         </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
+                      ) : (
+                        <AppText style={styles.infoValue}>-</AppText>
+                      )}
+                   </View>
+                   <View style={styles.infoItemRight}>
+                      <AppText style={[styles.infoLabel, { textAlign: "right" }]} language={language}>{language === "te" ? "మొత్తం రోజులు" : "Total Days"}</AppText>
+                      <AppText style={[styles.infoValue, { textAlign: "right" }]}>{totalDays || 0}</AppText>
+                   </View>
+                </View>
 
                 <View style={styles.dashedDivider} />
 
@@ -431,9 +442,9 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 12, color: "#9CA3AF", textTransform: 'uppercase', marginBottom: 2 },
   infoValue: { fontSize: 15, fontWeight: "600", color: "#374151" },
   
-  proofsBox: { marginTop: 5 },
-  proofsRow: { flexDirection: "row", gap: 10, marginTop: 8 },
-  proofWrap: { width: 50, height: 50 },
+  // PROOFS STYLES
+  proofsRow: { flexDirection: "row", gap: 8, marginTop: 4 },
+  proofWrap: { width: 44, height: 44 }, // Made slightly smaller to fit perfectly
   proofImage: { width: "100%", height: "100%", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB" },
 
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

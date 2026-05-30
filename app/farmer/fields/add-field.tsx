@@ -31,7 +31,7 @@ export default function AddField() {
 
   // 🔥 INSTANT DATA LOAD FROM PARAMS
   const [crop, setCrop] = useState(getStr(params.crop));
-  const [nickname, setNickname] = useState(getStr(params.nickname) || ""); // 🔥 NEW
+  const [nickname, setNickname] = useState(getStr(params.nickname) || ""); 
   const [soilType, setSoilType] = useState(getStr(params.soilType));
   const [acres, setAcres] = useState(getStr(params.acres));
   const [type, setType] = useState<"own" | "rent" | null>(getStr(params.type) as "own" | "rent" | null);
@@ -233,10 +233,12 @@ const soilOptions = [
         .doc(phone)
         .collection("fields");
 
+      // 🔥 STRICT DUPLICATE CHECK: Crop + Nickname + Acres
       if (!editId && !bypassDuplicate) {
         const duplicateCheck = await ref
           .where("crop", "==", fieldData.crop)
           .where("nickname", "==", fieldData.nickname)
+          .where("acres", "==", fieldData.acres) // 🔥 Added Acres logic
           .where("session", "==", activeSession)
           .get();
 
@@ -649,7 +651,7 @@ const soilOptions = [
               {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
-              {language === "te" ? "సరిగ్గా ఇదే పొలం వివరాలు (పంట, ఎకరాలు) ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An exact field entry (Crop, Acres) already exists.\n\nAre you sure you want to add this duplicate entry?"}
+              {language === "te" ? "సరిగ్గా ఇదే పొలం వివరాలు (పంట, ఆనవాలు, ఎకరాలు) ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "Exactly same field details (Crop, Location, Acres) already exist.\n\nAre you sure you want to add this duplicate entry?"}
             </AppText>
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>

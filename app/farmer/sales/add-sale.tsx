@@ -90,10 +90,10 @@ export default function AddSale() {
       snap.forEach(doc => {
         const data = doc.data();
         if (data.crop) {
-          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+          // 🔥 FIX: Clean format (Crop - Nickname) without acres
           const formatted = data.nickname 
-            ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
-            : `${data.crop} - ${data.acres || 0} ${acresText}`;
+            ? `${data.crop} - ${data.nickname}` 
+            : data.crop;
           set.add(formatted);
         }
       });
@@ -532,6 +532,8 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalContent: { backgroundColor: "#fff", height: "70%", borderTopLeftRadius: 25, borderTopRightRadius: 25 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: "center" },
+  modalTitleText: { fontSize: 18, fontWeight: '600', color: '#1F2937' },
+  
   searchBar: { flexDirection: "row", margin: 20, backgroundColor: "#F3F4F6", borderRadius: 16, paddingHorizontal: 12, alignItems: "center", borderWidth: 1, borderColor: "#E5E7EB" },
   searchInput: { flex: 1, height: 50, fontSize: 16 },
   item: { padding: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },

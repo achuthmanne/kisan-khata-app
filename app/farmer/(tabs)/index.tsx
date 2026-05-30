@@ -18,7 +18,6 @@ import {
   BackHandler,
   Dimensions,
   FlatList,
-  Image,
   InteractionManager,
   Modal,
   RefreshControl, SafeAreaView,
@@ -29,6 +28,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+// 🔥 PRO FIX: Use expo-image for faster caching and remote image handling
+import { Image } from "expo-image";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
 import AnimatedReanimated, { useSharedValue, withTiming, withRepeat, withSequence, useAnimatedStyle, Easing } from "react-native-reanimated";
@@ -134,7 +135,12 @@ export default function Dashboard() {
   const quickRef = useRef<FlatList>(null); 
   const scrollY = useRef(new Animated.Value(0)).current; 
   const [loading, setLoading] = useState(true);
+  
   const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  // 🔥 NEW STATE FOR PROFILE IMAGE
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+
   const { language } = useLanguage();
 
   const [city, setCity] = useState(language === "te" ? "లోడ్ అవుతోంది..." : "Loading...");
@@ -415,6 +421,7 @@ export default function Dashboard() {
     setRefreshing(true);
     await getLocationWeather();
     await fetchPrices();
+    await loadUser(); // 🔥 Sync user profile details during refresh
     await new Promise(resolve => setTimeout(resolve,800));
     setRefreshing(false);
   };
@@ -426,9 +433,13 @@ export default function Dashboard() {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       const cachedName = await AsyncStorage.getItem("USER_NAME");
+      const cachedImage = await AsyncStorage.getItem("USER_IMAGE"); // 🔥 Check for cached image
       
       if (cachedName) {
         setName(cachedName);
+      }
+      if (cachedImage) {
+        setProfilePic(cachedImage);
       }
 
       if (!phone) {
@@ -444,10 +455,25 @@ export default function Dashboard() {
       const doc = await firestore().collection("users").doc(phone).get();
       const data = doc.data();
 
+      // Set Name
       if (data?.name && data.name !== cachedName) {
         setName(data.name);
         await AsyncStorage.setItem("USER_NAME", data.name);
       } 
+
+      // 🔥 Set Profile Image dynamically
+      if (data?.profileImage) {
+        setProfilePic(data.profileImage);
+        await AsyncStorage.setItem("USER_IMAGE", data.profileImage);
+      } else {
+        setProfilePic(null);
+        await AsyncStorage.removeItem("USER_IMAGE");
+      }
+      
+      // Set Role for Default Image logic
+      if (data?.role) {
+        setRole(data.role);
+      }
 
       const current = getCurrentSession();
       if (!data?.activeSession) {
@@ -774,6 +800,15 @@ export default function Dashboard() {
     return require("../../../assets/images/we.png");
   };
 
+  // 🔥 DETERMINE DEFAULT AVATAR DYNAMICALLY
+  const getDefaultAvatar = () => {
+    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
+    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
+    if (isFarmer) return require("../../../assets/images/farmer.png");
+    if (isMestri) return require("../../../assets/images/kuli.png");
+    return require("../../../assets/images/default.jpg");
+  };
+
   /* ---------------- CONDITIONAL LOADING UI ---------------- */
   if (loading) {
     return <DashboardSkeleton width={width} />;
@@ -788,7 +823,14 @@ export default function Dashboard() {
      <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={styles.stickyTop}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.profileRow} onPress={() => setDrawer(true)} activeOpacity={0.8}>
-            <Image source={require("../../../assets/images/farmer.png")} style={styles.profileImage} />
+            
+            {/* 🔥 PROFILE IMAGE LOGIC APPLIED HERE */}
+            <Image 
+              source={profilePic ? { uri: profilePic } : getDefaultAvatar()} 
+              style={styles.profileImage} 
+              contentFit="cover" // Important for rounded remote images
+            />
+
             <View>
               <Animated.View style={[styles.greetRow, { opacity:fadeAnim, transform:[{translateY:fadeAnim.interpolate({inputRange:[0,1],outputRange:[-12,0]})}] }]}>
                 <Ionicons name={getGreetingIcon()} size={18} color="#C8E6C9" />

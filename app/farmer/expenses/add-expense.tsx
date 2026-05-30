@@ -112,10 +112,10 @@ const categoryOptions = [
       snap.forEach(doc => {
         const d = doc.data();
         if (d.crop) {
-          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+          // 🔥 FIX: Clean format (Crop - Nickname) without acres
           const formatted = d.nickname 
-            ? `${d.crop} - ${d.nickname} (${d.acres || 0} ${acresText})` 
-            : `${d.crop} - ${d.acres || 0} ${acresText}`;
+            ? `${d.crop} - ${d.nickname}` 
+            : d.crop;
           set.add(formatted);
         }
       });
@@ -514,76 +514,6 @@ const categoryOptions = [
                   </View>
               </View>
           </Modal>
-
-      {/* INFO MODALS */}
-      <Modal visible={showLabourInfo} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.modalOverlayStandard}>
-          <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
-              <Ionicons name="information-circle" size={36} color="#F59E0B" />
-            </View>
-            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
-              {language === "te" ? "కూలీల ఖర్చులు" : "Labour Expenses"}
-            </AppText>
-            <AppText style={styles.modalSubStandard} language={language}>
-              {language === "te"
-                ? "కూలీలకు ఇచ్చిన అడ్వాన్సులు లేదా రోజువారీ కూలీ ఖర్చులు ఇక్కడ నమోదు చేయండి. కూలీల పని వివరాలు 'కూలీలు' సెక్షన్ లో చూడగలరు."
-                : "Enter daily labour expenses or advances given to workers here."}
-            </AppText>
-            <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B" }]} onPress={() => setShowLabourInfo(false)}>
-                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే, అర్థమైంది" : "Got It"}</AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showRentInfo} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.modalOverlayStandard}>
-          <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
-              <Ionicons name="information-circle" size={36} color="#F59E0B" />
-            </View>
-            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
-              {language === "te" ? "భూమి కౌలు ఖర్చులు" : "Land Lease"}
-            </AppText>
-            <AppText style={styles.modalSubStandard} language={language}>
-              {language === "te"
-                ? "కౌలుకి తీసుకున్న భూమి యొక్క అడ్వాన్స్ లేదా పూర్తి కౌలు డబ్బులు ఇక్కడ నమోదు చేయండి."
-                : "Enter land lease advances or full payments here."}
-            </AppText>
-            <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B" }]} onPress={() => setShowRentInfo(false)}>
-                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే, అర్థమైంది" : "Got It"}</AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showTractorInfo} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.modalOverlayStandard}>
-          <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
-              <Ionicons name="information-circle" size={36} color="#F59E0B" />
-            </View>
-            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
-              {language === "te" ? "ట్రాక్టర్ ఖర్చులు" : "Tractor Expenses"}
-            </AppText>
-            <AppText style={styles.modalSubStandard} language={language}>
-              {language === "te"
-                ? "అద్దె ట్రాక్టర్ కోసం ఇచ్చిన డబ్బులు లేదా పెట్రోల్/డీజిల్ ఖర్చులు ఇక్కడ నమోదు చేయండి."
-                : "Enter rented tractor payments or fuel expenses here."}
-            </AppText>
-            <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B" }]} onPress={() => setShowTractorInfo(false)}>
-                <AppText style={styles.modalInfoTextStandard} language={language}>{language === "te" ? "సరే, అర్థమైంది" : "Got It"}</AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
       <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>

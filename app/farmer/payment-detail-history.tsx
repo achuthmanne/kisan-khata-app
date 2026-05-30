@@ -1,4 +1,5 @@
-//payment detailed history screen
+// app/farmer/mestripayments/history.tsx (లేదా నీ ఫైల్ పేరు)
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
@@ -444,6 +445,7 @@ export default function PaymentDetailHistory() {
                           const dates = dateMap[entry.id] || [];
                           const fromDate = dates[0];
                           const toDate = dates[dates.length - 1];
+                          const totalAcres = entry.details?.totalAcres || 0; // 🔥 Fetching Total Acres saved in DB
 
                           const missingDates: string[] = [];
                           if (dates.length > 1) {
@@ -458,7 +460,6 @@ export default function PaymentDetailHistory() {
                             let current = new Date(start);
                             current.setDate(current.getDate() + 1);
                             
-                            // Prevent infinite loops if dates are malformed
                             let loops = 0;
                             while (current < end && loops < 100) {
                               const dStr = `${current.getDate().toString().padStart(2, '0')}/${(current.getMonth() + 1).toString().padStart(2, '0')}/${current.getFullYear()}`;
@@ -509,6 +510,16 @@ export default function PaymentDetailHistory() {
                                 </View>
                               </View>
 
+                              {/* 🔥 NEW ACRES DISPLAY (Below Date, perfectly aligned) */}
+                              {totalAcres > 0 && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                                  <Ionicons name="expand-outline" size={14} color="#6B7280" />
+                                  <AppText style={{ fontSize: 11, color: "#4B5563", marginLeft: 6, fontWeight: '500' }} language={language}>
+                                    {language === "te" ? "మొత్తం ఎకరాలు:" : "Total Acres:"} <AppText style={{ color: "#111827", fontWeight: '700' }}>{totalAcres}</AppText>
+                                  </AppText>
+                                </View>
+                              )}
+
                               <View style={styles.divider} />
                               
                               {dates.length > 0 && (
@@ -526,7 +537,6 @@ export default function PaymentDetailHistory() {
                                 </View>
                               )}
                               
-                              {/* 🔥 FORMATTED CURRENCIES START HERE */}
                               <View style={styles.row}>
                                 <View style={styles.rowLeft}>
                                   <Ionicons name="sunny-outline" size={14} color="#F59E0B" />

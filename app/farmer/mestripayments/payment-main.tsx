@@ -27,10 +27,9 @@ export default function PaymentWorkHistory() {
 
   const [data, setData] = useState<any[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  // 🔥 BUG FIX: Initial state MUST be true to prevent UI flash
   const [loading, setLoading] = useState(true); 
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const [infoVisible, setInfoVisible] = useState(false); // 🔥 Modal is hidden initially
+  const [infoVisible, setInfoVisible] = useState(false); 
 
   useFocusEffect(
     useCallback(() => {
@@ -44,7 +43,7 @@ export default function PaymentWorkHistory() {
 
   /* ---------------- LOAD DATA ---------------- */
   const loadData = async () => {
-    setLoading(true); // 🔥 పక్కాగా స్టార్టింగ్ లోనే లోడింగ్ పెట్టాలి
+    setLoading(true); 
     try {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
@@ -57,7 +56,6 @@ export default function PaymentWorkHistory() {
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) return;
 
-      // 🔥 STEP 1: GET ALL ATTENDANCE
       const snap = await firestore()
         .collection("users")
         .doc(userPhone)
@@ -67,7 +65,6 @@ export default function PaymentWorkHistory() {
         .where("session", "==", activeSession) 
         .get();
 
-      // 🔥 STEP 2: GET PAID IDS
       const paymentSnap = await firestore()
         .collection("users")
         .doc(userPhone)
@@ -84,12 +81,11 @@ export default function PaymentWorkHistory() {
         paidIds.push(...(paymentData.selectedAttendanceIds || []));
       });
 
-      // 🔥 STEP 3: FILTER DATA
       const allList = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
       const list = allList.filter(item =>
         item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
         item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
-        !paidIds.includes(item.id) // 🔥 DOUBLE SPEND PREVENTION LOGIC
+        !paidIds.includes(item.id) 
       )
       .sort((a, b) => {
           const parseDate = (dStr: string) => {
@@ -100,28 +96,25 @@ export default function PaymentWorkHistory() {
           };
           const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : parseDate(a.date);
           const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : parseDate(b.date);
-          return timeB - timeA; // Descending (Latest first)
+          return timeB - timeA; 
         });
 
       setData(list);
 
-    // 🔥 INFO MODAL SYNC (Forced for testing)
       if (list.length > 0) {
-          // ఇలా పెడితే ప్రతిసారీ వస్తుంది
           setInfoVisible(true); 
       }
 
     } catch (e) {
       console.log("Error loading data:", e);
     } finally {
-      // 🔥 పని పూర్తయినా, ఎర్రర్ వచ్చినా లోడింగ్ ఆగిపోవాలి
       setLoading(false);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      setSelected([]); // 🔥 RESET PREVIOUS SELECTIONS
+      setSelected([]); 
       loadData();
     }, [])
   );
@@ -142,34 +135,18 @@ export default function PaymentWorkHistory() {
   //shimmer
   const ShimmerCard = () => (
     <View style={styles.shimmerCard}>
-      {/* TOP */}
       <View style={styles.topRow}>
-        <ShimmerPlaceholder
-          LinearGradient={LinearGradient}
-          style={{ width: 100, height: 14, borderRadius: 6 }}
-        />
-        <ShimmerPlaceholder
-          LinearGradient={LinearGradient}
-          style={{ width: 20, height: 20, borderRadius: 10 }}
-        />
+        <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 100, height: 14, borderRadius: 6 }} />
+        <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 20, height: 20, borderRadius: 10 }} />
       </View>
-
-      {/* DIVIDER */}
       <View style={styles.divider} />
-
-      {/* VALUES */}
       <View style={styles.valuesContainer}>
         <ShimmerPlaceholder LinearGradient={LinearGradient} style={styles.shimmerValue} />
         <ShimmerPlaceholder LinearGradient={LinearGradient} style={styles.shimmerValue} />
         <ShimmerPlaceholder LinearGradient={LinearGradient} style={styles.shimmerValue} />
       </View>
-
-      {/* TOTAL */}
       <View style={{ alignItems: "center", marginTop: 10 }}>
-        <ShimmerPlaceholder
-          LinearGradient={LinearGradient}
-          style={{ width: 80, height: 14, borderRadius: 6 }}
-        />
+        <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 80, height: 14, borderRadius: 6 }} />
       </View>
     </View>
   );
@@ -194,7 +171,6 @@ export default function PaymentWorkHistory() {
         </AppText>
       </View>
 
-      {/* LIST */}
       {loading ? (
         <View style={{ paddingTop: 10 }}>
           <ShimmerCard />
@@ -211,11 +187,8 @@ export default function PaymentWorkHistory() {
           removeClippedSubviews={true}
           contentContainerStyle={[
             { paddingBottom: 120 },
-            // 🔥 సెంటర్ లోకి రావడానికి లాజిక్
             data.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
-
-          /* 🔥 OUR NEW GLOBAL EMPTY STATE COMPONENT */
           ListEmptyComponent={
             <AppEmptyState
               iconName="checkmark-done-circle-outline"
@@ -226,14 +199,10 @@ export default function PaymentWorkHistory() {
               language={language}
             />
           }
-
           renderItem={({ item }) => {
             const isSelected = selected.includes(item.id);
-
-            const total =
-              (item.morning || 0) +
-              (item.evening || 0) +
-              (item.full || 0);
+            const total = (item.morning || 0) + (item.evening || 0) + (item.full || 0);
+            const acres = item.acresWorked || 0; 
 
             return (
               <TouchableOpacity
@@ -247,7 +216,7 @@ export default function PaymentWorkHistory() {
                 activeOpacity={0.7}
                 onPress={() => toggleSelect(item.id)}
               >
-                {/* TOP */}
+                {/* TOP ROW */}
                 <View style={styles.topRow}>
                   <View style={styles.dateWrap}>
                     <Ionicons name="calendar-outline" size={16} color="#6B7280" />
@@ -256,8 +225,9 @@ export default function PaymentWorkHistory() {
                     </AppText>
                   </View>
 
+                  {/* CHECKMARK ALWAYS ON THE RIGHT */}
                   {isSelected && (
-                    <Ionicons name="checkmark-circle" size={20} color={workColor} />
+                    <Ionicons name="checkmark-circle" size={22} color={workColor} />
                   )}
                 </View>
 
@@ -300,11 +270,17 @@ export default function PaymentWorkHistory() {
                 {/* DIVIDER */}
                 <View style={styles.divider} />
 
-                {/* TOTAL */}
+                {/* 🔥 BOTTOM ROW: WORKERS (Left) & ACRES (Right) */}
                 <View style={styles.bottomRow}>
                   <AppText style={[styles.totalText, { color: workColor }]} language={language}>
-                    {language === "te" ? "మొత్తం" : "Total"}: {total}
+                    {language === "te" ? "మొత్తం కూలీలు" : "Total Workers"}: {total}
                   </AppText>
+                  
+                  {acres > 0 && (
+                    <AppText style={[styles.totalText, { color: "#4B5563" }]} language={language}>
+                      {language === "te" ? "మొత్తం ఎకరాలు" : "Total Acres"}: <AppText style={{ color: "#111827" }}>{acres}</AppText>
+                    </AppText>
+                  )}
                 </View>
 
               </TouchableOpacity>
@@ -313,29 +289,21 @@ export default function PaymentWorkHistory() {
         />
       )}
 
-      {/* HOW TO USE MODAL (Onboarding Info) - PREMIUM THEME */}
+      {/* HOW TO USE MODAL (Onboarding Info) */}
       <Modal visible={infoVisible} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-
-            {/* ICON */}
             <View style={styles.modalIconBgStandardInfo}>
               <Ionicons name="information-circle" size={36} color="#16A34A" />
             </View>
-
-            {/* TITLE */}
             <AppText style={styles.modalTitleStandardInfo} language={language}>
               {language === "te" ? "ఎలా ఉపయోగించాలి?" : "How to use?"}
             </AppText>
-
-            {/* MESSAGE */}
             <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "మీరు ఏ రోజులకు డబ్బులు చెల్లించాలనుకుంటున్నారో, ఆ తేదీలను ఇక్కడ టిక్ (✔) చేయండి."
                 : "Select the dates you want to pay for by ticking (✔) them."}
             </AppText>
-
-            {/* BUTTON */}
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -389,31 +357,24 @@ export default function PaymentWorkHistory() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
 
-  rowTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-
-  date: {
-    fontSize: 13,
-    marginLeft: 6
-  },
-
-  valuesRow: {
+  topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10
+    alignItems: "center"
   },
 
-  valueItem: {
-    flex: 1
+  dateWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
   },
 
-  total: {
-    marginTop: 8,
-    fontWeight: "600"
+  dateText: {
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "500"
   },
+
   card: {
     marginHorizontal: 20,
     marginVertical: 6,
@@ -422,6 +383,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#fff"
   },
+
   confirmWrapper: {
     position: "absolute",
     bottom: 20,
@@ -444,22 +406,6 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600"
-  },
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-
-  dateWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-
-  dateText: {
-    fontSize: 13,
-    color: "#374151"
   },
 
   divider: {
@@ -491,10 +437,19 @@ const styles = StyleSheet.create({
     color: "#111827"
   },
 
+  // 🔥 UPDATED BOTTOM ROW STYLES
   bottomRow: {
-    marginTop: 10,
+    marginTop: 6,
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center"
   },
+  
+  totalText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
   shimmerCard: {
     marginHorizontal: 20,
     marginVertical: 6,
@@ -508,10 +463,6 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 6
   },
-  totalText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
 
   topInfoBox: {
     marginHorizontal: 20,
@@ -521,23 +472,23 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    flexDirection: "row", // 🔥 ADD THIS
-    alignItems: "center", // 🔥 ADD THIS
-    justifyContent: "space-between" // 🔥 ADD THIS
+    flexDirection: "row", 
+    alignItems: "center", 
+    justifyContent: "space-between" 
   },
   
   mainTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#111827",
-    // textAlign: "center" // 🔥 దీన్ని కామెంట్ లేదా డిలీట్ చేసేయ్
   },
+  
   subTitle: {
     fontSize: 13,
     color: "#6B7280",
     marginTop: 4,
-    // textAlign: "center" // 🔥 దీన్ని కూడా తీసేయ్
   },
+  
   // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE INFO THEME)
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },

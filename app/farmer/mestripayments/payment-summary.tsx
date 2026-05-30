@@ -118,6 +118,9 @@ export default function PaymentSummary() {
   const totalFull = data.reduce((sum, item) => sum + (item.full || 0), 0);
   const totalWorkers = totalMorning + totalEvening + totalFull;
   const totalDays = data.length;
+  
+  // 🔥 FETCHING ACRES FROM FIRESTORE DATA
+  const totalAcres = data.reduce((sum, item) => sum + (Number(item.acresWorked) || Number(item.acres) || 0), 0);
 
   const colors = ["#06B6D4","#84CC16","#F97316","#6366F1","#EC4899"];
   const workColor = colors[(work as string).charCodeAt(0) % colors.length];
@@ -205,7 +208,9 @@ export default function PaymentSummary() {
         <ShimmerPlaceholder LinearGradient={LinearGradient} style={styles.shimmerSmall} />
       </View>
       <View style={styles.divider} />
-      <View style={{ alignItems: "center" }}>
+      {/* MATCHED WITH BOTTOM ROW UI */}
+      <View style={styles.bottomRow}>
+        <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ height: 12, width: 80, borderRadius: 6 }} />
         <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ height: 12, width: 80, borderRadius: 6 }} />
       </View>
     </View>
@@ -213,6 +218,8 @@ export default function PaymentSummary() {
 
   const renderItem = ({ item }: any) => {
     const total = (item.morning || 0) + (item.evening || 0) + (item.full || 0);
+    const acres = item.acresWorked || item.acres || 0; // 🔥 Fetching Acres
+
     return (
       <View style={[styles.card, { borderColor: workColor }]}>
         <View style={styles.topRow}>
@@ -240,11 +247,20 @@ export default function PaymentSummary() {
           </View>
         </View>
         <View style={styles.divider} />
+        
+        {/* 🔥 PERFECTLY MATCHED BOTTOM ROW */}
         <View style={styles.bottomRow}>
           <AppText style={[styles.totalText, { color: workColor }]} language={language}>
-            {language === "te" ? "మొత్తం" : "Total"}: {total}
+            {language === "te" ? "మొత్తం కూలీలు" : "Total Workers"}: {total}
           </AppText>
+          
+          {acres > 0 && (
+            <AppText style={[styles.totalText, { color: "#4B5563" }]} language={language}>
+              {language === "te" ? "మొత్తం ఎకరాలు" : "Total Acres"}: <AppText style={{ color: "#111827" }}>{acres}</AppText>
+            </AppText>
+          )}
         </View>
+
       </View>
     );
   };
@@ -619,15 +635,17 @@ export default function PaymentSummary() {
                 activeOpacity={0.8}
                 onPress={() => {
                   setShowModal(false);
+                  // 🔥 PASSING totalAcres VIA ROUTER
                   router.push({
                     pathname: "/farmer/mestripayments/payment-success",
                     params: { 
                       ids, id, name, village, crop, work, 
-                      totalDays, totalWorkers, totalMorning, totalEvening, totalFull, 
+                      totalDays, totalWorkers, totalAcres, // 🔥 NEW ADDITION
+                      totalMorning, totalEvening, totalFull, 
                       morningRate, eveningRate, fullRate, amount, paymentMode,
                       splitCash: paymentMode === "both" ? splitCash : 0,
                       splitUpi: paymentMode === "both" ? splitUpi : 0,
-                      proofs: JSON.stringify(proofs) // 🔥 Passed as JSON array of Proof objects
+                      proofs: JSON.stringify(proofs) 
                     }
                   });
                 }}
@@ -660,8 +678,16 @@ const styles = StyleSheet.create({
   valueBox: { alignItems: "center", flex: 1 },
   label: { fontSize: 11, color: "#6B7280", marginTop: 4 },
   value: { fontSize: 15, fontWeight: "600", marginTop: 2, color: "#111827" },
-  bottomRow: { marginTop: 10, alignItems: "center" },
-  totalText: { fontSize: 15, fontWeight: "600" },
+  
+  // 🔥 UPDATED BOTTOM ROW STYLES
+  bottomRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  
+  totalText: { fontSize: 13, fontWeight: "600" },
   footer: { marginTop: 10, paddingBottom: 20 },
   ratesBox: { marginHorizontal: 20, padding: 14, borderRadius: 14, backgroundColor: "#fff", borderWidth: 1 },
   sectionTitle: { fontSize: 13, fontWeight: "600", marginBottom: 10 },
@@ -681,11 +707,11 @@ const styles = StyleSheet.create({
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
   modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
-  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DCFCE7", justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#16A34A", marginTop: 10, textAlign: "center" },
-  modalInfoBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#16A34A", alignItems: "center", justifyContent: "center" },
+  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
+  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
   modalInfoTextStandard: { color: "white", fontWeight: "600", fontSize: 16 },
-  modalCancelBtnStandard: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
+  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
   modalCancelTextStandard: { color: "#4B5563", fontWeight: "600", fontSize: 16 },
   modalAmount: { fontSize: 28, fontWeight: "800", marginTop: 15, textAlign: 'center' },
   

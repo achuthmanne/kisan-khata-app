@@ -1,3 +1,5 @@
+// app/farmer/owner-work/add-owner-work.tsx (or wherever your file is)
+
 import AgriLoader from "@/components/AgriLoader";
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
@@ -55,7 +57,7 @@ export default function AddOwnerWork() {
   const rateInputRef = useRef<TextInput>(null); 
 
   // 🔥 ACRES / SAALLU BASED
-  const [ratePerAcre, setRatePerAcre] = useState(""); // 🔥 కొత్త ఫీల్డ్
+  const [ratePerAcre, setRatePerAcre] = useState(""); 
   const rateAcreInputRef = useRef<TextInput>(null);
 
   const [saalluCount, setSaalluCount] = useState(""); 
@@ -106,10 +108,10 @@ export default function AddOwnerWork() {
       snap.forEach(doc => {
         const data = doc.data();
         if (data.crop) {
-          const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+          // 🔥 FIX: Clean format (Crop - Nickname) without acres
           const formatted = data.nickname 
-            ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
-            : `${data.crop} - ${data.acres || 0} ${acresText}`;
+            ? `${data.crop} - ${data.nickname}` 
+            : data.crop;
           set.add(formatted);
         }
       });

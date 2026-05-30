@@ -6,7 +6,7 @@ import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/dat
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   FlatList, Modal, SafeAreaView, ScrollView, 
   StatusBar,
@@ -44,8 +44,11 @@ export default function MestriAttendance() {
   const [morning, setMorning] = useState(0);
   const [evening, setEvening] = useState(0);
   const [full, setFull] = useState(0);
+  const [acresWorked, setAcresWorked] = useState("");
+  const [isAcresFocused, setIsAcresFocused] = useState(false);
 
-  // 🔥 INLINE ERRORS STATE
+  const acresRef = useRef<TextInput>(null);
+
   const [activeInput, setActiveInput] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -106,10 +109,10 @@ export default function MestriAttendance() {
         snap.forEach(doc => {
           const data = doc.data();
           if (data.crop) {
-            const acresText = language === "te" ? "ఎకరాలు" : "Acres";
+            // 🔥 FIX: Only Crop Name and Nickname (No Acres)
             const formatted = data.nickname 
-              ? `${data.crop} - ${data.nickname} (${data.acres || 0} ${acresText})` 
-              : `${data.crop} - ${data.acres || 0} ${acresText}`;
+              ? `${data.crop} - ${data.nickname}` 
+              : data.crop;
             set.add(formatted);
           }
         });
@@ -123,7 +126,7 @@ export default function MestriAttendance() {
 
   const handleVoiceSearch = async () => {
     try {
-      Keyboard.dismiss(); // 🔥 Keyboard dismiss bug fix
+      Keyboard.dismiss(); 
       ExpoSpeechRecognitionModule.stop();
       const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!res.granted) return;
@@ -141,7 +144,6 @@ export default function MestriAttendance() {
   useSpeechRecognitionEvent("result", (event) => {
     if (!isListening || modalType === null) return;
     if (event.results?.length) {
-      // 🔥 Punctuation Bug fix
       const text = event.results[0].transcript.replace(/[.,?!]/g, "").trim();
       setSearchText(text);
       if (modalType === "crop") { setCrop(text); if (errors.crop) setErrors({ ...errors, crop: "" }); }
@@ -172,7 +174,6 @@ export default function MestriAttendance() {
     transform: [{ translateY: translateY.value }]
   }));
 
-  /* ---------------- COUNT ---------------- */
   const inc = (type: string) => {
     if (errors.counts) setErrors({ ...errors, counts: "" }); 
     if (type === "morning") setMorning((p) => p + 1);
@@ -186,10 +187,11 @@ export default function MestriAttendance() {
     if (type === "full") setFull((p) => Math.max(0, p - 1));
   };
 
-  /* ---------------- VALIDATION ---------------- */
   const validate = () => {
     const newErrors: any = {};
     if (!crop.trim()) newErrors.crop = language === "te" ? "దయచేసి పంటను ఎంచుకోండి*" : "Please select crop*";
+    if (!acresWorked.trim() || parseFloat(acresWorked) <= 0)
+      newErrors.acres = language === "te" ? "దయచేసి ఎకరాల సంఖ్య నమోదు చేయండి*" : "Please enter acres worked*";
     if (!work.trim()) newErrors.work = language === "te" ? "దయచేసి పనిని ఎంచుకోండి*" : "Please select work*";
     if (morning === 0 && evening === 0 && full === 0) {
       newErrors.counts = language === "te" ? "కనీసం ఒకరి హాజరు నమోదు చేయండి*" : "Add at least one worker's attendance*";
@@ -203,9 +205,8 @@ export default function MestriAttendance() {
     return true; 
   };
 
-  /* ---------------- SAVE ---------------- */
   const handleSave = async () => {
-    Keyboard.dismiss(); // 🔥 Keyboard dismiss bug fix
+    Keyboard.dismiss();
     if (!validate()) return;
 
     try {
@@ -217,7 +218,6 @@ export default function MestriAttendance() {
         return;
       }
 
-      // Check for duplicate
       const snap = await firestore()
         .collection("users")
         .doc(userPhone)
@@ -250,6 +250,7 @@ export default function MestriAttendance() {
           morning,
           evening,
           full,
+          acresWorked: parseFloat(acresWorked) || 0,
           createdAt: firestore.FieldValue.serverTimestamp()
         });
 
@@ -309,7 +310,6 @@ export default function MestriAttendance() {
     return (value || "").includes(searchText.toLowerCase().trim());
   });
 
-  /* ---------------- UI ---------------- */
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
@@ -323,9 +323,9 @@ export default function MestriAttendance() {
       <ScrollView 
         showsVerticalScrollIndicator={false} 
         contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled" // 🔥 Keyboard bug fix
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="none"
       >
-        {/* 🔥 PREMIUM MESTRI INFO BOX */}
         <View style={styles.topInfoBox}>
           <AppText style={[styles.mainTitle, { flex: 1, marginRight: 10 }]} language={language} numberOfLines={1} ellipsizeMode="tail">
             {mestriName}
@@ -335,7 +335,6 @@ export default function MestriAttendance() {
           </AppText>
         </View>
 
-        {/* DATE INPUT */}
         <TouchableOpacity
           style={styles.inputBox1}
           onPress={() => setShowPicker(true)}
@@ -348,7 +347,6 @@ export default function MestriAttendance() {
           <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
         </TouchableOpacity>
 
-        {/* CROP INPUT */}
         <TouchableOpacity
           activeOpacity={0.7}
           style={[styles.inputBox, activeInput === "crop" && styles.inputFocused, errors.crop && styles.inputError]}
@@ -369,7 +367,32 @@ export default function MestriAttendance() {
         </TouchableOpacity>
         {errors.crop && <AppText style={styles.errorText} language={language}>{errors.crop}</AppText>}
 
-        {/* WORK INPUT */}
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => acresRef.current?.focus()} 
+          style={[styles.inputBox, isAcresFocused && styles.inputFocused, errors.acres && styles.inputError]}
+        >
+          <Ionicons name="expand-outline" size={18} color={acresWorked ? "#16A34A" : "#9CA3AF"} />
+          <TextInput
+            ref={acresRef}
+            style={{ flex: 1, marginLeft: 10, fontFamily: "Mandali", fontSize: 15, color: "#111" }}
+            value={acresWorked}
+            onChangeText={(t) => { setAcresWorked(t); if (errors.acres) setErrors({ ...errors, acres: "" }); }}
+            onFocus={() => setIsAcresFocused(true)}
+            onBlur={() => setIsAcresFocused(false)}
+            placeholder={language === "te" ? "ఎన్ని ఎకరాలు పని జరిగింది?" : "Acres Worked?"}
+            placeholderTextColor="#9CA3AF"
+            keyboardType="decimal-pad"
+            cursorColor="#16A34A"
+          />
+          {acresWorked.length > 0 && (
+            <AppText style={{ color: "#16A34A", fontWeight: "600", fontSize: 13 }}>
+              {language === "te" ? "ఎకరాలు" : "Acres"}
+            </AppText>
+          )}
+        </TouchableOpacity>
+        {errors.acres && <AppText style={styles.errorText} language={language}>{errors.acres}</AppText>}
+
         <TouchableOpacity
           activeOpacity={0.7}
           style={[styles.inputBox, activeInput === "work" && styles.inputFocused, errors.work && styles.inputError]}
@@ -404,9 +427,7 @@ export default function MestriAttendance() {
 
         <View style={styles.divider} />
 
-        {/* 🔥 GROUND LEVEL COUNTS */}
         <View style={{ marginTop: 10 }}>
-          {/* 🚀 AUTO TOTAL WORKERS COUNT ADDED HERE */}
           <AppText style={styles.sectionTitle} language={language}>
             {language === "te" ? "హాజరైన కూలీల సంఖ్య" : "Workers Count"}
             {(morning + evening + full) > 0 ? ` (${morning + evening + full})` : ""}
@@ -447,7 +468,6 @@ export default function MestriAttendance() {
         </TouchableOpacity>
       </ScrollView> 
 
-      {/* 🔥 APP THEMED DUPLICATE WARNING MODAL */}
       <Modal visible={showWarning} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
@@ -482,7 +502,6 @@ export default function MestriAttendance() {
         </View>
       </Modal>
 
-      {/* SELECTION MODALS */}
       <Modal visible={modalType !== null} transparent animationType="slide">
         <View style={styles.modalOverlay11}>
           <View style={styles.modalContent}>
@@ -530,7 +549,7 @@ export default function MestriAttendance() {
 
             <FlatList
               data={filteredData}
-              keyboardShouldPersistTaps="handled" // 🔥 Keyboard Fix
+              keyboardShouldPersistTaps="handled"
               keyExtractor={(item, i) => i.toString()}
               ListEmptyComponent={() => {
                 if (modalType === "crop") {
@@ -588,8 +607,6 @@ export default function MestriAttendance() {
         </View>
       </Modal>
 
-
-
       <Modal visible={showSuccess} transparent>
         <View style={styles.successOverlay}>
           <Animated.View style={[styles.successCard, animStyle]}>
@@ -601,7 +618,6 @@ export default function MestriAttendance() {
         </View>
       </Modal>
 
-      {/* 🔥 GLOBAL ERROR MODAL */}
       <Modal visible={showErrorModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
@@ -633,13 +649,10 @@ export default function MestriAttendance() {
   );
 }
 
-/* ---------------- STYLES ---------------- */
-
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
   container: { padding: 20, paddingBottom: 40, overflow: "visible" },
   
-  // 🔥 PREMIUM TOP INFO BOX
   topInfoBox: {
     marginBottom: 16,
     padding: 14,
@@ -712,7 +725,6 @@ const styles = StyleSheet.create({
   modalTitleText: { fontSize: 18, fontWeight: "600", color: "#1F2937" },
   option: { padding: 20, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
 
-  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME)
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },

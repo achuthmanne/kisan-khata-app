@@ -369,12 +369,24 @@ export default function MestriHistory() {
                         {isWorkOpen && workData.map((entry: any) => {
                           const total = (entry.morning || 0) + (entry.evening || 0) + (entry.full || 0);
                           const isPaid = paidIds.includes(entry.id);
+                          const acres = entry.acresWorked || 0; // 🔥 Fetching Acres
 
                           return (
                             <View key={entry.id} style={[styles.card, { borderLeftWidth: 4, borderLeftColor: workColor, borderColor: workColor + "30" }]}>
                               <View style={styles.rowTop}>
-                                <Ionicons name="calendar-outline" size={16} color={workColor} />
-                                <AppText style={styles.date} language={language}>{entry.date}</AppText>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                  <Ionicons name="calendar-outline" size={16} color={workColor} />
+                                  <AppText style={styles.date} language={language}>{entry.date}</AppText>
+                                </View>
+                                {/* 🔥 DISPLAYING ACRES WORKED */}
+                                {acres > 0 && (
+                                  <View style={styles.acresBadge}>
+                                    <Ionicons name="expand-outline" size={12} color="#16A34A" />
+                                    <AppText style={styles.acresText} language={language}>
+                                      {acres} {language === "te" ? "ఎకరాలు" : "Acres"}
+                                    </AppText>
+                                  </View>
+                                )}
                               </View>
 
                               <View style={styles.valuesRow}>
@@ -530,9 +542,13 @@ const styles = StyleSheet.create({
 
   card: { marginHorizontal: 30, marginVertical: 6, padding: 14, borderWidth: 1, borderRadius: 12, backgroundColor: "#fff", position: "relative" },
   shimmerCard: { marginHorizontal: 20, marginVertical: 6, padding: 14, borderRadius: 14, backgroundColor: "#fff" },
-  rowTop: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
-  date: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  rowTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
+  date: { fontSize: 13, color: "#374151", fontWeight: "500", marginLeft: 6 },
   
+  // 🔥 ACRES STYLES
+  acresBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FDF4', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#BBF7D0' },
+  acresText: { fontSize: 11, color: '#15803D', fontWeight: '600', marginLeft: 4 },
+
   valuesRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
   valueItem: { alignItems: "center" },
   label: { fontSize: 11, color: "#6B7280", marginTop: 2 },

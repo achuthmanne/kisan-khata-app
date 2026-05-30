@@ -1,16 +1,17 @@
+// app/farmer/profile/index.tsx
+
 import { useLanguage } from "@/context/LanguageContext";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
-// 🔥 useFocusEffect ని ఇంపోర్ట్ చేశాం
+import storage from "@react-native-firebase/storage";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter, useFocusEffect } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
-// 🔥 useCallback ని ఇంపోర్ట్ చేశాం
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   Dimensions,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -19,8 +20,10 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator
 } from "react-native";
+import { Image } from "expo-image";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import AppText from "@/components/AppText";
@@ -31,7 +34,7 @@ const { width } = Dimensions.get("window");
 export default function ProfileScreen() {
   const router = useRouter();
 
-  // 🔥 APP VERSION (నువ్వు అప్‌డేట్ ఇచ్చిన ప్రతిసారీ ఇక్కడ మార్చుకో బ్రో)
+  // 🔥 APP VERSION
   const APP_VERSION = "1.0.0";
 
   // --- STATE ---
@@ -39,10 +42,14 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const { language, changeLanguage } = useLanguage();
   const [selectedState, setSelectedState] = useState("AP");
   const [created, setCreated] = useState("");
   const [online, setOnline] = useState(true);
+  const [tierColor, setTierColor] = useState('#E5E7EB'); 
   
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -58,7 +65,6 @@ export default function ProfileScreen() {
   // Backup state for cancelling edits
   const [backupData, setBackupData] = useState({ name: "", state: "", language: "" });
 
-  // 🔥 REFS FOR CLEANUP
   const isEditingRef = useRef(isEditing);
   const backupDataRef = useRef(backupData);
 
@@ -70,7 +76,7 @@ export default function ProfileScreen() {
     backupDataRef.current = backupData;
   }, [backupData]);
 
-  // 🔥 SILENTLY CLOSE EDIT MODE ON LEAVING SCREEN
+  // SILENTLY CLOSE EDIT MODE ON LEAVING SCREEN
   useFocusEffect(
     useCallback(() => {
       return () => {
@@ -87,19 +93,31 @@ export default function ProfileScreen() {
     }, [])
   );
 
-  const getDisplayRole = () => {
-    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
-    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
-    if (language === "te") return isFarmer ? "రైతు" : isMestri ? "మేస్త్రీ" : "యూజర్";
-    return isFarmer ? "Farmer" : isMestri ? "Mestri" : "User";
-  };
-
-  const getProfileImage = () => {
+  const getDefaultImage = () => {
     const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
     const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
     if (isFarmer) return require("../../../assets/images/farmer.png");
     if (isMestri) return require("../../../assets/images/kuli.png");
     return require("../../../assets/images/default.jpg");
+  };
+
+  // 🔥 TIER BADGE DYNAMIC LOGIC BASED ON SAVED COLOR
+  const getTierDisplay = () => {
+    if (tierColor === '#F59E0B') return language === 'te' ? '🏆 ఆదర్శ రైతు' : '🏆 Model Farmer';
+    if (tierColor === '#3B82F6') return language === 'te' ? '🥈 ప్రగతిశీల రైతు' : '🥈 Progressive Farmer';
+    if (tierColor === '#F97316') return language === 'te' ? '🥉 కష్టజీవి' : '🥉 Hardworking Farmer';
+    if (tierColor === '#8B5CF6') return language === 'te' ? '🛡️ పోరాట యోధుడు' : '🛡️ Warrior Farmer';
+    
+    // Default (Locked or New Farmer)
+    return language === 'te' ? '🌱 నవ రైతు' : '🌱 New Farmer';
+  };
+
+  const getTierBgColor = () => {
+    if (tierColor === '#F59E0B') return '#FEF3C7'; // Yellow/Amber light bg
+    if (tierColor === '#3B82F6') return '#DBEAFE'; // Blue light bg
+    if (tierColor === '#F97316') return '#FFEDD5'; // Orange light bg
+    if (tierColor === '#8B5CF6') return '#EDE9FE'; // Purple light bg
+    return '#D1FAE5'; // Default Green light bg
   };
 
   useSpeechRecognitionEvent("result", (event) => {
@@ -142,6 +160,7 @@ export default function ProfileScreen() {
           setName(dbName);
           setRole(data.role || "");
           setSelectedState(dbState);
+          setProfileImage(data.profileImage || null); 
           setCreated(data.createdAt?.toDate()?.toLocaleDateString() || "--/--/----");
 
           setBackupData({ name: dbName, state: dbState, language });
@@ -161,9 +180,70 @@ export default function ProfileScreen() {
   }, []);
 
   useEffect(() => {
+    const fetchTierColor = async () => {
+      const userPhone = await AsyncStorage.getItem("USER_PHONE");
+      if (!userPhone) return;
+      const doc = await firestore().collection("users").doc(userPhone).get();
+      const activeSession = doc.data()?.activeSession;
+      
+      if (activeSession) {
+        const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
+        if (hasUserUnlocked === 'true') {
+          const color = await AsyncStorage.getItem('TIER_COLOR');
+          if (color) setTierColor(color);
+          else setTierColor('#10B981'); // Fallback New Farmer Color
+        } else {
+          setTierColor('#E5E7EB'); 
+        }
+      }
+    };
+    fetchTierColor();
+  }, []);
+
+  useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => setOnline(!!state.isConnected));
     return unsubscribe;
   }, []);
+
+  const handleImagePick = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permissionResult.granted === false) {
+        alert(language === "te" ? "గ్యాలరీకి అనుమతి అవసరం!" : "Gallery permission is required!");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.2, 
+      });
+
+      if (!result.canceled && result.assets[0].uri) {
+        setUploadingImage(true);
+        const uri = result.assets[0].uri;
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        
+        const fileName = `profileImages/${userPhone}_${Date.now()}.jpg`;
+        const reference = storage().ref(fileName);
+        
+        await reference.putFile(uri);
+        const downloadURL = await reference.getDownloadURL();
+        
+        await firestore().collection("users").doc(userPhone!).update({
+          profileImage: downloadURL
+        });
+        
+        setProfileImage(downloadURL);
+      }
+    } catch (error) {
+      console.log("Image upload error:", error);
+      alert(language === "te" ? "ఫోటో అప్‌లోడ్ విఫలమైంది." : "Image upload failed.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleBackPress = () => {
     if (!name || name.trim().length < 3) {
@@ -272,16 +352,28 @@ export default function ProfileScreen() {
           {/* 👤 PROFILE HERO SECTION */}
           <View style={styles.heroSection}>
             <View style={styles.avatarWrapper}>
-              <View style={styles.avatarInner}>
-                <Image source={getProfileImage()} style={styles.avatarImage} />
+              <View style={[styles.avatarInner, { borderColor: tierColor, borderWidth: 4 }]}>
+                <Image 
+                  source={profileImage ? { uri: profileImage } : getDefaultImage()} 
+                  style={styles.avatarImage} 
+                  contentFit="cover"
+                />
                 <View style={[styles.onlineDot, { backgroundColor: online ? "#4ADE80" : "#F87171" }]} />
+                
+                {uploadingImage && (
+                  <View style={styles.avatarLoadingOverlay}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                )}
               </View>
+
               <TouchableOpacity
-                onPress={handleEditToggle}
-                style={[styles.editFloatingBtn, isEditing && styles.editFloatingBtnActive]}
-                activeOpacity={0.7}
+                onPress={handleImagePick}
+                style={styles.cameraFloatingBtn}
+                activeOpacity={0.8}
+                disabled={uploadingImage}
               >
-                <Ionicons name={isEditing ? "close" : "pencil"} size={20} color="white" />
+                <Ionicons name="camera" size={16} color="white" />
               </TouchableOpacity>
             </View>
 
@@ -289,8 +381,15 @@ export default function ProfileScreen() {
               <AppText style={styles.heroName} language={language}>
                 {name || (language === "te" ? "యూజర్" : "User")}
               </AppText>
-              <View style={styles.roleBadge}>
-                <AppText style={styles.roleBadgeText} language={language}>{getDisplayRole()}</AppText>
+              
+              {/* 🔥 DYNAMIC TIER BADGE */}
+              <View style={[styles.roleBadge, { backgroundColor: getTierBgColor() }]}>
+                <AppText 
+                  style={[styles.roleBadgeText, { color: tierColor !== '#E5E7EB' ? tierColor : '#10B981' }]} 
+                  language={language}
+                >
+                  {getTierDisplay()}
+                </AppText>
               </View>
             </View>
           </View>
@@ -298,6 +397,22 @@ export default function ProfileScreen() {
           {/* 📝 FORM SECTION */}
           <View style={styles.formCard}>
             
+            <View style={styles.formHeaderRow}>
+               <AppText style={styles.sectionHeaderTitle} language={language}>
+                 {language === "te" ? "వ్యక్తిగత వివరాలు" : "Personal Details"}
+               </AppText>
+               <TouchableOpacity 
+                 activeOpacity={0.8}
+                 onPress={handleEditToggle}
+                 style={[styles.editToggleBtn, isEditing ? styles.editToggleBtnCancel : styles.editToggleBtnActive]}
+               >
+                 <Ionicons name={isEditing ? "close" : "pencil"} size={14} color="#fff" />
+                 <AppText style={styles.editToggleText} language={language}>
+                   {isEditing ? (language === "te" ? "రద్దు చేయి" : "Cancel") : (language === "te" ? "సవరించు" : "Edit")}
+                 </AppText>
+               </TouchableOpacity>
+            </View>
+
             {/* FULL NAME */}
             <View style={styles.fieldGroup}>
               <AppText style={styles.fieldLabel} language={language}>
@@ -470,9 +585,7 @@ export default function ProfileScreen() {
         </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
 
-      {/* --- MODALS --- */}
-
-      {/* Name Alert Modal */}
+     {/* --- MODALS --- */}
       <Modal visible={showAlert} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -485,16 +598,21 @@ export default function ProfileScreen() {
             <AppText style={styles.modalSubText} language={language}>
               {language === "te" ? "ముందుకు సాగడానికి దయచేసి మీ పేరును నమోదు చేయండి." : "Please enter your name to continue using the app."}
             </AppText>
-            <TouchableOpacity onPress={() => setShowAlert(false)} style={styles.modalPrimaryBtn}>
+            
+            {/* 🔥 ఇక్కడ బటన్ స్టైల్ అప్‌డేట్ చేశాను చూడు బ్రో */}
+            <TouchableOpacity 
+              onPress={() => setShowAlert(false)} 
+              style={[styles.modalPrimaryBtn, { paddingHorizontal: 40, minWidth: 140 }]}
+            >
               <AppText style={styles.modalPrimaryBtnText} language={language}>
                 {language === "te" ? "సరే" : "Okay"}
               </AppText>
             </TouchableOpacity>
+
           </View>
         </View>
       </Modal>
 
-      {/* Logout Confirmation Modal */}
       <Modal visible={showLogoutModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
@@ -575,13 +693,22 @@ const styles = StyleSheet.create({
     borderRadius: 55,
     borderWidth: 4,
     borderColor: "#F3F4F6",
-    overflow: "visible",
+    overflow: "hidden", 
     backgroundColor: "#F3F4F6",
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   avatarImage: {
     width: "100%",
     height: "100%",
-    borderRadius: 55,
+  },
+  avatarLoadingOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   onlineDot: {
     position: "absolute",
@@ -592,27 +719,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 3,
     borderColor: "white",
+    zIndex: 10
   },
-  editFloatingBtn: {
+  cameraFloatingBtn: {
     position: "absolute",
-    bottom: 2,
-    right: 2,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: 0,
+    right: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "#1B5E20",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "white",
-    elevation: 3,
+    elevation: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-  },
-  editFloatingBtnActive: {
-    backgroundColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    zIndex: 20
   },
   heroInfo: {
     alignItems: "center",
@@ -625,7 +751,6 @@ const styles = StyleSheet.create({
     includeFontPadding: false
   },
   roleBadge: {
-    backgroundColor: "#E8F5E9",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
@@ -633,18 +758,54 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#1B5E20",
     textTransform: "uppercase",
   },
   formCard: {
     marginTop: 20,
     marginHorizontal: 16,
     padding: 20,
+    paddingTop: 16,
     backgroundColor: "white",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
+  
+  // 🔥 NEW EDIT BUTTON STYLES
+  formHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6'
+  },
+  sectionHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937'
+  },
+  editToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  editToggleBtnActive: {
+    backgroundColor: '#1B5E20', // Solid Green for Edit
+  },
+  editToggleBtnCancel: {
+    backgroundColor: '#DC2626', // Solid Red for Cancel
+  },
+  editToggleText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600'
+  },
+
   fieldGroup: {
     marginBottom: 20,
   },
@@ -792,7 +953,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  // 🔥 VERSION STYLES ADDED HERE
   versionContainer: {
     alignItems: "center",
     marginTop: 30,
@@ -840,7 +1000,6 @@ const styles = StyleSheet.create({
   },
   modalPrimaryBtn: {
     backgroundColor: "#1B5E20",
-    width: "100%",
     height: 52,
     borderRadius: 14,
     justifyContent: "center",

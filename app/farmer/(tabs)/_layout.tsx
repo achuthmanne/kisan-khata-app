@@ -21,6 +21,7 @@ import {
   View
 } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { Image } from "expo-image";
 
 import { useLanguage } from "@/context/LanguageContext";
 import AppText from "../../../components/AppText";
@@ -109,6 +110,9 @@ export default function FarmerLayout() {
   const { language, changeLanguage } = useLanguage();
   const [isProfileComplete, setIsProfileComplete] = useState(true);
   const [name, setName] = useState("...");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [role, setRole] = useState("");
+  const [tierColor, setTierColor] = useState('#E5E7EB');
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const drawerAnim = useRef(new Animated.Value(-320)).current;
@@ -158,16 +162,49 @@ export default function FarmerLayout() {
         const doc = await firestore().collection("users").doc(phone).get();
         const data = doc.data();
         setName(data?.name || "");
+        setProfileImage(data?.profileImage || null);
+        setRole(data?.role || "");
+
         const hasName = !!data?.name && data.name.trim().length >= 3;
         setIsProfileComplete(hasName);
 
         if (!hasName && segments[segments.length - 1] !== "profile") {
           router.replace("/farmer/(tabs)/profile");
         }
+
+        const activeSession = data?.activeSession;
+        if (activeSession) {
+          const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
+          if (hasUserUnlocked === 'true') {
+            const color = await AsyncStorage.getItem('TIER_COLOR');
+            if (color) setTierColor(color);
+            else setTierColor('#10B981'); // Fallback New Farmer Color
+          } else {
+            setTierColor('#E5E7EB'); 
+          }
+        }
       }
     };
     checkUserStatus();
   }, [segments]);
+
+  const getDefaultImage = () => {
+    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
+    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
+    if (isFarmer) return require("../../../assets/images/farmer.png");
+    if (isMestri) return require("../../../assets/images/kuli.png");
+    return require("../../../assets/images/default.jpg");
+  };
+
+  const getTierDisplay = () => {
+    if (tierColor === '#F59E0B') return language === 'te' ? '🏆 ఆదర్శ రైతు' : '🏆 Model Farmer';
+    if (tierColor === '#3B82F6') return language === 'te' ? '🥈 ప్రగతిశీల రైతు' : '🥈 Progressive Farmer';
+    if (tierColor === '#F97316') return language === 'te' ? '🥉 కష్టజీవి' : '🥉 Hardworking Farmer';
+    if (tierColor === '#8B5CF6') return language === 'te' ? '🛡️ పోరాట యోధుడు' : '🛡️ Warrior Farmer';
+    
+    // Default (Locked or New Farmer)
+    return language === 'te' ? '🌱 నవ రైతు' : '🌱 New Farmer';
+  };
 
   useEffect(() => {
     const check = () => {
@@ -303,14 +340,19 @@ export default function FarmerLayout() {
                         width: 70,
                         height: 70,
                         borderRadius: 35,
+                        borderWidth: 3,
+                        borderColor: tierColor === '#E5E7EB' ? '#FFFFFF' : tierColor,
                         backgroundColor: "rgba(255,255,255,0.2)",
+                        overflow: "hidden",
                         justifyContent: "center",
                         alignItems: "center"
                       }}
                     >
-                      <AppText style={{ color: "#fff", fontSize: 28, fontWeight: "bold" }}>
-                        {name?.charAt(0).toUpperCase() || "F"}
-                      </AppText>
+                      <Image 
+                        source={profileImage ? { uri: profileImage } : getDefaultImage()} 
+                        style={{ width: "100%", height: "100%" }} 
+                        contentFit="cover"
+                      />
                     </View>
                 
                     <AppText style={{ fontSize: 18, marginTop: 10, color: "#fff", fontWeight: "600" }}>
@@ -319,15 +361,20 @@ export default function FarmerLayout() {
                 
                     <View
                       style={{
-                        marginTop: 6,
-                        paddingHorizontal: 10,
-                        paddingVertical: 4,
-                        borderRadius: 10,
-                        backgroundColor: "rgba(255,255,255,0.2)"
+                        marginTop: 8,
+                        paddingHorizontal: 14,
+                        paddingVertical: 5,
+                        borderRadius: 16,
+                        backgroundColor: "#FFFFFF",
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 4,
+                        elevation: 3
                       }}
                     >
-                      <AppText style={{ fontSize: 12, color: "#fff" }}>
-                        {language === "te" ? "రైతు" : "Farmer"}
+                      <AppText style={{ fontSize: 12, color: tierColor !== '#E5E7EB' ? tierColor : '#16A34A', fontWeight: "600" }}>
+                        {getTierDisplay()}
                       </AppText>
                     </View>
                   </View>

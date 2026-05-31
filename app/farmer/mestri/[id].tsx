@@ -66,6 +66,7 @@ export default function MestriAttendance() {
   const [activeSession, setActiveSession] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [userCrops, setUserCrops] = useState<string[]>([]);
+  const [userCropAcresMap, setUserCropAcresMap] = useState<Record<string, number>>({});
   
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -106,6 +107,7 @@ export default function MestriAttendance() {
         if (!phone) return;
         const snap = await firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession).get();
         const set = new Set<string>();
+        const map: Record<string, number> = {};
         snap.forEach(doc => {
           const data = doc.data();
           if (data.crop) {
@@ -114,9 +116,13 @@ export default function MestriAttendance() {
               ? `${data.crop} - ${data.nickname}` 
               : data.crop;
             set.add(formatted);
+            const ac = parseFloat(data.acres) || 0;
+            if (!map[formatted]) map[formatted] = 0;
+            map[formatted] += ac;
           }
         });
         setUserCrops(Array.from(set));
+        setUserCropAcresMap(map);
       } catch (e) {
         console.log("Load crops error", e);
       }
@@ -190,8 +196,18 @@ export default function MestriAttendance() {
   const validate = () => {
     const newErrors: any = {};
     if (!crop.trim()) newErrors.crop = language === "te" ? "దయచేసి పంటను ఎంచుకోండి*" : "Please select crop*";
-    if (!acresWorked.trim() || parseFloat(acresWorked) <= 0)
+    
+    if (!acresWorked.trim() || parseFloat(acresWorked) <= 0) {
       newErrors.acres = language === "te" ? "దయచేసి ఎకరాల సంఖ్య నమోదు చేయండి*" : "Please enter acres worked*";
+    } else if (crop && userCropAcresMap[crop]) {
+      const maxAcres = userCropAcresMap[crop];
+      if (parseFloat(acresWorked) > maxAcres) {
+        newErrors.acres = language === "te" 
+          ? `ఎకరాలు దాటింది! (గరిష్టం: ${maxAcres} ఎకరాలు)*` 
+          : `Exceeded limit! (Max: ${maxAcres} Acres)*`;
+      }
+    }
+
     if (!work.trim()) newErrors.work = language === "te" ? "దయచేసి పనిని ఎంచుకోండి*" : "Please select work*";
     if (morning === 0 && evening === 0 && full === 0) {
       newErrors.counts = language === "te" ? "కనీసం ఒకరి హాజరు నమోదు చేయండి*" : "Add at least one worker's attendance*";

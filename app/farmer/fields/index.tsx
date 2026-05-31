@@ -268,33 +268,38 @@ export default function FieldsScreen() {
   };
 
   // 🔥 POWERFUL LOGIC: Check if Crop is used anywhere before Editing or Deleting
-  const checkCropUsage = async (cropName: string) => {
+  const checkCropUsage = async (item: any) => {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       const userDoc = await firestore().collection("users").doc(phone!).get();
       const activeSession = userDoc.data()?.activeSession;
 
+      const fullCropName = item.nickname ? `${item.crop} - ${item.nickname}` : item.crop;
+      const baseCropName = item.crop;
+
+      const checkCollection = async (collRef: any) => {
+        const snap1 = await collRef.where("crop", "==", fullCropName).limit(1).get();
+        if (!snap1.empty) return true;
+        if (fullCropName !== baseCropName) {
+           const snap2 = await collRef.where("crop", "==", baseCropName).limit(1).get();
+           if (!snap2.empty) return true;
+        }
+        return false;
+      };
+
       // 1. Check Expenses
-      const expSnap = await firestore().collection("users").doc(phone!).collection("expenses")
-        .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
-      if (!expSnap.empty) return true;
+      if (await checkCollection(firestore().collection("users").doc(phone!).collection("expenses").where("session", "==", activeSession))) return true;
 
       // 2. Check Sales
-      const salesSnap = await firestore().collection("users").doc(phone!).collection("sales")
-        .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
-      if (!salesSnap.empty) return true;
+      if (await checkCollection(firestore().collection("users").doc(phone!).collection("sales").where("session", "==", activeSession))) return true;
 
       // 3. Collection Group Checks for nested entries (Works & Attendance)
       try {
-        const entries = await firestore().collectionGroup("entries")
-          .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
-        if (!entries.empty) return true;
-      } catch(e) {} // Catch missing index errors silently
+        if (await checkCollection(firestore().collectionGroup("entries").where("session", "==", activeSession))) return true;
+      } catch(e) {} 
 
       try {
-        const attendance = await firestore().collectionGroup("attendance")
-          .where("session", "==", activeSession).where("crop", "==", cropName).limit(1).get();
-        if (!attendance.empty) return true;
+        if (await checkCollection(firestore().collectionGroup("attendance").where("session", "==", activeSession))) return true;
       } catch(e) {}
 
       return false; // Not used anywhere!
@@ -307,7 +312,7 @@ export default function FieldsScreen() {
   // 🔥 MODIFIED: Edit Click Handler
   const handleEditClick = async (item: any) => {
     setActionLoading(true);
-    const isUsed = await checkCropUsage(item.crop);
+    const isUsed = await checkCropUsage(item);
     setActionLoading(false);
 
     router.push({ 
@@ -328,7 +333,7 @@ export default function FieldsScreen() {
   // 🔥 MODIFIED: Delete Click Handler
   const handleDeleteClick = async (item: any) => {
     setActionLoading(true);
-    const isUsed = await checkCropUsage(item.crop);
+    const isUsed = await checkCropUsage(item);
     setActionLoading(false);
 
     setSelectedItem(item);

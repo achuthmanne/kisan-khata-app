@@ -665,3 +665,89 @@ export const sendDriverAttendanceReminders = onSchedule({
     }
   }
 );
+
+/* ---------------- 8. RANK CARD REMINDERS (MAY 1st 8:00 AM) ---------------- */
+export const sendRankCardReminders = onSchedule({
+  schedule: "0 8 1 5 *", // May 1st at 8:00 AM
+  timeZone: "Asia/Kolkata"
+},
+  async () => {
+    const now = new Date();
+    const istTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const year = istTime.getFullYear();
+    // For May 1st 2025, the session is "2024-25"
+    const startYear = year - 1;
+    const activeSession = `${startYear}-${year.toString().slice(-2)}`;
+
+    const usersSnap = await admin.firestore().collection("users").get();
+    const messages: any[] = [];
+
+    for (const doc of usersSnap.docs) {
+      const data = doc.data();
+      const token = data.fcmToken;
+      const viewedSession = data.viewedRankCardSession;
+      const lang = data.language || "te";
+
+      // If they already viewed it, skip
+      if (viewedSession === activeSession) continue;
+      if (!token) continue;
+
+      const userName = data.name || (lang === "te" ? "రైతు సోదరా" : "Farmer");
+      
+      messages.push({
+        token: token,
+        notification: {
+          title: lang === "te" ? `హలో ${userName} గారు! 🏆` : `Hello ${userName}! 🏆`,
+          body: lang === "te" 
+            ? `మీ ${activeSession} సీజన్ కిసాన్ ఖాతా ర్యాంక్ కార్డ్ మరియు లాభాల రిపోర్ట్ రెడీ అయింది. ఇప్పుడే చూసుకోండి!`
+            : `Your ${activeSession} season Kisan Khata Rank Card and Profit Report is ready. Check it out now!`,
+        },
+        android: {
+          priority: "high" as const,
+          notification: { channelId: "default", sound: "default" },
+        },
+        data: {
+          screen: "summary", 
+        },
+      });
+    }
+
+    if (messages.length === 0) {
+      console.log("❌ No tokens found for Rank Card Reminders");
+      return;
+    }
+
+    console.log(`✅ Sending Rank Card Reminders to ${messages.length} users`);
+
+    // 🔥 Send personalized messages in batches of 500
+    const chunkSize = 500;
+    for (let i = 0; i < messages.length; i += chunkSize) {
+      const chunk = messages.slice(i, i + chunkSize);
+      try {
+        const response = await admin.messaging().sendEach(chunk);
+        
+        // Cleanup invalid tokens
+        if (response.failureCount > 0) {
+          const failedTokens: string[] = [];
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+              const errCode = resp.error?.code;
+              if (errCode === 'messaging/invalid-registration-token' || errCode === 'messaging/registration-token-not-registered') {
+                failedTokens.push(chunk[idx].token);
+              }
+            }
+          });
+          
+          if (failedTokens.length > 0) {
+             const badUsersSnap = await admin.firestore().collection("users").where("fcmToken", "in", failedTokens).get();
+             const batch = admin.firestore().batch();
+             badUsersSnap.docs.forEach(d => batch.update(d.ref, { fcmToken: admin.firestore.FieldValue.delete() }));
+             await batch.commit();
+          }
+        }
+      } catch (error) {
+        console.error("❌ Batch Send Error:", error);
+      }
+    }
+  }
+);

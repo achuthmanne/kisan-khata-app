@@ -179,26 +179,28 @@ export default function ProfileScreen() {
     loadProfile();
   }, []);
 
-  useEffect(() => {
-    const fetchTierColor = async () => {
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) return;
-      const doc = await firestore().collection("users").doc(userPhone).get();
-      const activeSession = doc.data()?.activeSession;
-      
-      if (activeSession) {
-        const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
-        if (hasUserUnlocked === 'true') {
-          const color = await AsyncStorage.getItem('TIER_COLOR');
-          if (color) setTierColor(color);
-          else setTierColor('#10B981'); // Fallback New Farmer Color
-        } else {
-          setTierColor('#E5E7EB'); 
+  useFocusEffect(
+    useCallback(() => {
+      const fetchTierColor = async () => {
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        if (!userPhone) return;
+        const doc = await firestore().collection("users").doc(userPhone).get();
+        const activeSession = doc.data()?.activeSession;
+        
+        if (activeSession) {
+          const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
+          if (hasUserUnlocked === 'true') {
+            const color = await AsyncStorage.getItem('TIER_COLOR');
+            if (color) setTierColor(color);
+            else setTierColor('#10B981'); // Fallback New Farmer Color
+          } else {
+            setTierColor('#E5E7EB'); 
+          }
         }
-      }
-    };
-    fetchTierColor();
-  }, []);
+      };
+      fetchTierColor();
+    }, [])
+  );
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => setOnline(!!state.isConnected));
@@ -276,7 +278,7 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!name || name.trim().length < 3) {
-      setErrors({ name: language === "te" ? "కనీసం 3 అక్షరాలు ఉండాలి*" : "Name must be at least 3 characters*" });
+      setErrors({ name: language === "te" ? "దయచేసి మీ పేరు నమోదు చేయండి*" : "Please enter your name*" });
       return;
     }
     setErrors({});
@@ -404,12 +406,13 @@ export default function ProfileScreen() {
                <TouchableOpacity 
                  activeOpacity={0.8}
                  onPress={handleEditToggle}
-                 style={[styles.editToggleBtn, isEditing ? styles.editToggleBtnCancel : styles.editToggleBtnActive]}
+                 style={[
+                   styles.editToggleBtn, 
+                   isEditing ? styles.editToggleBtnCancel : styles.editToggleBtnActive,
+                   { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 0, paddingVertical: 0 }
+                 ]}
                >
-                 <Ionicons name={isEditing ? "close" : "pencil"} size={14} color="#fff" />
-                 <AppText style={styles.editToggleText} language={language}>
-                   {isEditing ? (language === "te" ? "రద్దు చేయి" : "Cancel") : (language === "te" ? "సవరించు" : "Edit")}
-                 </AppText>
+                 <Ionicons name={isEditing ? "close" : "pencil"} size={18} color="#fff" />
                </TouchableOpacity>
             </View>
 

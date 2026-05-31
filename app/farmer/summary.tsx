@@ -160,7 +160,14 @@ const getRankAndTier = (phone: string, totalFarmers: number, profit: number, tot
    return { rank, tierId, tierName, tierColor, badge, roi: Math.round(roi), remarksTe, remarksEn };
 };
 
-const KisanKhataReportCard = ({ userName, phone, language, totalFarmers, stateFarmers, userState, profit, totalCost, cropCount }: any) => {
+const KisanKhataReportCard = ({ userName, phone, language, totalFarmers, stateFarmers, userState, profit, totalCost, cropCount, profileImage, role }: any) => {
+  const getDefaultImage = () => {
+    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
+    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
+    if (isFarmer) return require('../../assets/images/farmer.png');
+    if (isMestri) return require('../../assets/images/kuli.png');
+    return require('../../assets/images/default.jpg');
+  };
   const viewShotRef = useRef<any>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -224,15 +231,19 @@ const KisanKhataReportCard = ({ userName, phone, language, totalFarmers, stateFa
       <ViewShot ref={viewShotRef} options={{ format: "png", quality: 1.0 }} style={{ backgroundColor: "#F8FAFC", borderRadius: 16, overflow: "hidden", borderWidth: 1, borderColor: "#E2E8F0" }}>
         
         {/* TOP: Brand Logo */}
-        <View style={{ flexDirection: "row", padding: 15, paddingBottom: 5, alignItems: "center" }}>
-          <Image source={require('./../../assets/images/logonobg.png')} style={{ width: 50, height: 50, resizeMode: "contain" }} />
-          <AppText style={{ fontSize: 18, fontWeight: "600", color: "#16A34A" }}>Kisan Khata</AppText>
+        <View style={{ flexDirection: "row", paddingTop: 10, paddingLeft: 12, paddingBottom: 0, alignItems: "center" }}>
+          <Image source={require('./../../assets/images/logonobg.png')} style={{ width: 50, height: 50, resizeMode: "contain", marginLeft: -4 }} />
+          <AppText style={{ fontSize: 18, fontWeight: "600", color: "#16A34A", marginLeft: 2 }}>Kisan Khata</AppText>
         </View>
 
         {/* PROFILE INFO */}
         <View style={{ alignItems: "center", paddingVertical: 10 }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#E2E8F0", justifyContent: "center", alignItems: "center", marginBottom: 8, borderWidth: 2, borderColor: overall.tierColor[0] }}>
-            <Ionicons name="person" size={32} color="#94A3B8" />
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#E2E8F0", justifyContent: "center", alignItems: "center", marginBottom: 8, borderWidth: 2, borderColor: overall.tierColor[0], overflow: "hidden" }}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={{ width: "100%", height: "100%" }} />
+            ) : (
+              <Image source={getDefaultImage()} style={{ width: "100%", height: "100%" }} />
+            )}
           </View>
           <AppText style={{ fontSize: 20, fontWeight: "600", color: "#1E293B" }}>{userName}</AppText>
           <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, backgroundColor: "#F1F5F9", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
@@ -436,6 +447,8 @@ export default function SummaryScreen() {
   const [summary, setSummary] = useState({ expense: 0, labour: 0, income: 0, profit: 0, rent: 0 });
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [userName, setUserName] = useState("Farmer");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [role, setRole] = useState("");
   const [typedName, setTypedName] = useState("");
   const [showEmptyModal, setShowEmptyModal] = useState(false);
   const [totalFarmers, setTotalFarmers] = useState(50000); 
@@ -476,6 +489,16 @@ export default function SummaryScreen() {
   const handleUnlockResults = async () => {
     freshUnlockRef.current = true; // 🏆 TIER_COLOR save only this one time
     await AsyncStorage.setItem(`USER_UNLOCKED_${sessionStr}`, 'true');
+    try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (phone) {
+        await firestore().collection("users").doc(phone).update({
+          viewedRankCardSession: sessionStr
+        });
+      }
+    } catch (e) {
+      console.log("Error updating rank card view", e);
+    }
     setShowUnlockAnim(false);
     setIsLocked(false);
     setReloadKey(k => k + 1);
@@ -957,7 +980,11 @@ export default function SummaryScreen() {
       const userDoc = await firestore().collection("users").doc(phone).get();
       const activeSession = userDoc.data()?.activeSession;
       const uState = (userDoc.data()?.state || "ap").toLowerCase() === "telangana" ? "Telangana" : "AP";
-      if (isMounted) setUserState(uState);
+      if (isMounted) {
+        setUserState(uState);
+        setProfileImage(userDoc.data()?.profileImage || null);
+        setRole(userDoc.data()?.role || "");
+      }
       if (!activeSession) { if (isMounted) setLoading(false); return; }
 
       // 🔐 LOCK SYSTEM: Session "2024-25" → unlocks May 1, 2025
@@ -1521,6 +1548,8 @@ export default function SummaryScreen() {
                 profit={summary.profit} 
                 totalCost={totalExpenses} 
                 cropCount={Object.keys(crops).length} 
+                profileImage={profileImage}
+                role={role}
               />
 
               {/* AI CARD */}

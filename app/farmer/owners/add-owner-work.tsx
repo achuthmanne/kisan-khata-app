@@ -86,6 +86,7 @@ export default function AddOwnerWork() {
 
   // 🔥 FETCH CROPS FROM FIELDS
   const [userCrops, setUserCrops] = useState<string[]>([]);
+  const [userCropAcresMap, setUserCropAcresMap] = useState<Record<string, number>>({});
 
   useEffect(() => {
     isMounted.current = true;
@@ -105,6 +106,7 @@ export default function AddOwnerWork() {
         .get();
 
       const set = new Set<string>();
+      const map: Record<string, number> = {};
       snap.forEach(doc => {
         const data = doc.data();
         if (data.crop) {
@@ -113,9 +115,15 @@ export default function AddOwnerWork() {
             ? `${data.crop} - ${data.nickname}` 
             : data.crop;
           set.add(formatted);
+          const ac = parseFloat(data.acres) || 0;
+          if (!map[formatted]) map[formatted] = 0;
+          map[formatted] += ac;
         }
       });
-      if (isMounted.current) setUserCrops(Array.from(set));
+      if (isMounted.current) {
+        setUserCrops(Array.from(set));
+        setUserCropAcresMap(map);
+      }
     };
     loadUserCrops();
 
@@ -249,7 +257,16 @@ const workOptions = [
     if (!work) newErrors.work = language === "te" ? "పనిని ఎంచుకోండి*" : "Select Work*";
     
     if (workType === "acres") {
-      if (!acres) newErrors.acres = language === "te" ? "ఎకరాలు నమోదు చేయండి*" : "Enter Acres*";
+      if (!acres) {
+        newErrors.acres = language === "te" ? "ఎకరాలు నమోదు చేయండి*" : "Enter Acres*";
+      } else if (crop && userCropAcresMap[crop]) {
+        const maxAcres = userCropAcresMap[crop];
+        if (parseFloat(acres) > maxAcres) {
+          newErrors.acres = language === "te" 
+            ? `ఎకరాలు దాటింది! (గరిష్టం: ${maxAcres})*` 
+            : `Exceeded limit! (Max: ${maxAcres})*`;
+        }
+      }
       // 🔥 EITHER Rate Per Acre OR Saallu Details MUST be filled
       if (!ratePerAcre && (!saalluCount || !ratePerSaalu)) {
         newErrors.rateError = language === "te" ? "దయచేసి ఎకరాల లెక్క లేదా సాళ్ల లెక్క ధర నమోదు చేయండి*" : "Please enter Rate per Acre OR Saallu Details*";

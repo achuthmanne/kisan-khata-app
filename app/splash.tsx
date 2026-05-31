@@ -1,8 +1,9 @@
+import notifee from '@notifee/react-native';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Dimensions, StyleSheet, View, Platform, PermissionsAndroid } from "react-native";
+import { Dimensions, PermissionsAndroid, Platform, StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -31,6 +32,8 @@ export default function SplashScreen() {
   const curveOpacity = useSharedValue(0);
 
   useEffect(() => {
+    let timerId: any;
+    
     const loadLang = async () => {
       const storedLang = await AsyncStorage.getItem("APP_LANG");
       if (storedLang) setLanguage(storedLang as "te" | "en");
@@ -70,19 +73,37 @@ export default function SplashScreen() {
         }
         try {
           await PermissionsAndroid.requestMultiple(perms);
+          await notifee.requestPermission();
         } catch (e) {
-          console.log(e);
+          console.log("Permissions error:", e);
         }
       }
 
       const phone = await AsyncStorage.getItem("USER_PHONE");
       const role = await AsyncStorage.getItem("USER_ROLE");
 
+      // 🔥 BULLETPROOF ALARM CHECK: 
+      // If the app is opened (via lockscreen bypass or manual tap) and an alarm is ringing, jump straight to it!
+      const displayed = await notifee.getDisplayedNotifications();
+      const alarmNotif = displayed.find(n => n.notification.data?.reminderId);
+      
+      const initialNotif = await notifee.getInitialNotification();
+      const tappedAlarm = initialNotif?.notification.data?.reminderId;
+
+      if (alarmNotif || tappedAlarm) {
+        const targetNotif = alarmNotif || initialNotif;
+        const data = targetNotif!.notification.data as any;
+        const { task, crop, reminderId } = data;
+        const id = targetNotif!.notification.id;
+        router.replace(`/farmer/reminders/alarm-ring?task=${encodeURIComponent(task)}&crop=${encodeURIComponent(crop)}&reminderId=${reminderId}&notifId=${id}` as any);
+        return; // Halt all other splash routing!
+      }
+
       const elapsed = Date.now() - startTime;
       const remainingTime = Math.max(0, 3500 - elapsed);
 
       const goNext = (path: any) => {
-        setTimeout(() => router.replace(path), remainingTime);
+        timerId = setTimeout(() => router.replace(path), remainingTime);
       };
 
       if (!phone || !role) {
@@ -103,6 +124,11 @@ export default function SplashScreen() {
       }
     };
     boot();
+
+    return () => {
+      // Clear timeout if the component unmounts early (e.g. Alarm screen auto-opened from layout)
+      clearTimeout(timerId);
+    };
   }, []);
 
   const titleStyle = useAnimatedStyle(() => ({ opacity: titleOpacity.value, transform: [{ translateY: titleTranslate.value }, { scale: titleScale.value }] }));

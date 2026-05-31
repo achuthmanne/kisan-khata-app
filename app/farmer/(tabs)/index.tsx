@@ -43,14 +43,14 @@ const translations = {
     sales:"పంట అమ్మకాలు", expenses:"పెట్టుబడి లెక్కలు", crops:"వ్యవసాయ నివేదిక", schemes:"ప్రభుత్వ పథకాలు",
     market:"మార్కెట్ ధరలు", forecast:"వాతావరణం చూడండి", weather: "వాతావరణం",
     machine: "యంత్రాల లెక్కలు", calculator:"క్యాలిక్యులేటర్", booking: "అగ్రి కనెక్ట్",
-    fields: "నా పొలాలు", owners: "నా వాహనాలు"
+    fields: "నా పొలాలు", owners: "నా వాహనాలు", reminders: "పనుల అలారం"
   },
   en:{
     morning:"Good Morning", afternoon:"Good Afternoon", evening:"Good Evening", night:"Good Night",
     quick:"Smart Suggestions", all:"All Services", calculator:"Smart Calculators", attendance:"Workers Attendance",
     payments:"Workers Payment", forecast:"See Forecast", sales:"Crop Sales", expenses:"Farm Expenses",
     crops:"Farm Report", schemes:"Govt Schemes", market:"Market Prices", weather: "Weather",
-    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles"
+    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles", reminders: "Task Reminders"
   }
 };
 
@@ -190,7 +190,8 @@ export default function Dashboard() {
     calculator:require("../../../assets/images/calc.png"),
     booking:require("../../../assets/images/link.png"),
     fields:require("../../../assets/images/farm.png"),
-    owners: require("../../../assets/images/key.png")
+    owners: require("../../../assets/images/key.png"),
+    reminders: require("../../../assets/images/notification.png")
   };
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -317,6 +318,7 @@ export default function Dashboard() {
     { service: "weather", title: t.weather, icon: icons.weather, screen: "/farmer/weather" },
     { service: "calculator", title: t.calculator, icon: icons.calculator, screen: "/farmer/calculators" },
     { service: "schemes", title: t.schemes, icon: icons.schemes, screen: "/farmer/schemes" },
+    { service: "reminders", title: t.reminders, icon: icons.reminders, screen: "/farmer/reminders" },
   ];
   const services = useMemo(() => getServices(), [language]);
   

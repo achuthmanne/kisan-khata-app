@@ -38,7 +38,15 @@
         "CAMERA",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "READ_CONTACTS"
+        "READ_CONTACTS",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "WAKE_LOCK",
+        "DISABLE_KEYGUARD",
+        "VIBRATE",
+        "SYSTEM_ALERT_WINDOW",
+        "RECEIVE_BOOT_COMPLETED",
+        "USE_FULL_SCREEN_INTENT"
       ],
       "blockedPermissions": []
     },
@@ -48,6 +56,9 @@
     },
     "plugins": [
       "./withManifestFix.js",
+      "./withAlarmSound.js",
+      "./withLockScreenBypass.js",
+      "./withNotifeeMaven.js",
       "expo-router",
       [
         "expo-splash-screen",

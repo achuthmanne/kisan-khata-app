@@ -1189,7 +1189,7 @@ export default function SummaryScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
-      {!isLocked && (
+      {(!isLocked || isEmpty) && (
         <AppHeader 
           title={language === "te" ? "సారాంశం" : "Summary"} 
           subtitle={language === "te" ? "వ్యవసాయ నివేదిక" : "Farm Report"} 

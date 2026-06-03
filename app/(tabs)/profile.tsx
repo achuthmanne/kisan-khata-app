@@ -58,7 +58,7 @@ export default function ProfileScreen() {
     const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
     if (isFarmer) return require("./../../assets/images/farmer.png");
     if (isMestri) return require("./../../assets/images/kuli.png");
-    return require("./../../assets/images/icon.png");
+    return require("./../../assets/images/farmer.png");
   }, [role]);
 
   useEffect(() => {

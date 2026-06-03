@@ -88,8 +88,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-      <Image source={require("../assets/images/icon.png")} style={styles.watermark} />
-
+    
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <View style={styles.container}>
           

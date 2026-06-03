@@ -32,6 +32,10 @@ export default function OwnersList() {
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [activeSession, setActiveSession] = useState("");
+  const [pastOwners, setPastOwners] = useState<any[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPastOwners, setSelectedPastOwners] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
 
   const [search, setSearch] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -99,6 +103,28 @@ export default function OwnersList() {
           }
           
           if (isMounted.current) setActiveSession(session);
+
+          try {
+            const pastSnap = await firestore()
+              .collection("users")
+              .doc(phone)
+              .collection("owners")
+              .where("session", "!=", session)
+              .get();
+            
+            if (!pastSnap.empty) {
+              const pastList = pastSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+              const uniquePast: any[] = [];
+              const phones = new Set();
+              for (let o of pastList) {
+                if (o.phone && !phones.has(o.phone)) {
+                  phones.add(o.phone);
+                  uniquePast.push(o);
+                }
+              }
+              if (isMounted.current) setPastOwners(uniquePast);
+            }
+          } catch(err) { console.log("Past fetch error", err); }
 
           // Fetching "owners" instead of drivers
           unsub = firestore()
@@ -218,6 +244,45 @@ export default function OwnersList() {
     }
   };
 
+  const toggleSelectPastOwner = (id: string) => {
+    setSelectedPastOwners(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleImportPastOwners = async () => {
+    if (selectedPastOwners.length === 0) return;
+    setImporting(true);
+    try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone || !activeSession) return;
+      const batch = firestore().batch();
+      const ownerRef = firestore().collection("users").doc(phone).collection("owners");
+      
+      selectedPastOwners.forEach(id => {
+        const o = pastOwners.find(x => x.id === id);
+        if (o) {
+          const newRef = ownerRef.doc();
+          batch.set(newRef, {
+            ownerName: o.ownerName || "",
+            phone: o.phone || "",
+            village: o.village || "",
+            session: activeSession,
+            createdAt: firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      
+      await batch.commit();
+      setShowImportModal(false);
+      setSelectedPastOwners([]);
+    } catch (e) {
+      console.log("Import Error", e);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const confirmDelete = async () => {
     if (!deleteItem) return;
     const phone = await AsyncStorage.getItem("USER_PHONE");
@@ -270,7 +335,7 @@ export default function OwnersList() {
 
       {/* 🔥 PRO FIX: CLARITY IN HEADER FOR FARMERS */}
       <AppHeader
-        title={language === "te" ? "కిరాయి పనులు" : "Rental Owners"}
+        title={language === "te" ? "యంత్రాల లెక్కలు" : "Machinery Accounts"}
         subtitle={language === "te" ? "దుక్కి, కోత లాంటి పనులు చేసిన యజమానులు" : "Owners who did works in field"}
         language={language}
       />
@@ -320,21 +385,43 @@ export default function OwnersList() {
             filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           ListEmptyComponent={
-            /* 🔥 PRO FIX: CLARITY IN EMPTY STATE */
-            <AppEmptyState
-              iconName={search.trim().length > 0 ? "search-outline" : "tractor"}
-              title={
-                search.trim().length > 0
-                  ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
-                  : language === "te" ? "యజమాని ఎవరూ లేరు" : "No Owners Added"
-              }
-              subtitle={
-                search.trim().length > 0
-                  ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
-                  : language === "te" ? "మీ పొలంలో ట్రాక్టర్/వాహనంతో పని చేసిన వాళ్ళని '+' నొక్కి యాడ్ చేయండి" : "Tap '+' to add tractor/vehicle owners who worked in your field"
-              }
-              language={language}
-            />
+            <View>
+              {(search.trim().length === 0 && pastOwners.length > 0) && (
+                <View style={styles.importSuggestionCard}>
+                  <View style={styles.importIconBg}>
+                    <Ionicons name="time-outline" size={28} color="#D97706" />
+                  </View>
+                  <AppText style={styles.importTitle} language={language}>
+                    {language === "te" ? "పాత సాగు సంవత్సరాల ఓనర్లు" : "Past Seasons Owners"}
+                  </AppText>
+                  <AppText style={styles.importSub} language={language}>
+                    {language === "te" 
+                      ? "మీరు గతంలో పని చేయించుకున్న యజమానులను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                      : "Do you want to reuse the vehicle owners you worked with in previous seasons?"}
+                  </AppText>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                    <AppText style={styles.importBtnText} language={language}>
+                      {language === "te" ? "పాత ఓనర్లను ఎంచుకోండి" : "Select Past Owners"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <AppEmptyState
+                iconName={search.trim().length > 0 ? "search-outline" : "tractor"}
+                title={
+                  search.trim().length > 0
+                    ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
+                    : language === "te" ? "కొత్త యజమాని ఎవరూ లేరు" : "No New Owners Added"
+                }
+                subtitle={
+                  search.trim().length > 0
+                    ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
+                    : language === "te" ? "మీ పొలంలో ట్రాక్టర్/వాహనంతో పని చేసిన వాళ్ళని '+' నొక్కి యాడ్ చేయండి" : "Tap '+' to add tractor/vehicle owners who worked in your field"
+                }
+                language={language}
+                marginTop={data.length === 0 && pastOwners.length === 0 ? 40 : 10}
+              />
+            </View>
           }
           renderItem={({ item }) => {
             const color = getColor(item.id);
@@ -407,6 +494,66 @@ export default function OwnersList() {
            <Ionicons name="add" size={30} color="#fff" />
          </LinearGradient>
       </TouchableOpacity>
+
+      {/* 🔄 IMPORT PAST OWNERS MODAL */}
+      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
+            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
+              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+                {language === "te" ? "పాత ఓనర్లను ఎంచుకోండి" : "Select Past Owners"}
+              </AppText>
+              <TouchableOpacity onPress={() => setShowImportModal(false)}>
+                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={pastOwners}
+              keyExtractor={item => item.id}
+              style={{ width: '100%' }}
+              contentContainerStyle={{ padding: 20 }}
+              renderItem={({item}) => {
+                const isSelected = selectedPastOwners.includes(item.id);
+                return (
+                  <TouchableOpacity 
+                    style={[styles.importRow, isSelected && styles.importRowSelected]} 
+                    onPress={() => toggleSelectPastOwner(item.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.importRowLeft}>
+                      <View style={[styles.avatar, { backgroundColor: getColor(item.id), width: 38, height: 38, borderRadius: 19 }]}>
+                         <AppText style={{ color: '#fff', fontWeight: '600', fontSize: 14 }} language={language}>{item.ownerName?.charAt(0)}</AppText>
+                      </View>
+                      <View style={{ marginLeft: 12 }}>
+                        <AppText style={{ fontSize: 15, fontWeight: '600', color: '#111827' }} language={language}>{item.ownerName}</AppText>
+                        <AppText style={{ fontSize: 13, color: '#6B7280' }} language={language}>{item.phone} • {item.village}</AppText>
+                      </View>
+                    </View>
+                    <Ionicons 
+                      name={isSelected ? "checkbox" : "square-outline"} 
+                      size={26} 
+                      color={isSelected ? "#16A34A" : "#D1D5DB"} 
+                    />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <TouchableOpacity 
+              style={[styles.importSubmitBtn, selectedPastOwners.length === 0 && { opacity: 0.5 }]} 
+              disabled={selectedPastOwners.length === 0 || importing}
+              onPress={handleImportPastOwners}
+            >
+              {importing ? <ActivityIndicator color="#fff" /> : (
+                <AppText style={styles.importSubmitBtnText} language={language}>
+                  {language === "te" ? `ఎంచుకున్న ${selectedPastOwners.length} మందిని జతచేయి` : `Import ${selectedPastOwners.length} Selected`}
+                </AppText>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlay}>
@@ -502,4 +649,15 @@ const styles = StyleSheet.create({
   modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 20, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },
+  importIconBg: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#FDE68A", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  importTitle: { fontSize: 16, fontWeight: "600", color: "#92400E", marginBottom: 6 },
+  importSub: { fontSize: 13, color: "#B45309", textAlign: "center", marginBottom: 16, lineHeight: 20, fontFamily: "Mandali" },
+  importBtn: { backgroundColor: "#D97706", paddingVertical: 12, width: "90%", borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  importBtnText: { color: "white", fontWeight: "600", fontSize: 14, fontFamily: "Mandali" },
+  importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB' },
+  importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  importRowLeft: { flexDirection: 'row', alignItems: 'center' },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

@@ -197,7 +197,7 @@ export default function Dashboard() {
     fields:require("../../../assets/images/farm.png"),
     owners: require("../../../assets/images/key.png"),
     reminders: require("../../../assets/images/notification.png"),
-    locker: require("../../../assets/images/shield.png")
+    locker: require("../../../assets/images/padlock.png")
   };
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -314,18 +314,18 @@ export default function Dashboard() {
     { service: "fields", title: t.fields, icon: icons.fields, screen: "/farmer/fields" },
     { service: "attendance", title: t.attendance, icon: icons.attendance, screen: "/farmer/mestri" },
     { service: "payments", title: t.payments, icon: icons.payments, screen: "/farmer/mestripayments" },
+    { service: "machine", title: t.machine, icon: icons.machine, screen: "/farmer/owners" },
     { service: "expenses", title: t.expenses, icon: icons.expenses, screen: "/farmer/expenses" },
     { service: "sales", title: t.sales, icon: icons.sales, screen: "/farmer/sales" },
     { service: "crops", title: t.crops, icon: icons.crops, screen: "/farmer/summary" },
-    { service: "machine", title: t.machine, icon: icons.machine, screen: "/farmer/owners" },
     { service: "owners", title: t.owners, icon: icons.owners, screen: "/farmer/vechiles" },
-    { service: "booking", title: t.booking, icon: icons.booking, screen: "/farmer/bookings" },
-    { service: "market", title: t.market, icon: icons.market, screen: "/farmer/market" },
     { service: "weather", title: t.weather, icon: icons.weather, screen: "/farmer/weather" },
+    { service: "market", title: t.market, icon: icons.market, screen: "/farmer/market" },
+    { service: "locker", title: t.locker, icon: icons.locker, screen: "/farmer/locker" },
+    { service: "reminders", title: t.reminders, icon: icons.reminders, screen: "/farmer/reminders" },
     { service: "calculator", title: t.calculator, icon: icons.calculator, screen: "/farmer/calculators" },
     { service: "schemes", title: t.schemes, icon: icons.schemes, screen: "/farmer/schemes" },
-    { service: "reminders", title: t.reminders, icon: icons.reminders, screen: "/farmer/reminders" },
-    { service: "locker", title: t.locker, icon: icons.locker, screen: "/farmer/locker" },
+    { service: "booking", title: t.booking, icon: icons.booking, screen: "/farmer/bookings" },
   ];
   const services = useMemo(() => getServices(), [language]);
   
@@ -1174,17 +1174,17 @@ const styles = StyleSheet.create({
   openText:{ color:"white", fontSize:12, opacity:0.9 },
   weatherCard:{ marginTop:30, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, padding:18, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
   locationRow:{ flexDirection:"row", alignItems:"center", paddingRight: 5, flexShrink: 1 },
-  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, marginTop: -5, includeFontPadding: false, },
+  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, includeFontPadding: false, lineHeight: 22, marginTop: -2 },
   date:{ color:"rgba(255,255,255,0.8)", fontSize:14, marginTop:5 },
   greetRow:{ flexDirection:"row", alignItems:"center", gap:6 },
   rightTopSection:{ position:"absolute", right:8, alignItems:"flex-end" },
   forecastRow:{ flexDirection:"row", alignItems:"center", marginBottom:4 },
   greet:{ color:"#C8E6C9", fontSize:14, fontWeight:"600" },
   weatherRow:{ flexDirection:"row", alignItems:"center" },
-  weatherIcon:{ width:26, height:26, marginRight:6 },
+  weatherIcon:{ width:30, height:30, marginRight:6 },
   weatherLeft:{ flex:1, paddingRight: 110 },
   weatherRight:{ justifyContent:"center", alignItems:"center" },
-  weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding:false },
+  weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding: false, lineHeight: 20, marginTop: 6 },
   temp:{ color:"white", fontSize:55, fontWeight:"bold", marginRight: -6 },
   headerDots:{ flexDirection:"row", justifyContent:"center", marginTop:0 },
   badge: { position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: "#EF4444", justifyContent: "center", alignItems: "center", borderWidth: 2.5, borderColor: "#1B5E20" },

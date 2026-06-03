@@ -47,6 +47,11 @@ export default function VehicleDetails() {
   const [isListening, setIsListening] = useState(false);
   const isScreenFocused = useIsFocused();
 
+  const [pastDrivers, setPastDrivers] = useState<any[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPastDrivers, setSelectedPastDrivers] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+
   // 🔥 NEW STATES FOR LOCK LOGIC & MODERN UI
   const [actionLoading, setActionLoading] = useState(false);
   const [showCannotDeleteModal, setShowCannotDeleteModal] = useState(false);
@@ -111,6 +116,36 @@ export default function VehicleDetails() {
           }
           
           if (isMounted.current) setActiveSession(session);
+
+          try {
+            const pastVehiclesSnap = await firestore()
+              .collection("users")
+              .doc(phone)
+              .collection("vehicles")
+              .where("session", "!=", session)
+              .get();
+              
+            const fetchPromises = pastVehiclesSnap.docs.map(vDoc => 
+              vDoc.ref.collection("drivers").get()
+            );
+            
+            const snaps = await Promise.all(fetchPromises);
+            const uniquePast: any[] = [];
+            const phones = new Set();
+            
+            snaps.forEach(snap => {
+              snap.docs.forEach(doc => {
+                const d = { id: doc.id, ...(doc.data() as any) };
+                const key = d.phone ? d.phone.trim() : d.driverName?.trim().toLowerCase();
+                if (key && !phones.has(key)) {
+                  phones.add(key);
+                  uniquePast.push(d);
+                }
+              });
+            });
+            
+            if (isMounted.current) setPastDrivers(uniquePast);
+          } catch(err) { console.log("Past fetch error", err); }
 
           unsub = firestore()
             .collection("users")
@@ -177,6 +212,49 @@ export default function VehicleDetails() {
 
   const getColor = (id: string) => {
     return colors[id.charCodeAt(0) % colors.length];
+  };
+
+  /* ---------------- IMPORT PAST ---------------- */
+  const toggleSelectPastDriver = (id: string) => {
+    setSelectedPastDrivers(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleImportPastDrivers = async () => {
+    if (selectedPastDrivers.length === 0) return;
+    setImporting(true);
+    try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone || !activeSession || !vId) return;
+      const batch = firestore().batch();
+      const driverRef = firestore().collection("users").doc(phone).collection("vehicles").doc(vId as string).collection("drivers");
+      
+      selectedPastDrivers.forEach(did => {
+        const d = pastDrivers.find(x => x.id === did);
+        if (d) {
+          const newRef = driverRef.doc();
+          batch.set(newRef, {
+            driverName: d.driverName || "",
+            phone: d.phone || "",
+            village: d.village || "",
+            paymentType: d.paymentType || "daily",
+            monthlySalary: d.monthlySalary || 0,
+            salaryHistory: d.salaryHistory || [],
+            session: activeSession,
+            createdAt: firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      
+      await batch.commit();
+      setShowImportModal(false);
+      setSelectedPastDrivers([]);
+    } catch (e) {
+      console.log("Import Error", e);
+    } finally {
+      setImporting(false);
+    }
   };
 
   /* ---------------- CALL ---------------- */
@@ -367,20 +445,44 @@ export default function VehicleDetails() {
             filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           ListEmptyComponent={
-            <AppEmptyState
-              iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
-              title={
-                search.trim().length > 0
-                  ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
-                  : language === "te" ? "డ్రైవర్లు లేరు" : "No Drivers Added"
-              }
-              subtitle={
-                search.trim().length > 0
-                  ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
-                  : language === "te" ? "+ బటన్ నొక్కి డ్రైవర్లను చేర్చండి" : "Tap + button to add drivers"
-              }
-              language={language}
-            />
+            <View>
+              {(search.trim().length === 0 && pastDrivers.length > 0) && (
+                <View style={styles.importSuggestionCard}>
+                  <View style={styles.importIconBg}>
+                    <Ionicons name="time-outline" size={28} color="#D97706" />
+                  </View>
+                  <AppText style={styles.importTitle} language={language}>
+                    {language === "te" ? "పాత సాగు సంవత్సరాల డ్రైవర్లు" : "Past Seasons Drivers"}
+                  </AppText>
+                  <AppText style={styles.importSub} language={language}>
+                    {language === "te" 
+                      ? "మీరు గతంలో పని చేసిన డ్రైవర్లను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                      : "Do you want to reuse the drivers you worked with in previous seasons?"}
+                  </AppText>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                    <AppText style={styles.importBtnText} language={language}>
+                      {language === "te" ? "పాత డ్రైవర్లను ఎంచుకోండి" : "Select Past Drivers"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={{ marginTop: search.trim().length === 0 && pastDrivers.length > 0 ? 10 : 40 }}>
+                <AppEmptyState
+                  iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
+                  title={
+                    search.trim().length > 0
+                      ? (language === "te" ? "ఏమి దొరకలేదు" : "Not Found")
+                      : (language === "te" ? "డ్రైవర్లు లేరు" : "No Drivers Added")
+                  }
+                  subtitle={
+                    search.trim().length > 0
+                      ? (language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search")
+                      : (language === "te" ? "+ బటన్ నొక్కి డ్రైవర్లను చేర్చండి" : "Tap + button to add drivers")
+                  }
+                  language={language}
+                />
+              </View>
+            </View>
           }
           renderItem={({ item }) => {
             const color = getColor(item.id);
@@ -537,6 +639,66 @@ export default function VehicleDetails() {
          </LinearGradient>
       </TouchableOpacity>
 
+      {/* 🔄 IMPORT PAST DRIVERS MODAL */}
+      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
+            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
+              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+                {language === "te" ? "పాత డ్రైవర్లను ఎంచుకోండి" : "Select Past Drivers"}
+              </AppText>
+              <TouchableOpacity onPress={() => setShowImportModal(false)}>
+                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={pastDrivers}
+              keyExtractor={item => item.id}
+              style={{ width: '100%' }}
+              contentContainerStyle={{ padding: 20 }}
+              renderItem={({item}) => {
+                const isSelected = selectedPastDrivers.includes(item.id);
+                return (
+                  <TouchableOpacity 
+                    style={[styles.importRow, isSelected && styles.importRowSelected]} 
+                    onPress={() => toggleSelectPastDriver(item.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.importRowLeft}>
+                      <View style={[styles.avatar, { marginRight: 12, width: 40, height: 40, borderRadius: 20, backgroundColor: getColor(item.id) }]}>
+                        <AppText style={styles.avatarText}>{item.driverName?.charAt(0)?.toUpperCase()}</AppText>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AppText style={{ fontSize: 15, fontWeight: '600', color: '#111827' }} language={language}>{item.driverName}</AppText>
+                        <AppText style={{ fontSize: 13, color: '#6B7280' }} language={language}>{item.village ? `${item.village} • ` : ''}+91 - {item.phone || "----"}</AppText>
+                      </View>
+                    </View>
+                    <Ionicons 
+                      name={isSelected ? "checkbox" : "square-outline"} 
+                      size={26} 
+                      color={isSelected ? "#16A34A" : "#D1D5DB"} 
+                    />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <TouchableOpacity 
+              style={[styles.importSubmitBtn, selectedPastDrivers.length === 0 && { opacity: 0.5 }]} 
+              disabled={selectedPastDrivers.length === 0 || importing}
+              onPress={handleImportPastDrivers}
+            >
+              {importing ? <ActivityIndicator color="#fff" /> : (
+                <AppText style={styles.importSubmitBtnText} language={language}>
+                  {language === "te" ? `ఎంచుకున్న ${selectedPastDrivers.length} డ్రైవర్లను జతచేయి` : `Import ${selectedPastDrivers.length} Selected`}
+                </AppText>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* 🔴 STANDARD DELETE MODAL */}
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
@@ -649,4 +811,15 @@ const styles = StyleSheet.create({
   modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 16, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },
+  importIconBg: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#FDE68A", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  importTitle: { fontSize: 16, fontWeight: "600", color: "#92400E", marginBottom: 6 },
+  importSub: { fontSize: 13, color: "#B45309", textAlign: "center", marginBottom: 16, lineHeight: 20, fontFamily: "Mandali" },
+  importBtn: { backgroundColor: "#D97706", paddingVertical: 12, width: "90%", borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  importBtnText: { color: "white", fontWeight: "600", fontSize: 14, fontFamily: "Mandali" },
+  importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingLeft: 0, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB', overflow: 'hidden' },
+  importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  importRowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

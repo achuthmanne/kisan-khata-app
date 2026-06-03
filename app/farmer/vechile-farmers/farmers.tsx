@@ -46,6 +46,11 @@ export default function VehicleDetails() {
   const [isListening, setIsListening] = useState(false);
   const isScreenFocused = useIsFocused();
 
+  const [pastFarmers, setPastFarmers] = useState<any[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPastFarmers, setSelectedPastFarmers] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+
   // 🔥 NEW STATES FOR LOGIC
   const [actionLoading, setActionLoading] = useState(false);
   const [showCannotDeleteModal, setShowCannotDeleteModal] = useState(false);
@@ -114,6 +119,36 @@ export default function VehicleDetails() {
           
           if (isMounted.current) setActiveSession(session); 
 
+          try {
+            const pastVehiclesSnap = await firestore()
+              .collection("users")
+              .doc(phone)
+              .collection("vehicles")
+              .where("session", "!=", session)
+              .get();
+              
+            const fetchPromises = pastVehiclesSnap.docs.map(vDoc => 
+              vDoc.ref.collection("farmers").get()
+            );
+            
+            const snaps = await Promise.all(fetchPromises);
+            const uniquePast: any[] = [];
+            const phones = new Set();
+            
+            snaps.forEach(snap => {
+              snap.docs.forEach(doc => {
+                const f = { id: doc.id, ...(doc.data() as any) };
+                const key = f.phone ? f.phone.trim() : f.farmerName?.trim().toLowerCase();
+                if (key && !phones.has(key)) {
+                  phones.add(key);
+                  uniquePast.push(f);
+                }
+              });
+            });
+            
+            if (isMounted.current) setPastFarmers(uniquePast);
+          } catch(err) { console.log("Past fetch error", err); }
+
           unsub = firestore()
             .collection("users")
             .doc(phone)
@@ -179,6 +214,46 @@ export default function VehicleDetails() {
 
   const getColor = (id: string) => {
     return colors[id.charCodeAt(0) % colors.length];
+  };
+
+  /* ---------------- IMPORT PAST ---------------- */
+  const toggleSelectPastFarmer = (id: string) => {
+    setSelectedPastFarmers(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleImportPastFarmers = async () => {
+    if (selectedPastFarmers.length === 0) return;
+    setImporting(true);
+    try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone || !activeSession || !id) return;
+      const batch = firestore().batch();
+      const farmerRef = firestore().collection("users").doc(phone).collection("vehicles").doc(id as string).collection("farmers");
+      
+      selectedPastFarmers.forEach(fid => {
+        const f = pastFarmers.find(x => x.id === fid);
+        if (f) {
+          const newRef = farmerRef.doc();
+          batch.set(newRef, {
+            farmerName: f.farmerName || "",
+            phone: f.phone || "",
+            village: f.village || "",
+            session: activeSession,
+            createdAt: firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      
+      await batch.commit();
+      setShowImportModal(false);
+      setSelectedPastFarmers([]);
+    } catch (e) {
+      console.log("Import Error", e);
+    } finally {
+      setImporting(false);
+    }
   };
 
   /* ---------------- CALL ---------------- */
@@ -365,20 +440,44 @@ export default function VehicleDetails() {
             filtered.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           ListEmptyComponent={
-            <AppEmptyState
-              iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
-              title={
-                search.trim().length > 0
-                  ? (language === "te" ? "ఏమి దొరకలేదు" : "Not Found")
-                  : (language === "te" ? "రైతులు లేరు" : "No Farmers Added")
-              }
-              subtitle={
-                search.trim().length > 0
-                  ? (language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search")
-                  : (language === "te" ? "+ బటన్ నొక్కి రైతులను చేర్చండి" : "Tap + button to add farmers")
-              }
-              language={language}
-            />
+            <View>
+              {(search.trim().length === 0 && pastFarmers.length > 0) && (
+                <View style={styles.importSuggestionCard}>
+                  <View style={styles.importIconBg}>
+                    <Ionicons name="time-outline" size={28} color="#D97706" />
+                  </View>
+                  <AppText style={styles.importTitle} language={language}>
+                    {language === "te" ? "పాత సాగు సంవత్సరాల రైతులు" : "Past Seasons Farmers"}
+                  </AppText>
+                  <AppText style={styles.importSub} language={language}>
+                    {language === "te" 
+                      ? "మీరు గతంలో పని చేసిన రైతులను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                      : "Do you want to reuse the farmers you worked with in previous seasons?"}
+                  </AppText>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                    <AppText style={styles.importBtnText} language={language}>
+                      {language === "te" ? "పాత రైతులను ఎంచుకోండి" : "Select Past Farmers"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={{ marginTop: search.trim().length === 0 && pastFarmers.length > 0 ? 10 : 40 }}>
+                <AppEmptyState
+                  iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
+                  title={
+                    search.trim().length > 0
+                      ? (language === "te" ? "ఏమి దొరకలేదు" : "Not Found")
+                      : (language === "te" ? "రైతులు లేరు" : "No Farmers Added")
+                  }
+                  subtitle={
+                    search.trim().length > 0
+                      ? (language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search")
+                      : (language === "te" ? "+ బటన్ నొక్కి రైతులను చేర్చండి" : "Tap + button to add farmers")
+                  }
+                  language={language}
+                />
+              </View>
+            </View>
           }
           renderItem={({ item }) => {
             const color = getColor(item.id);
@@ -474,6 +573,66 @@ export default function VehicleDetails() {
            <Ionicons name="add" size={30} color="#fff" />
          </LinearGradient>
       </TouchableOpacity>
+
+      {/* 🔄 IMPORT PAST FARMERS MODAL */}
+      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
+            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
+              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+                {language === "te" ? "పాత రైతులను ఎంచుకోండి" : "Select Past Farmers"}
+              </AppText>
+              <TouchableOpacity onPress={() => setShowImportModal(false)}>
+                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={pastFarmers}
+              keyExtractor={item => item.id}
+              style={{ width: '100%' }}
+              contentContainerStyle={{ padding: 20 }}
+              renderItem={({item}) => {
+                const isSelected = selectedPastFarmers.includes(item.id);
+                return (
+                  <TouchableOpacity 
+                    style={[styles.importRow, isSelected && styles.importRowSelected]} 
+                    onPress={() => toggleSelectPastFarmer(item.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.importRowLeft}>
+                      <View style={[styles.avatar, { marginRight: 12, width: 40, height: 40, borderRadius: 20, backgroundColor: getColor(item.id) }]}>
+                        <AppText style={styles.avatarText}>{item.farmerName?.charAt(0)?.toUpperCase()}</AppText>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <AppText style={{ fontSize: 15, fontWeight: '600', color: '#111827' }} language={language}>{item.farmerName}</AppText>
+                        <AppText style={{ fontSize: 13, color: '#6B7280' }} language={language}>{item.village ? `${item.village} • ` : ''}+91 - {item.phone || "----"}</AppText>
+                      </View>
+                    </View>
+                    <Ionicons 
+                      name={isSelected ? "checkbox" : "square-outline"} 
+                      size={26} 
+                      color={isSelected ? "#16A34A" : "#D1D5DB"} 
+                    />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <TouchableOpacity 
+              style={[styles.importSubmitBtn, selectedPastFarmers.length === 0 && { opacity: 0.5 }]} 
+              disabled={selectedPastFarmers.length === 0 || importing}
+              onPress={handleImportPastFarmers}
+            >
+              {importing ? <ActivityIndicator color="#fff" /> : (
+                <AppText style={styles.importSubmitBtnText} language={language}>
+                  {language === "te" ? `ఎంచుకున్న ${selectedPastFarmers.length} రైతులను జతచేయి` : `Import ${selectedPastFarmers.length} Selected`}
+                </AppText>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* 🔴 STANDARD DELETE MODAL */}
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
@@ -587,4 +746,15 @@ const styles = StyleSheet.create({
   modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 16, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },
+  importIconBg: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#FDE68A", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  importTitle: { fontSize: 16, fontWeight: "600", color: "#92400E", marginBottom: 6 },
+  importSub: { fontSize: 13, color: "#B45309", textAlign: "center", marginBottom: 16, lineHeight: 20, fontFamily: "Mandali" },
+  importBtn: { backgroundColor: "#D97706", paddingVertical: 12, width: "90%", borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  importBtnText: { color: "white", fontWeight: "600", fontSize: 14, fontFamily: "Mandali" },
+  importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingLeft: 0, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB', overflow: 'hidden' },
+  importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  importRowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

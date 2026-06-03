@@ -32,6 +32,12 @@ export default function VehiclesScreen() {
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
 
+  const [activeSession, setActiveSession] = useState("");
+  const [pastVehicles, setPastVehicles] = useState<any[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPastVehicles, setSelectedPastVehicles] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
+
   // 🔥 STATES FOR PREMIUM UI & LOCK LOGIC
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -70,6 +76,31 @@ export default function VehiclesScreen() {
           if (isMounted.current) setLoading(false);
           return;
         }
+
+        if (isMounted.current) setActiveSession(activeSession);
+
+        try {
+          const pastSnap = await firestore()
+            .collection("users")
+            .doc(phone)
+            .collection("vehicles")
+            .where("session", "!=", activeSession)
+            .get();
+          
+          if (!pastSnap.empty) {
+            const pastList = pastSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+            const uniquePast: any[] = [];
+            const numbers = new Set();
+            for (let v of pastList) {
+              const key = v.number ? v.number.trim().toLowerCase() : v.nickname?.trim().toLowerCase();
+              if (key && !numbers.has(key)) {
+                numbers.add(key);
+                uniquePast.push(v);
+              }
+            }
+            if (isMounted.current) setPastVehicles(uniquePast);
+          }
+        } catch(err) { console.log("Past fetch error", err); }
 
         unsubscribe = firestore()
           .collection("users")
@@ -158,6 +189,45 @@ export default function VehiclesScreen() {
     if (!num) return "";
     const match = num.match(/^([A-Z]{2})(\d{2})([A-Z]{2})(\d{4})$/);
     return match ? `${match[1]} ${match[2]} ${match[3]} ${match[4]}` : num;
+  };
+
+  const toggleSelectPastVehicle = (id: string) => {
+    setSelectedPastVehicles(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleImportPastVehicles = async () => {
+    if (selectedPastVehicles.length === 0) return;
+    setImporting(true);
+    try {
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone || !activeSession) return;
+      const batch = firestore().batch();
+      const vehicleRef = firestore().collection("users").doc(phone).collection("vehicles");
+      
+      selectedPastVehicles.forEach(id => {
+        const v = pastVehicles.find(x => x.id === id);
+        if (v) {
+          const newRef = vehicleRef.doc();
+          batch.set(newRef, {
+            nickname: v.nickname || "",
+            type: v.type || "Others",
+            number: v.number || "",
+            session: activeSession,
+            createdAt: firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      
+      await batch.commit();
+      setShowImportModal(false);
+      setSelectedPastVehicles([]);
+    } catch (e) {
+      console.log("Import Error", e);
+    } finally {
+      setImporting(false);
+    }
   };
 
   // 🔥 CORE LOGIC: CHECK IF VEHICLE HAS FARMERS OR DRIVERS
@@ -267,15 +337,37 @@ export default function VehiclesScreen() {
 
        ListEmptyComponent={
           !loading && Object.keys(grouped).length === 0 ? (
-            <View style={{ marginTop: 40 }}>
-              <AppEmptyState
-                iconName="tractor" 
-                title={language === "te" ? "వాహనాల యజమానుల కోసం" : "For Vehicle Owners"}
-                subtitle={language === "te" 
-                  ? "మీరు ట్రాక్టర్ లేదా ఇతర యంత్రాలతో కిరాయి పనులు చేస్తుంటే.. రైతుల కిరాయి లెక్కలు, డ్రైవర్ల ఖర్చులు రాసుకోవడానికి ముందుగా ఇక్కడ మీ వాహనాన్ని యాడ్ చేయండి." 
-                  : "If you rent out machinery for farm works, add your vehicle here to track farmer incomes and driver expenses."}
-                language={language}
-              />
+            <View>
+              {pastVehicles.length > 0 && (
+                <View style={styles.importSuggestionCard}>
+                  <View style={styles.importIconBg}>
+                    <Ionicons name="time-outline" size={28} color="#D97706" />
+                  </View>
+                  <AppText style={styles.importTitle} language={language}>
+                    {language === "te" ? "పాత సాగు సంవత్సరాల వాహనాలు" : "Past Seasons Vehicles"}
+                  </AppText>
+                  <AppText style={styles.importSub} language={language}>
+                    {language === "te" 
+                      ? "మీరు గతంలో వాడిన వాహనాలను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                      : "Do you want to reuse the vehicles you used in previous seasons?"}
+                  </AppText>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                    <AppText style={styles.importBtnText} language={language}>
+                      {language === "te" ? "పాత వాహనాలను ఎంచుకోండి" : "Select Past Vehicles"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={{ marginTop: pastVehicles.length > 0 ? 10 : 40 }}>
+                <AppEmptyState
+                  iconName="tractor" 
+                  title={language === "te" ? "వాహనాల యజమానుల కోసం" : "For Vehicle Owners"}
+                  subtitle={language === "te" 
+                    ? "మీరు ట్రాక్టర్ లేదా ఇతర యంత్రాలతో కిరాయి పనులు చేస్తుంటే.. రైతుల కిరాయి లెక్కలు, డ్రైవర్ల ఖర్చులు రాసుకోవడానికి ముందుగా ఇక్కడ మీ కొత్త వాహనాన్ని యాడ్ చేయండి." 
+                    : "If you rent out machinery for farm works, add your vehicle here to track farmer incomes and driver expenses."}
+                  language={language}
+                />
+              </View>
             </View>
           ) : null
         }
@@ -351,6 +443,64 @@ export default function VehiclesScreen() {
           );
         }}
       />
+
+      {/* 🔄 IMPORT PAST VEHICLES MODAL */}
+      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={[styles.modalContentStandard, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
+            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
+              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+                {language === "te" ? "పాత వాహనాలను ఎంచుకోండి" : "Select Past Vehicles"}
+              </AppText>
+              <TouchableOpacity onPress={() => setShowImportModal(false)}>
+                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={pastVehicles}
+              keyExtractor={item => item.id}
+              style={{ width: '100%' }}
+              contentContainerStyle={{ padding: 20 }}
+              renderItem={({item}) => {
+                const isSelected = selectedPastVehicles.includes(item.id);
+                return (
+                  <TouchableOpacity 
+                    style={[styles.importRow, isSelected && styles.importRowSelected]} 
+                    onPress={() => toggleSelectPastVehicle(item.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.importRowLeft}>
+                      <View style={[styles.cardBar, { height: 48, marginRight: 12, backgroundColor: getColor(item.type)}]} />
+                      <View style={{ flex: 1 }}>
+                        <AppText style={{ fontSize: 15, fontWeight: '600', color: '#111827' }} language={language}>{item.nickname}</AppText>
+                        <AppText style={{ fontSize: 13, color: '#6B7280' }} language={language}>{item.type} {item.number ? `• ${formatDisplay(item.number)}` : ''}</AppText>
+                      </View>
+                    </View>
+                    <Ionicons 
+                      name={isSelected ? "checkbox" : "square-outline"} 
+                      size={26} 
+                      color={isSelected ? "#16A34A" : "#D1D5DB"} 
+                    />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <TouchableOpacity 
+              style={[styles.importSubmitBtn, selectedPastVehicles.length === 0 && { opacity: 0.5 }]} 
+              disabled={selectedPastVehicles.length === 0 || importing}
+              onPress={handleImportPastVehicles}
+            >
+              {importing ? <ActivityIndicator color="#fff" /> : (
+                <AppText style={styles.importSubmitBtnText} language={language}>
+                  {language === "te" ? `ఎంచుకున్న ${selectedPastVehicles.length} వాహనాలను జతచేయి` : `Import ${selectedPastVehicles.length} Selected`}
+                </AppText>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* 🔴 STANDARD DELETE MODAL */}
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
@@ -738,5 +888,16 @@ const styles = StyleSheet.create({
   },
 
   addBtn: { position: "absolute", bottom: 30, right: 20 },
-  addGradient: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", elevation: 5, shadowColor: "#000", shadowOffset:{width:0, height:2}, shadowOpacity:0.2, shadowRadius:4 }
+  addGradient: { width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", elevation: 5, shadowColor: "#000", shadowOffset:{width:0, height:2}, shadowOpacity:0.2, shadowRadius:4 },
+  importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 16, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },
+  importIconBg: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#FDE68A", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  importTitle: { fontSize: 16, fontWeight: "600", color: "#92400E", marginBottom: 6 },
+  importSub: { fontSize: 13, color: "#B45309", textAlign: "center", marginBottom: 16, lineHeight: 20, fontFamily: "Mandali" },
+  importBtn: { backgroundColor: "#D97706", paddingVertical: 12, width: "90%", borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  importBtnText: { color: "white", fontWeight: "600", fontSize: 14, fontFamily: "Mandali" },
+  importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingLeft: 0, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB', overflow: 'hidden' },
+  importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  importRowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

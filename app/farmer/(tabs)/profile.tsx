@@ -55,6 +55,7 @@ export default function ProfileScreen() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
   const [loaderType, setLoaderType] = useState<"loading" | "updating">("loading");
+  const [photoModal, setPhotoModal] = useState(false);
 
   const [activeInput, setActiveInput] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
@@ -208,37 +209,25 @@ export default function ProfileScreen() {
   }, []);
 
   const handleImagePick = async () => {
+    setPhotoModal(true);
+  };
+
+  const processPhotoUpload = async (uri: string) => {
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (permissionResult.granted === false) {
-        alert(language === "te" ? "గ్యాలరీకి అనుమతి అవసరం!" : "Gallery permission is required!");
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.2, 
+      setUploadingImage(true);
+      const userPhone = await AsyncStorage.getItem("USER_PHONE");
+      
+      const fileName = `profileImages/${userPhone}_${Date.now()}.jpg`;
+      const reference = storage().ref(fileName);
+      
+      await reference.putFile(uri);
+      const downloadURL = await reference.getDownloadURL();
+      
+      await firestore().collection("users").doc(userPhone!).update({
+        profileImage: downloadURL
       });
-
-      if (!result.canceled && result.assets[0].uri) {
-        setUploadingImage(true);
-        const uri = result.assets[0].uri;
-        const userPhone = await AsyncStorage.getItem("USER_PHONE");
-        
-        const fileName = `profileImages/${userPhone}_${Date.now()}.jpg`;
-        const reference = storage().ref(fileName);
-        
-        await reference.putFile(uri);
-        const downloadURL = await reference.getDownloadURL();
-        
-        await firestore().collection("users").doc(userPhone!).update({
-          profileImage: downloadURL
-        });
-        
-        setProfileImage(downloadURL);
-      }
+      
+      setProfileImage(downloadURL);
     } catch (error) {
       console.log("Image upload error:", error);
       alert(language === "te" ? "ఫోటో అప్‌లోడ్ విఫలమైంది." : "Image upload failed.");
@@ -644,6 +633,55 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* PHOTO UPLOAD MODAL */}
+      <Modal visible={photoModal} transparent animationType="slide" statusBarTranslucent>
+        <TouchableOpacity style={styles.bottomSheetOverlay} activeOpacity={1} onPress={() => setPhotoModal(false)}>
+          <View style={styles.bottomSheetContent}>
+            <View style={styles.bsHeader}>
+              <View style={styles.bsHeaderLeft}>
+                <View style={styles.bsIconBg}>
+                  <Ionicons name="camera-outline" size={22} color="#1B5E20" />
+                </View>
+                <AppText style={styles.bsTitle} language={language}>
+                  {language === "te" ? "ప్రొఫైల్ ఫోటో అప్డేట్" : "Update Profile Photo"}
+                </AppText>
+              </View>
+              <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+                <Ionicons name="close" size={26} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+              setPhotoModal(false);
+              const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.2 });
+              if (!result.canceled && result.assets[0].uri) {
+                processPhotoUpload(result.assets[0].uri);
+              }
+            }}>
+              <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
+              <View>
+                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+              setPhotoModal(false);
+              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.2 });
+              if (!result.canceled && result.assets[0].uri) {
+                processPhotoUpload(result.assets[0].uri);
+              }
+            }}>
+              <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
+              <View>
+                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       <AgriLoader visible={loading} type={loaderType} language={language} />
     </SafeAreaView>
   );
@@ -728,19 +766,14 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#1B5E20",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
+    borderWidth: 2,
     borderColor: "white",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
     zIndex: 20
   },
   heroInfo: {
@@ -1031,4 +1064,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  bottomSheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  bottomSheetContent: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, elevation: 15 },
+  bsHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
+  bsHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  bsIconBg: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#E8F5E9", justifyContent: "center", alignItems: "center" },
+  bsTitle: { fontSize: 18, fontWeight: "600", color: "#1F2937" },
+  bsOption: { flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  bsOptionIcon: { width: 48, height: 48, borderRadius: 24, justifyContent: "center", alignItems: "center" },
+  bsOptionTitle: { fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 2 },
+  bsOptionSub: { fontSize: 13, color: "#6B7280" },
 });

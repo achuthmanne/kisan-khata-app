@@ -13,15 +13,16 @@ import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-spe
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  FlatList, Linking,
+  FlatList,
+  Keyboard,
+  Linking,
   Modal,
   SafeAreaView,
   StatusBar,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View,
-  Keyboard
+  View
 } from "react-native";
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from "react-native-popup-menu";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
@@ -41,6 +42,10 @@ export default function AttendanceScreen() {
   const [isListening, setIsListening] = useState(false);
   const isScreenFocused = useIsFocused();
   const [activeSession, setActiveSession] = useState("");
+  const [pastMestris, setPastMestris] = useState<any[]>([]);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedPastMestris, setSelectedPastMestris] = useState<string[]>([]);
+  const [importing, setImporting] = useState(false);
 
   const [actionLoading, setActionLoading] = useState(false);
   const [showCannotDeleteModal, setShowCannotDeleteModal] = useState(false);
@@ -118,6 +123,28 @@ export default function AttendanceScreen() {
         }
 
         setActiveSession(session);
+
+        try {
+          const pastSnap = await firestore()
+            .collection("users")
+            .doc(userPhone)
+            .collection("mestris")
+            .where("session", "!=", session)
+            .get();
+          
+          if (!pastSnap.empty) {
+            const pastList = pastSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+            const uniquePast: any[] = [];
+            const phones = new Set();
+            for (let m of pastList) {
+              if (m.phone && !phones.has(m.phone)) {
+                phones.add(m.phone);
+                uniquePast.push(m);
+              }
+            }
+            setPastMestris(uniquePast);
+          }
+        } catch(err) { console.log("Past fetch error", err); }
 
         unsubscribe = firestore()
           .collection("users")
@@ -215,6 +242,47 @@ export default function AttendanceScreen() {
     } else {
       setDeleteItem(item);
       setShowDeleteModal(true); 
+    }
+  };
+
+  const toggleSelectPastMestri = (id: string) => {
+    setSelectedPastMestris(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleImportPastMestris = async () => {
+    if (selectedPastMestris.length === 0) return;
+    setImporting(true);
+    try {
+      const userPhone = await AsyncStorage.getItem("USER_PHONE");
+      if (!userPhone || !activeSession) return;
+      const batch = firestore().batch();
+      const mestriRef = firestore().collection("users").doc(userPhone).collection("mestris");
+      
+      selectedPastMestris.forEach(id => {
+        const m = pastMestris.find(x => x.id === id);
+        if (m) {
+          const newRef = mestriRef.doc();
+          batch.set(newRef, {
+            name: m.name || "",
+            phone: m.phone || "",
+            village: m.village || "",
+            session: activeSession,
+            createdAt: firestore.FieldValue.serverTimestamp()
+          });
+        }
+      });
+      
+      await batch.commit();
+      setShowImportModal(false);
+      setSelectedPastMestris([]);
+    } catch (e) {
+      console.log("Import Error", e);
+      setErrorMsg(language === "te" ? "దిగుమతి విఫలమైంది!" : "Import Failed!");
+      setShowErrorModal(true);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -378,21 +446,43 @@ export default function AttendanceScreen() {
           ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <AppEmptyState
-              iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
-              title={
-                search.trim().length > 0
-                  ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
-                  : language === "te" ? "మేస్త్రీలు లేరు" : "No Mestris"
-              }
-              subtitle={
-                search.trim().length > 0
-                  ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
-                  : language === "te" ? "+ బటన్ నొక్కి మేస్త్రీలను చేర్చండి" : "Tap + button to add mestris"
-              }
-              language={language}
-              marginTop={mestris.length === 0 ? 0 : 60} 
-            />
+            <View>
+              {(search.trim().length === 0 && pastMestris.length > 0) && (
+                <View style={styles.importSuggestionCard}>
+                  <View style={styles.importIconBg}>
+                    <Ionicons name="time-outline" size={28} color="#D97706" />
+                  </View>
+                  <AppText style={styles.importTitle} language={language}>
+                    {language === "te" ? "పాత సాగు సంవత్సరాల మేస్త్రీలు" : "Past Seasons Mestris"}
+                  </AppText>
+                  <AppText style={styles.importSub} language={language}>
+                    {language === "te" 
+                      ? "మీరు గతంలో పని చేసిన మేస్త్రీలను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                      : "Do you want to reuse the mestris you worked with in previous seasons?"}
+                  </AppText>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                    <AppText style={styles.importBtnText} language={language}>
+                      {language === "te" ? "పాత మేస్త్రీలను ఎంచుకోండి" : "Select Past Mestris"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <AppEmptyState
+                iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
+                title={
+                  search.trim().length > 0
+                    ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
+                    : language === "te" ? "కొత్త మేస్త్రీలు లేరు" : "No New Mestris"
+                }
+                subtitle={
+                  search.trim().length > 0
+                    ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
+                    : language === "te" ? "+ బటన్ నొక్కి కొత్త మేస్త్రీలను చేర్చండి" : "Tap + button to add new mestris"
+                }
+                language={language}
+                marginTop={mestris.length === 0 && pastMestris.length === 0 ? 60 : 20} 
+              />
+            </View>
           }
           renderItem={({ item }) => (
             <View style={styles.row}>
@@ -500,6 +590,66 @@ export default function AttendanceScreen() {
                 <AppText style={styles.modalConfirmText} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔄 IMPORT PAST MESTRIS MODAL */}
+      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
+            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
+              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+                {language === "te" ? "పాత మేస్త్రీలను ఎంచుకోండి" : "Select Past Mestris"}
+              </AppText>
+              <TouchableOpacity onPress={() => setShowImportModal(false)}>
+                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={pastMestris}
+              keyExtractor={item => item.id}
+              style={{ width: '100%' }}
+              contentContainerStyle={{ padding: 20 }}
+              renderItem={({item}) => {
+                const isSelected = selectedPastMestris.includes(item.id);
+                return (
+                  <TouchableOpacity 
+                    style={[styles.importRow, isSelected && styles.importRowSelected]} 
+                    onPress={() => toggleSelectPastMestri(item.id)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.importRowLeft}>
+                      <View style={[styles.avatar, { backgroundColor: getColor(item.id), width: 38, height: 38, borderRadius: 19 }]}>
+                         <AppText style={{ color: '#fff', fontWeight: '600', fontSize: 14 }} language={language}>{item.name?.charAt(0)}</AppText>
+                      </View>
+                      <View style={{ marginLeft: 12 }}>
+                        <AppText style={{ fontSize: 15, fontWeight: '600', color: '#111827' }} language={language}>{item.name}</AppText>
+                        <AppText style={{ fontSize: 13, color: '#6B7280' }} language={language}>{item.phone} • {item.village}</AppText>
+                      </View>
+                    </View>
+                    <Ionicons 
+                      name={isSelected ? "checkbox" : "square-outline"} 
+                      size={26} 
+                      color={isSelected ? "#16A34A" : "#D1D5DB"} 
+                    />
+                  </TouchableOpacity>
+                );
+              }}
+            />
+
+            <TouchableOpacity 
+              style={[styles.importSubmitBtn, selectedPastMestris.length === 0 && { opacity: 0.5 }]} 
+              disabled={selectedPastMestris.length === 0 || importing}
+              onPress={handleImportPastMestris}
+            >
+              {importing ? <ActivityIndicator color="#fff" /> : (
+                <AppText style={styles.importSubmitBtnText} language={language}>
+                  {language === "te" ? `ఎంచుకున్న ${selectedPastMestris.length} మందిని జతచేయి` : `Import ${selectedPastMestris.length} Selected`}
+                </AppText>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -617,4 +767,15 @@ const styles = StyleSheet.create({
   modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 20, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },
+  importIconBg: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#FDE68A", justifyContent: "center", alignItems: "center", marginBottom: 12 },
+  importTitle: { fontSize: 16, fontWeight: "600", color: "#92400E", marginBottom: 6 },
+  importSub: { fontSize: 13, color: "#B45309", textAlign: "center", marginBottom: 16, lineHeight: 20, fontFamily: "Mandali" },
+  importBtn: { backgroundColor: "#D97706", paddingVertical: 12, width: "90%", borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  importBtnText: { color: "white", fontWeight: "600", fontSize: 14, fontFamily: "Mandali" },
+  importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB' },
+  importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
+  importRowLeft: { flexDirection: 'row', alignItems: 'center' },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

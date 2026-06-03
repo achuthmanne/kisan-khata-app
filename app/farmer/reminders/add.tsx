@@ -315,10 +315,10 @@ export default function AddReminderScreen() {
               setActiveInput("task");
               setTimeout(() => taskRef.current?.focus(), 50);
             }}
-            style={[styles.inputBox, activeInput === "task" && styles.inputFocused, errors.task && styles.inputError]}
+            style={[styles.inputBox, { paddingRight: 8 }, activeInput === "task" && styles.inputFocused, errors.task && styles.inputError]}
           >
-            <Ionicons name="document-text-outline" size={20} color={task ? "#16A34A" : "#9CA3AF"} />
-            <View style={styles.inputWrapper}>
+            <Ionicons name="document-text-outline" size={20} color={task || activeInput === "task" ? "#16A34A" : "#9CA3AF"} />
+            <View style={[styles.inputWrapper, { flex: 1, marginLeft: 12, marginRight: 8 }]}>
               {!task && activeInput !== "task" && (
                 <AppText style={styles.placeholder}>
                   {isListening && voiceTarget === "task" ? t.voiceHint : t.task}
@@ -333,17 +333,17 @@ export default function AddReminderScreen() {
                   setTask(txt);
                   if (errors.task) setErrors({ ...errors, task: "" });
                 }}
-                style={[styles.input, { display: (task || activeInput === "task") ? "flex" : "none", paddingRight: 40 }]}
+                style={[styles.input, { display: (task || activeInput === "task") ? "flex" : "none" }]}
                 onFocus={() => setActiveInput("task")}
                 onBlur={() => setActiveInput(null)}
                 multiline
               />
             </View>
-            <TouchableOpacity onPress={() => startVoice("task")}>
+            <TouchableOpacity onPress={() => startVoice("task")} style={{ padding: 6, borderRadius: 10 }}>
               <Ionicons 
                 name={voiceTarget === "task" && isListening ? "mic" : "mic-outline"} 
-                size={22} 
-                color={voiceTarget === "task" && isListening ? "#EF4444" : "#9CA3AF"} 
+                size={24} 
+                color={voiceTarget === "task" && isListening ? "#EF4444" : (activeInput === "task" ? "#16A34A" : "#6B7280")} 
               />
             </TouchableOpacity>
           </TouchableOpacity>
@@ -452,13 +452,7 @@ export default function AddReminderScreen() {
                 placeholderTextColor={'#9CA3AF'}
                 cursorColor={'#16A34A'}
                 style={[styles.searchInput, { fontFamily: 'Mandali' }]}
-                onSubmitEditing={() => handleSelectCrop(cropSearch)}
               />
-              {cropSearch.trim().length > 0 && (
-                <TouchableOpacity onPress={() => handleSelectCrop(cropSearch)} style={{ backgroundColor: "#16A34A", borderRadius: 12, padding: 6, marginRight: 6 }}>
-                  <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
               <TouchableOpacity onPress={() => startVoice("search")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
                 <Ionicons name={voiceTarget === "search" && isListening ? "mic" : "mic-outline"} size={24} color={voiceTarget === "search" && isListening ? "#EF4444" : "#16A34A"} />
               </TouchableOpacity>
@@ -468,13 +462,6 @@ export default function AddReminderScreen() {
               data={filteredModalCrops}
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={() => (
-                cropSearch.length > 0 ? (
-                  <TouchableOpacity style={styles.item} onPress={() => handleSelectCrop(cropSearch)}>
-                    <AppText style={{ color: '#16A34A', fontWeight: '600' }}>
-                      {language === "te" ? `"${cropSearch}" ని చేర్చండి +` : `Add "${cropSearch}" +`}
-                    </AppText>
-                  </TouchableOpacity>
-                ) : (
                   <View style={{ padding: 20, alignItems: "center" }}>
                     <View style={{ padding: 20, alignItems: 'center' }}>
                       <Ionicons name="information-circle-outline" size={24} color="#6B7280" style={{ marginBottom: 10 }} />
@@ -499,7 +486,6 @@ export default function AddReminderScreen() {
                       </TouchableOpacity>
                     </View>
                   </View>
-                )
               )}
               renderItem={({ item }) => (
                 <TouchableOpacity
@@ -566,7 +552,6 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   placeholder: {
-    position: "absolute",
     fontSize: 16,
     color: "#9CA3AF",
     fontFamily: "Mandali"

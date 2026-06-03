@@ -177,8 +177,21 @@ export default function RemindersScreen() {
   const ShimmerSkeleton = () => (
     <View style={styles.listContent}>
       {[1, 2, 3].map((i) => (
-        <View key={i} style={styles.shimmerCard}>
-          <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ height: 90, width: "100%" }} />
+        <View key={i} style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+              <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 44, height: 44, borderRadius: 12 }} />
+              <View style={{ marginLeft: 12, flex: 1, paddingRight: 10 }}>
+                <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: "80%", height: 16, borderRadius: 4, marginBottom: 6 }} />
+                <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: "50%", height: 13, borderRadius: 4 }} />
+              </View>
+            </View>
+            <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 60, height: 35, borderRadius: 8 }} />
+          </View>
+          <View style={styles.cardActions}>
+            <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 80, height: 30, borderRadius: 8 }} />
+            <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 100, height: 30, borderRadius: 8 }} />
+          </View>
         </View>
       ))}
     </View>
@@ -198,12 +211,12 @@ export default function RemindersScreen() {
             <View style={[styles.iconBox, { backgroundColor: isCompleted ? "#D1FAE5" : "#FEF3C7" }]}>
               <Ionicons name={isCompleted ? "checkmark-circle" : "alarm-outline"} size={24} color={isCompleted ? "#10B981" : "#D97706"} />
             </View>
-            <View style={{ marginLeft: 12, flex: 1 }}>
-              <AppText style={[styles.taskTitle, isCompleted && styles.strikeThrough]} language={language}>{item.task}</AppText>
-              <AppText style={styles.taskCrop} language={language}>{item.crop}</AppText>
+            <View style={{ marginLeft: 12, flex: 1, flexShrink: 1, paddingRight: 10 }}>
+              <AppText style={[styles.taskTitle, isCompleted && styles.strikeThrough]} language={language} numberOfLines={2}>{item.task}</AppText>
+              <AppText style={styles.taskCrop} language={language} numberOfLines={1}>{item.crop}</AppText>
             </View>
           </View>
-          <View style={styles.dateTimeBox}>
+          <View style={[styles.dateTimeBox, { flexShrink: 0 }]}>
             <AppText style={styles.dateText}>{dateStr}</AppText>
             <AppText style={styles.timeText}>{timeStr}</AppText>
           </View>
@@ -301,8 +314,8 @@ const styles = StyleSheet.create({
   cardCompleted: { opacity: 0.7, backgroundColor: "#F9FAFB" },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
   iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  taskTitle: { fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 4 },
-  taskCrop: { fontSize: 13, color: "#6B7280" },
+  taskTitle: { fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 4, flexShrink: 1 },
+  taskCrop: { fontSize: 13, color: "#6B7280", flexShrink: 1 },
   strikeThrough: { textDecorationLine: "line-through", color: "#9CA3AF" },
   dateTimeBox: { alignItems: "flex-end", backgroundColor: "#F3F4F6", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   dateText: { fontSize: 13, fontWeight: "600", color: "#4B5563" },

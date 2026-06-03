@@ -24,7 +24,7 @@ import { PieChart } from "react-native-chart-kit";
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from "react-native-popup-menu";
 
 // 🔥 REANIMATED
-import Animated, { Easing, FadeInDown, useAnimatedProps, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { Easing, FadeInDown, useAnimatedProps, useSharedValue, withTiming, withRepeat, useAnimatedStyle } from "react-native-reanimated";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 const screenWidth = Dimensions.get("window").width;
@@ -241,22 +241,41 @@ export default function FieldsScreen() {
     : [{ population: 1, color: "#E5E7EB", name: "" }];
 
   const ShimmerLoader = () => {
+    const opacity = useSharedValue(0.4);
+    
+    useEffect(() => {
+      opacity.value = withRepeat(withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }), -1, true);
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
     return (
-      <View style={{ paddingHorizontal: 16, marginTop: 10 }}>
-        {[1, 2, 3, 4].map((i) => (
-          <View key={i} style={styles.shimmerCard}>
-            <View style={styles.shimmerSideBar} />
-            <View style={styles.shimmerContent}>
-              <View style={styles.shimmerLineTitle} />
-              <View style={styles.shimmerLineSub} />
+      <Animated.View style={[{ width: '100%', marginTop: 10 }, animatedStyle]}>
+        {/* Main Stats Card Shimmer */}
+        <View style={{ marginHorizontal: 16, height: 230, backgroundColor: '#E2E8F0', borderRadius: 24, marginBottom: 16 }} />
+        
+        {/* First Chart Box Shimmer */}
+        <View style={{ marginHorizontal: 16, height: 230, backgroundColor: '#E2E8F0', borderRadius: 24, marginBottom: 20 }} />
+
+        {/* List Title Shimmer */}
+        <View style={{ marginHorizontal: 20, height: 24, width: '45%', backgroundColor: '#E2E8F0', borderRadius: 8, marginBottom: 16 }} />
+
+        {/* List Items Shimmer */}
+        <View style={{ paddingHorizontal: 16 }}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={styles.shimmerCard}>
+              <View style={styles.shimmerSideBar} />
+              <View style={styles.shimmerContent}>
+                <View style={styles.shimmerLineTitle} />
+                <View style={styles.shimmerLineSub} />
+              </View>
+              <View style={styles.shimmerRight}>
+                <View style={[styles.shimmerMenuCircle, { backgroundColor: '#E2E8F0' }]} />
+              </View>
             </View>
-            <View style={styles.shimmerRight}>
-              <View style={styles.shimmerPriceBox} />
-              <View style={styles.shimmerMenuCircle} />
-            </View>
-          </View>
-        ))}
-      </View>
+          ))}
+        </View>
+      </Animated.View>
     );
   };
 
@@ -373,9 +392,10 @@ export default function FieldsScreen() {
       />
       <ScrollView 
         showsVerticalScrollIndicator={false} 
+        scrollEnabled={!loading && data.length > 0}
         contentContainerStyle={[
           { paddingBottom: 120 },
-          data.length === 0 && !loading && { flex: 1, justifyContent: 'center' }
+          (data.length === 0 || loading) && { flex: 1, justifyContent: 'center', paddingBottom: 0 }
         ]}
       >
         {loading ? (

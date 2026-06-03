@@ -165,6 +165,13 @@ export default function MestriAttendance() {
     loadLang();
   }, []);
 
+  const getCurrentSession = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const startYear = now.getMonth() >= 5 ? year : year - 1;
+    return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+  };
+
   useEffect(() => {
     if (showSuccess) {
       opacity.value = withTiming(1, { duration: 250 });
@@ -342,6 +349,26 @@ export default function MestriAttendance() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
       >
+
+        {/* 🔥 OLD SESSION WARNING BANNER */}
+        {activeSession && activeSession !== getCurrentSession() && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFBEB", borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#FDE68A" }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
+              <Ionicons name="warning" size={22} color="#D97706" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText style={{ fontSize: 14, color: "#92400E", fontWeight: "600", marginBottom: 2 }} language={language}>
+                {language === "te" ? "పాత సాగు సంవత్సరం" : "Old Active Season"}
+              </AppText>
+              <AppText style={{ fontSize: 13, color: "#92400E", lineHeight: 18 }} language={language}>
+                {language === "te" 
+                  ? `మీరు పాత సాగు సంవత్సరం (${activeSession}) లో హాజరు నమోదు చేస్తున్నారు.` 
+                  : `You are marking attendance for an older season (${activeSession}).`}
+              </AppText>
+            </View>
+          </View>
+        )}
+
         <View style={styles.topInfoBox}>
           <AppText style={[styles.mainTitle, { flex: 1, marginRight: 10 }]} language={language} numberOfLines={1} ellipsizeMode="tail">
             {mestriName}

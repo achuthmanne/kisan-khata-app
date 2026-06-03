@@ -448,7 +448,7 @@ export default function MarketScreen() {
 
           <View style={styles.priceContainer}>
             <View style={styles.trendRow}>
-              <AppText style={styles.mainPrice} language={language}>₹{item.modal_price}</AppText>
+              <AppText style={styles.mainPrice} language={language}>₹{Number(item.modal_price).toLocaleString("en-IN")}</AppText>
               {trend === "up" && <Ionicons name="arrow-up" size={16} color="#16A34A" style={styles.trendIcon} />}
               {trend === "down" && <Ionicons name="arrow-down" size={16} color="#DC2626" style={styles.trendIcon} />}
             </View>
@@ -470,12 +470,12 @@ export default function MarketScreen() {
         <View style={styles.cardBottom}>
           <View style={styles.minMaxBox}>
             <AppText style={styles.minMaxLabel} language={language}>{t.min}</AppText>
-            <AppText style={styles.minMaxVal} language={language}>₹{item.min_price}</AppText>
+            <AppText style={styles.minMaxVal} language={language}>₹{Number(item.min_price).toLocaleString("en-IN")}</AppText>
           </View>
           <View style={styles.divider} />
           <View style={styles.minMaxBox}>
             <AppText style={styles.minMaxLabel} language={language}>{t.max}</AppText>
-            <AppText style={styles.minMaxVal} language={language}>₹{item.max_price}</AppText>
+            <AppText style={styles.minMaxVal} language={language}>₹{Number(item.max_price).toLocaleString("en-IN")}</AppText>
           </View>
         </View>
       </View>

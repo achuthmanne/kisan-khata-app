@@ -30,27 +30,27 @@ import {
 } from "react-native";
 // 🔥 PRO FIX: Use expo-image for faster caching and remote image handling
 import { Image } from "expo-image";
+import AnimatedReanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
-import AnimatedReanimated, { useSharedValue, withTiming, withRepeat, withSequence, useAnimatedStyle, Easing } from "react-native-reanimated";
 const { width } = Dimensions.get("window");
 
 /* ---------------- TRANSLATIONS ---------------- */
 const translations = {
   te:{
     morning:"శుభోదయం", afternoon:"శుభ మధ్యాహ్నం", evening:"శుభ సాయంత్రం", night:"శుభ రాత్రి",
-    quick:"స్మార్ట్ సూచనలు", all:"అన్ని సేవలు", attendance:"కూలీల హాజరు", payments:"కూలీల చెల్లింపులు",
+    quick:"ముఖ్యమైన సేవలు", all:"అన్ని సేవలు", attendance:"కూలీల హాజరు", payments:"కూలీల చెల్లింపులు",
     sales:"పంట అమ్మకాలు", expenses:"పెట్టుబడి లెక్కలు", crops:"వ్యవసాయ నివేదిక", schemes:"ప్రభుత్వ పథకాలు",
     market:"మార్కెట్ ధరలు", forecast:"వాతావరణం చూడండి", weather: "వాతావరణం",
     machine: "యంత్రాల లెక్కలు", calculator:"క్యాలిక్యులేటర్", booking: "అగ్రి కనెక్ట్",
-    fields: "నా పొలాలు", owners: "నా వాహనాలు", reminders: "పనుల అలారం"
+    fields: "నా పొలాలు", owners: "నా వాహనాలు", reminders: "పనుల అలారం", locker: "అగ్రి లాకర్"
   },
   en:{
     morning:"Good Morning", afternoon:"Good Afternoon", evening:"Good Evening", night:"Good Night",
     quick:"Smart Suggestions", all:"All Services", calculator:"Smart Calculators", attendance:"Workers Attendance",
     payments:"Workers Payment", forecast:"See Forecast", sales:"Crop Sales", expenses:"Farm Expenses",
     crops:"Farm Report", schemes:"Govt Schemes", market:"Market Prices", weather: "Weather",
-    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles", reminders: "Task Reminders"
+    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles", reminders: "Task Reminders", locker: "Agri Locker"
   }
 };
 
@@ -71,8 +71,8 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F6F7F6" }}>
       <StatusBar barStyle="light-content" backgroundColor="#1B5E20" />
       
-      <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={{ position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 10 }}>
-        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+      <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={{ position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 5 }}>
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Animated.View style={{ width: 50, height: 50, borderRadius: 25, marginRight: 10, backgroundColor: "rgba(255,255,255,0.12)", opacity: pulseAnim }} />
             <View>
@@ -103,8 +103,10 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
           </View>
         </View>
 
-        <Animated.View style={{ width: width - 40, height: 74, borderRadius: 20, marginHorizontal: 20, marginTop: -10, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
+        {/* Session Card */}
+        <Animated.View style={{ width: width - 40, height: 76, borderRadius: 20, marginHorizontal: 20, marginTop: 10, backgroundColor: "#ffffff", opacity: pulseAnim, borderWidth: 1, borderColor: "#E5E7EB" }} />
 
+        {/* Quick Services */}
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginHorizontal: 20, marginTop: 25, marginBottom: 8 }}>
           <Animated.View style={{ width: 140, height: 22, borderRadius: 6, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
           <Animated.View style={{ width: 60, height: 24, borderRadius: 14, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
@@ -112,23 +114,26 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
         
         <View style={{ flexDirection: "row", paddingLeft: 20, paddingTop: 0, gap: 12 }}>
           {[1, 2, 3].map((i) => (
-            <Animated.View key={i} style={{ width: 120, height: 38, borderRadius: 20, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
+            <Animated.View key={i} style={{ width: 120, height: 44, borderRadius: 20, backgroundColor: "#F8F9FA", borderColor: "#E5E7EB", borderWidth: 1, opacity: pulseAnim }} />
           ))}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 20, marginTop: 5, marginBottom: 15, gap: 8 }}>
+        {/* All Services */}
+        <View style={{ flexDirection: "row", alignItems: "center", marginHorizontal: 20, marginTop: 5, marginBottom: 8, gap: 8 }}>
           <Animated.View style={{ width: 110, height: 22, borderRadius: 6, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
         </View>
 
         <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-start", paddingHorizontal: 20, gap: 14 }}>
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Animated.View key={i} style={{ width: (width - 70) / 3, height: 120, borderRadius: 18, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
+            <Animated.View key={i} style={{ width: (width - 70) / 3, height: 135, borderRadius: 18, backgroundColor: "#F8FAF9", borderColor: "#E5E7EB", borderWidth: 1, opacity: pulseAnim }} />
           ))}
         </View>
       </View>
     </SafeAreaView>
   );
 };
+
+let isAppStarted = false;
 
 export default function Dashboard() {
   const router = useRouter();
@@ -191,7 +196,8 @@ export default function Dashboard() {
     booking:require("../../../assets/images/link.png"),
     fields:require("../../../assets/images/farm.png"),
     owners: require("../../../assets/images/key.png"),
-    reminders: require("../../../assets/images/notification.png")
+    reminders: require("../../../assets/images/notification.png"),
+    locker: require("../../../assets/images/shield.png")
   };
   
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -319,6 +325,7 @@ export default function Dashboard() {
     { service: "calculator", title: t.calculator, icon: icons.calculator, screen: "/farmer/calculators" },
     { service: "schemes", title: t.schemes, icon: icons.schemes, screen: "/farmer/schemes" },
     { service: "reminders", title: t.reminders, icon: icons.reminders, screen: "/farmer/reminders" },
+    { service: "locker", title: t.locker, icon: icons.locker, screen: "/farmer/locker" },
   ];
   const services = useMemo(() => getServices(), [language]);
   
@@ -478,8 +485,12 @@ export default function Dashboard() {
       }
 
       const current = getCurrentSession();
-      if (!data?.activeSession) {
-        await firestore().collection("users").doc(phone).set({ activeSession: current }, { merge: true });
+      if (!isAppStarted) {
+        await firestore().collection("users").doc(phone).set({ activeSession: current, lastAutoUpgrade: current }, { merge: true });
+        setActiveSession(current);
+        isAppStarted = true;
+      } else if (!data?.activeSession || data?.lastAutoUpgrade !== current) {
+        await firestore().collection("users").doc(phone).set({ activeSession: current, lastAutoUpgrade: current }, { merge: true });
         setActiveSession(current);
       } else {
         setActiveSession(data.activeSession);
@@ -960,7 +971,7 @@ export default function Dashboard() {
                                       <AppText style={styles.marketName} language={language} numberOfLines={1} ellipsizeMode="tail">{item.market} | {item.arrival_date?.slice(0,5) || ""}</AppText>
                                     </View>
                                     <View style={styles.marketRight}>
-                                      <AppText style={styles.price} language={language}>₹{item.modal_price}</AppText>
+                                      <AppText style={styles.price} language={language}>₹{Number(item.modal_price).toLocaleString("en-IN")}</AppText>
                                       {trend==="up" && (<Ionicons name="arrow-up" size={16} color="#22c55e"/>)}
                                       {trend==="down" && (<Ionicons name="arrow-down" size={16} color="#ef4444"/>)}
                                     </View>
@@ -992,24 +1003,29 @@ export default function Dashboard() {
     </Animated.View>
 
     {/* 🔥 ACTIVE SESSION CARD */}
-    <TouchableOpacity style={styles.sessionMainContainer} onPress={() => setSessionModal(true)} activeOpacity={0.9}>
+    <TouchableOpacity style={styles.sessionMainContainer} onPress={() => setSessionModal(true)} activeOpacity={0.85}>
       <View style={styles.sessionContent}>
-        <View style={styles.sessionIcon}>
-          <Ionicons name="calendar-outline" size={20} color="#16A34A" />
+        <View style={[styles.iconWrapper, { marginBottom: 0, marginRight: 14, padding: 10 }]}>
+          <Ionicons name="calendar-outline" size={24} color="#2E7D32" />
         </View>
         <View>
           <AppText style={styles.sessionLabel}>{language === "te" ? "ప్రస్తుత సాగు సంవత్సరం" : "Active Season"}</AppText>
           <AppText style={styles.sessionValue}>{activeSession || "Set Season"}</AppText>
         </View>
       </View>
-      <TouchableOpacity style={styles.powerButtonFlat} onPress={() => setSessionModal(true)}>
-        <Ionicons name="power" size={20} color="#EF4444" />
-      </TouchableOpacity>
-      {isAdmin && (
-        <TouchableOpacity style={[styles.notifyBtn, { marginRight: 10, backgroundColor: "rgba(234, 179, 8, 0.2)" }]} activeOpacity={0.8} onPress={() => router.push("/farmer/schemes/admin-scheme" as any)}>
-          <Ionicons name="shield-checkmark" size={22} color="#FBBF24" />
-        </TouchableOpacity>
-      )}
+      
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={styles.changeBtn}>
+          <Ionicons name="swap-horizontal" size={16} color="#4B5563" />
+          <AppText style={styles.changeBtnText} language={language}>{language === "te" ? "మార్చు" : "Change"}</AppText>
+        </View>
+        
+        {isAdmin && (
+          <TouchableOpacity style={[styles.notifyBtn, { marginRight: 0, backgroundColor: "rgba(234, 179, 8, 0.15)", padding: 8 }]} activeOpacity={0.8} onPress={() => router.push("/farmer/schemes/admin-scheme" as any)}>
+            <Ionicons name="shield-checkmark" size={20} color="#FBBF24" />
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
 
     {/* QUICK SERVICES */}
@@ -1022,7 +1038,7 @@ export default function Dashboard() {
             setScrollForward(!scrollForward); 
           }
         }}>
-        <Text style={[styles.swipeText, { fontFamily: "Mandali" }]}>{language === "te" ? "స్వైప్" : "Swipe"}</Text>
+        <Text style={[styles.swipeText, { fontFamily: "Mandali" }]}>{language === "te" ? "మరిన్ని" : "Swipe"}</Text>
         <AnimatedReanimated.View style={[styles.swipeIcon, swipeAnimatedStyle]}>
           <Ionicons name={scrollForward ? "chevron-forward-outline" : "chevron-back-outline"} size={16} color="#9CA3AF" />
         </AnimatedReanimated.View>
@@ -1171,7 +1187,7 @@ const styles = StyleSheet.create({
   weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding:false },
   temp:{ color:"white", fontSize:55, fontWeight:"bold", marginRight: -6 },
   headerDots:{ flexDirection:"row", justifyContent:"center", marginTop:0 },
-  badge: { position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: 9, backgroundColor: "#EF4444", justifyContent: "center", alignItems: "center" },
+  badge: { position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: "#EF4444", justifyContent: "center", alignItems: "center", borderWidth: 2.5, borderColor: "#1B5E20" },
   badgeText: { color: "#fff", fontSize: 10, fontWeight: "700", textAlign: "center", includeFontPadding: false, textAlignVertical: "center" },
   headerDot:{ width:8, height:8, borderRadius:4, backgroundColor:"rgba(255,255,255,0.4)", marginHorizontal:4 },
   headerDotActive:{ backgroundColor:"white" },
@@ -1189,12 +1205,12 @@ const styles = StyleSheet.create({
   price:{ color:"white", fontSize:16, fontWeight:"bold", marginRight:6 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
   closeBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#E5E7EB", justifyContent: "center", alignItems: "center" },
-  sessionMainContainer: { marginHorizontal: 20, marginTop: -10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: 'rgba(22, 163, 74, 0.2)', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 10 },
-  sessionContent: { flexDirection: 'row', alignItems: 'center' },
-  sessionIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  sessionLabel: { fontSize: 12, color: '#6B7280' },
-  sessionValue: { fontSize: 20, fontWeight: '600', color: '#1F2937' },
-  powerButtonFlat: { width: 44, height: 44, borderRadius: 14, backgroundColor: "#FEE2E2", justifyContent: "center", alignItems: "center" },
+  sessionMainContainer: { marginHorizontal: 20, marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderRadius: 20, backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#E5E7EB', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8 },
+  sessionContent: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
+  sessionLabel: { fontSize: 13, color: '#6B7280', marginBottom: 2, fontFamily: "Mandali" },
+  sessionValue: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  changeBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#F3F4F6", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, gap: 6 },
+  changeBtnText: { fontSize: 13, fontWeight: "600", color: "#4B5563", includeFontPadding: false },
   sectionHeader:{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", marginHorizontal:20, marginTop:25, marginBottom: 8 },
   sessionBox: { marginHorizontal: 20, marginTop: 10, marginBottom: 10, backgroundColor: "#ffffff", padding: 14, borderRadius: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderWidth: 1, borderColor: "#E5E7EB" },
   sectionTitle:{ fontSize:20, color:"#1F2937", fontFamily: "Mandali" },
@@ -1205,7 +1221,7 @@ const styles = StyleSheet.create({
   quickScroll:{ paddingLeft:20, paddingRight:10, paddingTop:15 },
   gridCard: { 
     width: (width - 70) / 3, 
-    height: 135, 
+    minHeight: 135, 
     backgroundColor: "#F8FAF9", 
     borderColor: "#E5E7EB", 
     borderRadius: 18, 

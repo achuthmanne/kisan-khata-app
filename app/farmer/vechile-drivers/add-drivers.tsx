@@ -212,6 +212,13 @@ export default function AddDriver() {
     };
   }, []);
 
+  const getCurrentSession = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const startYear = now.getMonth() >= 5 ? year : year - 1;
+    return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
+  };
+
   /* ---------------- SAVE ---------------- */
   const handleSave = async (bypassDuplicate = false) => {
     if (loading) return;
@@ -331,6 +338,25 @@ export default function AddDriver() {
         enableOnAndroid={true}
         showsVerticalScrollIndicator={false}
       >
+
+        {/* 🔥 OLD SESSION WARNING BANNER */}
+        {activeSession && activeSession !== getCurrentSession() && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFBEB", borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#FDE68A" }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
+              <Ionicons name="warning" size={22} color="#D97706" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <AppText style={{ fontSize: 14, color: "#92400E", fontWeight: "600", marginBottom: 2 }} language={language}>
+                {language === "te" ? "పాత సాగు సంవత్సరం" : "Old Active Season"}
+              </AppText>
+              <AppText style={{ fontSize: 13, color: "#92400E", lineHeight: 18 }} language={language}>
+                {language === "te" 
+                  ? `మీరు పాత సాగు సంవత్సరం (${activeSession}) లో డ్రైవర్ని నమోదు చేస్తున్నారు.` 
+                  : `You are adding a driver to an older season (${activeSession}).`}
+              </AppText>
+            </View>
+          </View>
+        )}
 
         {/* 🔥 IMPORT FROM CONTACTS BUTTON */}
         <TouchableOpacity 

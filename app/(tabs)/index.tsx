@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -160,6 +161,75 @@ const NavCard = ({
 
 
 
+  const HomeShimmer = () => {
+    const opacity = useSharedValue(0.4);
+    useEffect(() => {
+      opacity.value = withRepeat(withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) }), -1, true);
+    }, []);
+    const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+    return (
+      <Animated.View style={[{ padding: 20 }, animatedStyle]}>
+        {/* Welcome Text */}
+        <View style={{ height: 28, width: 220, backgroundColor: '#E2E8F0', borderRadius: 8, marginBottom: 10 }} />
+        <View style={{ height: 16, width: 160, backgroundColor: '#E2E8F0', borderRadius: 6, marginBottom: 30 }} />
+
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={{ height: 32, width: 50, backgroundColor: '#E2E8F0', borderRadius: 6, marginBottom: 10 }} />
+            <View style={{ height: 16, width: 90, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+          </View>
+          <View style={styles.statCard}>
+            <View style={{ height: 32, width: 50, backgroundColor: '#E2E8F0', borderRadius: 6, marginBottom: 10 }} />
+            <View style={{ height: 16, width: 90, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+          </View>
+        </View>
+
+        {/* Today Card */}
+        <View style={styles.todayCard}>
+          <View style={{ height: 20, width: 140, backgroundColor: '#E2E8F0', borderRadius: 6, marginBottom: 12 }} />
+          <View style={{ height: 14, width: 180, backgroundColor: '#E2E8F0', borderRadius: 4, marginBottom: 20 }} />
+          {[1, 2, 3].map(i => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ height: 16, width: 80, backgroundColor: '#E2E8F0', borderRadius: 4, marginRight: 10 }} />
+              <View style={{ height: 16, width: 120, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+            </View>
+          ))}
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryBox}>
+              <View style={{ height: 24, width: 30, backgroundColor: '#E2E8F0', borderRadius: 4, marginBottom: 8 }} />
+              <View style={{ height: 12, width: 60, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+            </View>
+            <View style={styles.summaryBox}>
+              <View style={{ height: 24, width: 30, backgroundColor: '#E2E8F0', borderRadius: 4, marginBottom: 8 }} />
+              <View style={{ height: 12, width: 60, backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+            </View>
+          </View>
+        </View>
+
+        {/* Mestri Badge */}
+        <View style={styles.mestriBadge}>
+          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#E2E8F0', marginRight: 10 }} />
+          <View style={{ height: 18, width: 180, backgroundColor: '#E2E8F0', borderRadius: 6 }} />
+        </View>
+
+        {/* Nav Cards */}
+        {[1, 2, 3, 4].map(i => (
+          <View key={i} style={styles.navCard}>
+            <View style={styles.navRow}>
+              <View style={[styles.iconBox, { backgroundColor: '#E2E8F0' }]} />
+              <View style={styles.textBox}>
+                <View style={{ height: 18, width: '50%', backgroundColor: '#E2E8F0', borderRadius: 6, marginBottom: 8 }} />
+                <View style={{ height: 14, width: '80%', backgroundColor: '#E2E8F0', borderRadius: 4 }} />
+              </View>
+            </View>
+          </View>
+        ))}
+      </Animated.View>
+    );
+  };
+
   /* ---------- UI ---------- */
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -170,162 +240,155 @@ const NavCard = ({
         </Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* WELCOME */}
-        <Text style={styles.sub}>
-          {language === 'te' ? 'స్వాగతం!' : 'Welcome back!'} {mestriName}
-        </Text>
-
-        <Text style={styles.sub1}>
-  {formattedDate} | {formattedTime}
-</Text>
-
-
-        {/* STATS */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{farmersCount}</Text>
-            <Text style={styles.statLabel}>
-              {language === 'te' ? 'మొత్తం రైతులు' : 'Farmers'}
+      <ScrollView contentContainerStyle={loading ? { paddingBottom: 0 } : styles.content} showsVerticalScrollIndicator={false}>
+        {loading ? (
+          <HomeShimmer />
+        ) : (
+          <>
+            {/* WELCOME */}
+            <Text style={styles.sub}>
+              {language === 'te' ? 'స్వాగతం!' : 'Welcome back!'} {mestriName}
             </Text>
-          </View>
 
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{kulisCount}</Text>
-            <Text style={styles.statLabel}>
-              {language === 'te' ? 'మొత్తం కూలీలు' : 'Workers'}
+            <Text style={styles.sub1}>
+              {formattedDate} | {formattedTime}
             </Text>
-          </View>
-        </View>
-     
 
-      {todaySessions.length > 0 ? (
-todaySessions.map((item, index) => (
-  <View key={item.dateISO || index} style={styles.todayCard}>
+            {/* STATS */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{farmersCount}</Text>
+                <Text style={styles.statLabel}>
+                  {language === 'te' ? 'మొత్తం రైతులు' : 'Farmers'}
+                </Text>
+              </View>
 
+              <View style={styles.statCard}>
+                <Text style={styles.statValue}>{kulisCount}</Text>
+                <Text style={styles.statLabel}>
+                  {language === 'te' ? 'మొత్తం కూలీలు' : 'Workers'}
+                </Text>
+              </View>
+            </View>
 
-      <View style={styles.todayHeader}>
-        <Ionicons name="calendar-outline" size={18} color="#1b5e20" />
-        <Text style={styles.todayTitle}>
-          {language === 'te' ? 'ఈరోజు హాజరు' : "Today's Attendance"}
-        </Text>
-      </View>
+            {todaySessions.length > 0 ? (
+              todaySessions.map((item, index) => (
+                <View key={item.dateISO || index} style={styles.todayCard}>
+                  <View style={styles.todayHeader}>
+                    <Ionicons name="calendar-outline" size={18} color="#1b5e20" />
+                    <Text style={styles.todayTitle}>
+                      {language === 'te' ? 'ఈరోజు హాజరు' : "Today's Attendance"}
+                    </Text>
+                  </View>
 
-      <Text style={styles.savedTime}>
-      {formattedDate} | {new Date(item.dateISO).toLocaleTimeString(locale, {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-      </Text>
+                  <Text style={styles.savedTime}>
+                    {formattedDate} | {new Date(item.dateISO).toLocaleTimeString(locale, {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
 
-      <View style={styles.detailRow}>
-       <Text style={styles.detailLabel}>
-          👨‍🌾 {language === 'te' ? 'రైతు' : 'Farmer'}:
-        </Text>
-       <Text style={styles.detailValue}>{item.farmerName}</Text>
-      </View>
-<View style={styles.detailRow}>
-  <Text style={styles.detailLabel}>
-    🛠 {language === 'te' ? 'పని' : 'Work'}:
-  </Text>
-  <Text style={styles.detailValue}>{item.workName}</Text>
-</View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>
+                      👨‍🌾 {language === 'te' ? 'రైతు' : 'Farmer'}:
+                    </Text>
+                    <Text style={styles.detailValue}>{item.farmerName}</Text>
+                  </View>
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>
+                      🛠 {language === 'te' ? 'పని' : 'Work'}:
+                    </Text>
+                    <Text style={styles.detailValue}>{item.workName}</Text>
+                  </View>
 
+                  <View style={styles.detailRow}>
+                    <Text style={styles.detailLabel}>
+                      🌾 {language === 'te' ? 'పంట' : 'Crop'}:
+                    </Text>
+                    <Text style={styles.detailValue}>{item.cropName}</Text>
+                  </View>
 
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>
-         🌾 {language === 'te' ? 'పంట' : 'Crop'}:
-        </Text>
-        <Text style={styles.detailValue}>{item.cropName}</Text>
-      </View>
+                  <View style={styles.summaryRow}>
+                    <View style={styles.summaryBox}>
+                      <Text style={styles.summaryNumber}>{item.present}</Text>
+                      <Text style={styles.summaryLabel}>
+                        {language === 'te' ? 'హాజరు' : 'Present'}
+                      </Text>
+                    </View>
 
-      <View style={styles.summaryRow}>
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryNumber}>{item.present}</Text>
-          <Text style={styles.summaryLabel}>
-            {language === 'te' ? 'హాజరు' : 'Present'}
-          </Text>
-        </View>
+                    <View style={styles.summaryBox}>
+                      <Text style={styles.summaryNumber1}>{item.absent}</Text>
+                      <Text style={styles.summaryLabel}>
+                        {language === 'te' ? 'గైర్హాజరు' : 'Absent'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.noAttendanceCard}>
+                <Text style={styles.noAttendanceTitle}>
+                  {language === 'te'
+                    ? 'ఈరోజు హాజరు ఇంకా వెయ్యలేదు'
+                    : "Attandance Not Yet Taken Today"}
+                </Text>
+              </View>
+            )}
 
-        <View style={styles.summaryBox}>
-          <Text style={styles.summaryNumber1}>{item.absent}</Text>
-          <Text style={styles.summaryLabel}>
-            {language === 'te' ? 'గైర్హాజరు' : 'Absent'}
-          </Text>
-        </View>
-      </View>
-    </View>
-  ))
-) : (
-  <View style={styles.noAttendanceCard}>
-    <Text style={styles.noAttendanceTitle}>
-      {language === 'te'
-        ? 'ఈరోజు హాజరు ఇంకా వెయ్యలేదు'
-        : "Attandance Not Yet Taken Today"}
-    </Text>
-  </View>
-)}
+            <View style={styles.mestriBadge}>
+              <Ionicons name="person-circle" size={25} color="#1b5e20" />
+              <Text style={styles.mestriText}>
+                {language === 'te' ? 'మెస్త్రి పేరు' : 'Head Name: '} :   {mestriName}
+              </Text>
+            </View>
 
-<View style={styles.mestriBadge}>
-  <Ionicons name="person-circle" size={25} color="#1b5e20" />
-  <Text style={styles.mestriText}>
-    {language === 'te' ? 'మెస్త్రి పేరు' : 'Head Name: '} :   {mestriName}
-  </Text>
-</View>
+            {/* NAV CARDS */}
+            <NavCard
+              icon="people-outline"
+              title={language === 'te' ? 'రైతులు' : 'Farmers'}
+              desc={
+                language === 'te'
+                  ? 'రైతుల వివరాలు నిర్వహించండి'
+                  : 'Manage farmers'
+              }
+              path="/(tabs)/farmers"
+            />
 
-        {/* NAV CARDS */}
-      <NavCard
-  icon="people-outline"
-  title={language === 'te' ? 'రైతులు' : 'Farmers'}
-  desc={
-    language === 'te'
-      ? 'రైతుల వివరాలు నిర్వహించండి'
-      : 'Manage farmers'
-  }
-  path="/(tabs)/farmers"
-/>
+            <NavCard
+              icon="construct-outline"
+              title={language === 'te' ? 'కూలీలు' : 'Workers'}
+              desc={
+                language === 'te'
+                  ? 'కూలీల వివరాలు'
+                  : 'Manage workers'
+              }
+              path="/(tabs)/kulis"
+            />
 
-<NavCard
-  icon="construct-outline"
-  title={language === 'te' ? 'కూలీలు' : 'Workers'}
-  desc={
-    language === 'te'
-      ? 'కూలీల వివరాలు'
-      : 'Manage workers'
-  }
-  path="/(tabs)/kulis"
-/>
+            <NavCard
+              icon="calendar-outline"
+              title={language === 'te' ? 'హాజరు' : 'Attendance'}
+              desc={
+                language === 'te'
+                  ? 'రోజువారీ హాజరు నమోదు'
+                  : 'Daily attendance entry'
+              }
+              path="/(tabs)/attendance"
+            />
 
-<NavCard
-  icon="calendar-outline"
-  title={language === 'te' ? 'హాజరు' : 'Attendance'}
-  desc={
-    language === 'te'
-      ? 'రోజువారీ హాజరు నమోదు'
-      : 'Daily attendance entry'
-  }
-  path="/(tabs)/attendance"
-/>
-
-<NavCard
-  icon="cash-outline"
-  title={language === 'te' ? 'చెల్లింపులు' : 'Payments'}
-  desc={
-    language === 'te'
-      ? 'కూలి లెక్కలు'
-      : 'Payment history & settlement'
-  }
-  path="/(tabs)/payment"
-/>
-
+            <NavCard
+              icon="cash-outline"
+              title={language === 'te' ? 'చెల్లింపులు' : 'Payments'}
+              desc={
+                language === 'te'
+                  ? 'కూలి లెక్కలు'
+                  : 'Payment history & settlement'
+              }
+              path="/(tabs)/payment"
+            />
+          </>
+        )}
       </ScrollView>
-
-      {loading && (
-        <View style={styles.loader}>
-          <ActivityIndicator size="large" color="#1b5e20" />
-          
-        </View>
-      )}
     </View>
   );
 }

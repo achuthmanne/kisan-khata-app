@@ -50,8 +50,100 @@ const translations = {
     quick:"Smart Suggestions", all:"All Services", calculator:"Smart Calculators", attendance:"Workers Attendance",
     payments:"Workers Payment", forecast:"See Forecast", sales:"Crop Sales", expenses:"Farm Expenses",
     crops:"Farm Report", schemes:"Govt Schemes", market:"Market Prices", weather: "Weather",
-    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles", reminders: "Task Reminders", locker: "Agri Locker"
+    machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles", reminders: "Task Alarm", locker: "Agri Locker"
   }
+};
+
+/* 🔥 PROMO BANNERS CAROUSEL 🔥 */
+const PromoBanners = ({ language, router }: { language: string, router: any }) => {
+  const flatListRef = useRef<FlatList>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // We memoize the banners to avoid unnecessary re-renders when language changes
+  const banners = useMemo(() => [
+    {
+      id: "locker",
+      image: language === "te" ? require("../../../assets/images/locker_te.png") : require("../../../assets/images/locker_en.png"),
+      route: "/farmer/locker"
+    },
+    {
+      id: "reminders",
+      image: language === "te" ? require("../../../assets/images/reminders_te.png") : require("../../../assets/images/reminders_en.png"),
+      route: "/farmer/reminders"
+    },
+    {
+      id: "connect",
+      image: language === "te" ? require("../../../assets/images/connect_te.png") : require("../../../assets/images/connect_en.png"),
+      route: "/farmer/bookings"
+    }
+  ], [language]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      let nextIndex = currentIndex + 1;
+      if (nextIndex >= banners.length) {
+        nextIndex = 0;
+      }
+      setCurrentIndex(nextIndex);
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+    }, 7000);
+
+    return () => clearInterval(interval);
+  }, [currentIndex, banners.length]);
+
+  const handleScroll = (event: any) => {
+    const scrollPosition = event.nativeEvent.contentOffset.x;
+    const index = Math.round(scrollPosition / width);
+    if (index !== currentIndex && index >= 0 && index < banners.length) {
+      setCurrentIndex(index);
+    }
+  };
+
+  return (
+    <View style={{ marginTop: 10, marginBottom: 5 }}>
+      <FlatList
+        ref={flatListRef}
+        data={banners}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        onScrollToIndexFailed={(info) => {
+          const wait = new Promise(resolve => setTimeout(resolve, 500));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({ index: info.index, animated: true });
+          });
+        }}
+        renderItem={({ item }) => (
+          <TouchableOpacity activeOpacity={0.9} onPress={() => router.push(item.route)} style={{ width: width, paddingHorizontal: 20 }}>
+            <Image 
+              source={item.image} 
+              style={{ width: "100%", height: 140, borderRadius: 16 }} 
+              contentFit="fill" 
+              transition={300}
+            />
+          </TouchableOpacity>
+        )}
+      />
+      
+      {/* Pagination Dots */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12, gap: 6 }}>
+        {banners.map((_, index) => (
+          <View 
+            key={index} 
+            style={{ 
+              width: currentIndex === index ? 20 : 6, 
+              height: 6, 
+              borderRadius: 3, 
+              backgroundColor: currentIndex === index ? '#16A34A' : '#D1D5DB' 
+            }} 
+          />
+        ))}
+      </View>
+    </View>
+  );
 };
 
 /* 🔥 PAYTM STYLE FLAWLESS SKELETON (100% EXACT REPLICA) 🔥 */
@@ -116,6 +208,14 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
           {[1, 2, 3].map((i) => (
             <Animated.View key={i} style={{ width: 120, height: 44, borderRadius: 20, backgroundColor: "#F8F9FA", borderColor: "#E5E7EB", borderWidth: 1, opacity: pulseAnim }} />
           ))}
+        </View>
+
+        {/* Promotional Banners */}
+        <Animated.View style={{ width: width - 40, height: 140, borderRadius: 16, marginHorizontal: 20, marginTop: 15, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12, marginBottom: 5, gap: 6 }}>
+           <Animated.View style={{ width: 20, height: 6, borderRadius: 3, backgroundColor: "#D1D5DB", opacity: pulseAnim }} />
+           <Animated.View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
+           <Animated.View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#E5E7EB", opacity: pulseAnim }} />
         </View>
 
         {/* All Services */}
@@ -1071,6 +1171,9 @@ export default function Dashboard() {
       )}
     />
     
+    {/* 🔥 PROMOTIONAL BANNERS 🔥 */}
+    <PromoBanners language={language} router={router} />
+
    {/* ALL SERVICES */}
     <View style={[styles.sectionHeader, { marginTop: 5 }]}>
       <Text style={[styles.sectionTitle, { fontFamily: "Mandali" }]}>

@@ -672,20 +672,22 @@ export default function AddMachine() {
             </TouchableOpacity>
           </SafeAreaView>
 
-          <TouchableOpacity activeOpacity={0.8} style={styles.simpleLocateBtn} onPress={fetchLocation}>
-            <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#2563EB" />
-          </TouchableOpacity>
-
-          <View style={styles.minimalBottomCard}>
-            <View style={styles.addressRow}>
-              <Ionicons name="location" size={24} color="#16A34A" />
-              <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
-            </View>
-            <TouchableOpacity activeOpacity={0.85} onPress={() => setShowMapModal(false)}>
-              <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
-              <AppText style={styles.minimalConfirmText}>{language === "te" ? "లొకేషన్ నిర్ధారించండి" : "Confirm Location"}</AppText>
-              </LinearGradient>
+          <View style={styles.bottomContainer}>
+            <TouchableOpacity activeOpacity={0.8} style={styles.simpleLocateBtn} onPress={fetchLocation}>
+              <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#2563EB" />
             </TouchableOpacity>
+
+            <View style={styles.minimalBottomCard}>
+              <View style={styles.addressRow}>
+                <Ionicons name="location" size={24} color="#16A34A" />
+                <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
+              </View>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => setShowMapModal(false)}>
+                <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
+                  <AppText style={styles.minimalConfirmText}>{language === "te" ? "లొకేషన్ నిర్ధారించండి" : "Confirm Location"}</AppText>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -938,13 +940,14 @@ const styles = StyleSheet.create({
   centerPinWrapper: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -23, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5 },
   mapTopArea: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 50, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
   simpleBackBtn: { width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  simpleLocateBtn: { position: 'absolute', bottom: 160, right: 20, width: 48, height: 48, backgroundColor: '#fff', borderRadius: 24, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
+  bottomContainer: { position: 'absolute', bottom: 0, width: '100%' },
+  simpleLocateBtn: { position: 'absolute', bottom: "100%", right: 20, marginBottom: 15, width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
   
-  minimalBottomCard: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-  addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
-  minimalAddress: { flex: 1, fontSize: 15, color: '#374151', lineHeight: 26, fontFamily: "Mandali" },
-  minimalConfirmBtn: { backgroundColor: '#16A34A', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  minimalConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: "Mandali" },
+  minimalBottomCard: { width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+  addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
+  minimalAddress: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 22, fontFamily: "Mandali" },
+  minimalConfirmBtn: { backgroundColor: '#16A34A', height: 46, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  minimalConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600', fontFamily: "Mandali" },
 
   statusOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 20 },
   statusContent: { width: "100%", maxWidth: 340, backgroundColor: "#fff", borderRadius: 30, padding: 25, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },

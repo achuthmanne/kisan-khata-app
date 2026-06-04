@@ -569,19 +569,23 @@ export default function FindMachines() {
               <Ionicons name="chevron-back" size={24} color="#111827" />
             </TouchableOpacity>
           </SafeAreaView>
-          <TouchableOpacity activeOpacity={0.8} style={styles.simpleLocateBtn} onPress={fetchLocation}>
-            <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#111827" />
-          </TouchableOpacity>
-          <View style={styles.minimalBottomCard}>
-            <View style={styles.addressRow}>
-              <Ionicons name="location" size={24} color="#16A34A" />
-              <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
-            </View>
-            <TouchableOpacity activeOpacity={0.85}  onPress={() => setShowMapModal(false)}>
-              <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
-              <AppText style={styles.minimalConfirmText}>{language === "te" ? "నిర్ధారించండి" : "Confirm"}</AppText>
-              </LinearGradient>
+          
+          <View style={styles.bottomContainer}>
+            <TouchableOpacity activeOpacity={0.8} style={styles.simpleLocateBtn} onPress={fetchLocation}>
+              <MaterialCommunityIcons name="crosshairs-gps" size={22} color="#2563EB" />
             </TouchableOpacity>
+
+            <View style={styles.minimalBottomCard}>
+              <View style={styles.addressRow}>
+                <Ionicons name="location" size={24} color="#16A34A" />
+                <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
+              </View>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => { setShowMapModal(false); fetchMachines(); }}>
+                <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
+                  <AppText style={styles.minimalConfirmText}>{language === "te" ? "లొకేషన్ నిర్ధారించండి" : "Confirm Location"}</AppText>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Modal } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -25,8 +25,6 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
         case "saving": return "సేవ్ అవుతోంది...";
         case "deleting": return "తొలగిస్తోంది...";
         case "updating": return "అప్డేట్ అవుతోంది...";
-        case "pin": return "పిన్ వరిస్తోంది...";
-        case "open": return "తెరవుతోంది...";
         case "sending_otp": return "OTP పంపుతున్నాం...";
         case "verifying_otp": return "OTP నిర్ధారిస్తున్నాం...";
         default: return "లోడ్ అవుతోంది...";
@@ -36,8 +34,6 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
         case "saving": return "Saving...";
         case "deleting": return "Deleting...";
         case "updating": return "Updating...";
-        case "pin": return "Processing pin...";
-        case "open": return "Opening...";
         case "sending_otp": return "Sending OTP...";
         case "verifying_otp": return "Verifying OTP...";
         default: return "Loading...";
@@ -116,21 +112,23 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
   if (!visible) return null;
 
   return (
-    <View style={styles.overlay}>
-      <View style={styles.container}>
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={styles.overlay}>
+        <View style={styles.container}>
 
-        <AppText style={[styles.text, { color }]} language={language}>
-          {getText()}
-        </AppText>
+          <AppText style={[styles.text, { color }]} language={language}>
+            {getText()}
+          </AppText>
 
-        <View style={styles.row}>
-          <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle1]} />
-          <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle2]} />
-          <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle3]} />
+          <View style={styles.row}>
+            <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle1]} />
+            <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle2]} />
+            <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle3]} />
+          </View>
+
         </View>
-
       </View>
-    </View>
+    </Modal>
   );
 }
 

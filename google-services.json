@@ -13,7 +13,20 @@
           "package_name": "com.achuth.agrisnap"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "534150351488-b4n0e3evccq993tdgjo3uh7gde0n069q.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.achuth.agrisnap",
+            "certificate_hash": "4d942a1120b0a1cc7d31835b189730e845a83c5f"
+          }
+        },
+        {
+          "client_id": "534150351488-t3pinalnfqj6d67k42ekimct5efefif4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBNaNNssYJYmfWKK1dPAaOQxAFSpgmns1U"
@@ -21,7 +34,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "534150351488-t3pinalnfqj6d67k42ekimct5efefif4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

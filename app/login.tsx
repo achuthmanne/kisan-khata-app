@@ -309,7 +309,7 @@ export default function LoginScreen() {
 
               <Animated.View style={[styles.otpRow, shakeStyle]}>
                 {otp.map((digit, index) => (
-                  <View key={index} style={[styles.otpBox, focusedIndex === index && styles.otpBoxFocused, error !== "" && styles.otpBoxError]}>
+                  <View key={index} style={[styles.otpBox, (focusedIndex === index || digit !== "") && styles.otpBoxFocused, error !== "" && styles.otpBoxError]}>
                     <AppText style={[styles.otpText, digit !== "" && styles.otpTextActive]} language={language}>
                       {digit}
                     </AppText>
@@ -379,9 +379,9 @@ const styles = StyleSheet.create({
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#E8F5E9", justifyContent: "center", alignItems: "center", marginBottom: 20 },
   
   otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 6, marginTop: 10 },
-  otpBox: { flex: 1, height: 55, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 1.5, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
-  otpBoxFocused: { borderColor: "#1B5E20", backgroundColor: "#F1F8F1", borderWidth: 2 },
-  otpBoxError: { borderColor: "#EF4444", backgroundColor: "#FEF2F2" },
+  otpBox: { flex: 1, height: 55, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 0.5, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
+  otpBoxFocused: { borderColor: "#1B5E20", backgroundColor: "#F1F8F1", borderWidth: 1 },
+  otpBoxError: { borderColor: "#EF4444", backgroundColor: "#FEF2F2", borderWidth: 1 },
   otpText: { fontSize: 22, fontWeight: "700", color: "#CBD5E1" },
   otpTextActive: { color: "#1B5E20" },
   hiddenInput: { position: "absolute", width: '100%', height: '100%', opacity: 0 },

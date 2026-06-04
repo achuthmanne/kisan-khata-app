@@ -488,7 +488,7 @@ export default function FarmerLayout() {
             </AppText>
             <AppText style={styles.modalSub} language={language}>
               {language === "te"
-                ? "మీరు యాప్ నుండి లాగౌట్ (Logout) చేయాలనుకుంటున్నారా?"
+                ? "మీరు కిసాన్ ఖాతా యాప్ నుండి బయటకు రావాలనుకుంటున్నారా?"
                 : "Are you sure you want to sign out?"}
             </AppText>
             <View style={styles.modalButtons}>

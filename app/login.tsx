@@ -1,8 +1,10 @@
+import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,72 +18,202 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withSequence,
   withTiming,
+  FadeInRight,
+  FadeOutLeft,
+  FadeInLeft,
+  FadeOutRight
 } from "react-native-reanimated";
 
 import AgriLoader from "../components/AgriLoader";
 import AppText from "../components/AppText";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const router = useRouter();
 
-  const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<"FARMER" | "MESTRI" | null>(null);
+  // Screen State
+  const [step, setStep] = useState<1 | 2>(1); // 1 = Phone, 2 = OTP
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  
+  // Phone State
+  const [phone, setPhone] = useState("");
+  const focusPhone = useSharedValue(0);
 
-  const focus = useSharedValue(0);
+  // OTP State
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [confirm, setConfirm] = useState<FirebaseAuthTypes.ConfirmationResult | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
+  
+  const otpInputs = useRef<Array<TextInput | null>>([]);
+  const shake = useSharedValue(0);
 
-  const borderStyle = useAnimatedStyle(() => ({
-    borderColor: focus.value ? "#1B5E20" : "#E5E7EB",
-    borderWidth: focus.value ? 2 : 1,
+  // Auto-Read OTP listener
+  useEffect(() => {
+    const subscriber = auth().onAuthStateChanged(async (user) => {
+      // If we are on step 2 and user becomes available, it means Android auto-verified!
+      if (user && step === 2) {
+        handleSuccessfulAuth(user.phoneNumber?.replace('+91', '') || phone);
+      }
+    });
+    return subscriber; 
+  }, [step]);
+
+  // Resend Timer
+  useEffect(() => {
+    let interval: any;
+    if (resendTimer > 0) {
+      interval = setInterval(() => setResendTimer((prev) => prev - 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
+
+  // --- PHONE LOGIC ---
+  const validPhone = phone.length === 10;
+
+  const phoneBorderStyle = useAnimatedStyle(() => ({
+    borderColor: focusPhone.value ? "#1B5E20" : "#E5E7EB",
+    borderWidth: focusPhone.value ? 2 : 1,
   }));
 
-  const valid = phone.length === 10 && role !== null;
-
-  const handleContinue = async () => {
-    if (!valid) {
-      setError(language === "te" ? "సరైన వివరాలు నమోదు చేయండి" : "Enter valid details");
+  const handleSendOTP = async () => {
+    if (!validPhone) {
+      setError(language === "te" ? "సరైన ఫోన్ నంబర్ నమోదు చేయండి" : "Enter a valid phone number");
       return;
     }
+    Keyboard.dismiss();
+    setLoading(true);
+    setError("");
 
     try {
-      setLoading(true);
-      setError("");
+      const confirmation = await auth().signInWithPhoneNumber(`+91${phone}`);
+      setConfirm(confirmation);
+      setStep(2);
+      setResendTimer(30);
+      setLoading(false);
+      // focus first OTP input slightly after animation
+      setTimeout(() => otpInputs.current[0]?.focus(), 400);
+    } catch (err: any) {
+      setLoading(false);
+      console.log("OTP Send Error:", err);
+      if (err.code === 'auth/too-many-requests') {
+        setError(language === "te" ? "చాలా సార్లు ప్రయత్నించారు. కాసేపు ఆగి మళ్ళీ ప్రయత్నించండి." : "Too many requests. Please try again later.");
+      } else {
+        setError(language === "te" ? "OTP పంపడం విఫలమైంది" : "Failed to send OTP");
+      }
+    }
+  };
 
-      const doc = await firestore().collection("users").doc(phone).get();
-      const userExists: boolean = doc.exists();
+  // --- OTP LOGIC ---
+  const triggerShake = () => {
+    shake.value = withSequence(
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
 
-      if (userExists) {
-        const userData = doc.data();
-        const existingRole = userData?.role;
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shake.value }]
+  }));
 
-        const isFarmerDB = existingRole?.toUpperCase() === "FARMER" || existingRole === "రైతు";
-        const isMestriDB = existingRole?.toUpperCase() === "MESTRI" || existingRole === "మేస్త్రీ";
+  const handleOtpChange = (text: string, index: number) => {
+    setError("");
+    if (!/^[0-9]?$/.test(text)) return;
 
-        if ((isFarmerDB && role === "MESTRI") || (isMestriDB && role === "FARMER")) {
-          setLoading(false);
-          const roleInTelugu = isFarmerDB ? "రైతు" : "మేస్త్రీ";
-          const roleInEnglish = isFarmerDB ? "Farmer" : "Mestri";
-          
-          setError(
-            language === "te" 
-              ? `ఈ నంబర్ ఇప్పటికే "${roleInTelugu}" గా నమోదై ఉంది` 
-              : `This number is already registered as a ${roleInEnglish}`
-          );
-          return;
-        }
+    const newOtp = [...otp];
+    newOtp[index] = text;
+    setOtp(newOtp);
+
+    if (text) {
+      if (index < 5) {
+        otpInputs.current[index + 1]?.focus();
+        setFocusedIndex(index + 1);
+      }
+    }
+
+    // Auto verify if 6 digits are entered
+    if (newOtp.join("").length === 6) {
+      Keyboard.dismiss();
+      verifyOTP(newOtp.join(""));
+    }
+  };
+
+  const handleOtpKeyPress = (e: any, index: number) => {
+    if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+      const newOtp = [...otp];
+      newOtp[index - 1] = "";
+      setOtp(newOtp);
+      otpInputs.current[index - 1]?.focus();
+      setFocusedIndex(index - 1);
+    }
+  };
+
+  const verifyOTP = async (code: string) => {
+    if (!confirm) return;
+    setLoading(true);
+    setError("");
+    try {
+      await confirm.confirm(code);
+      // onAuthStateChanged will catch this usually, but we handle it here explicitly too
+      await handleSuccessfulAuth(phone);
+    } catch (err: any) {
+      setLoading(false);
+      triggerShake();
+      setError(language === "te" ? "తప్పు OTP నమోదు చేసారు" : "Invalid OTP entered");
+      setOtp(["", "", "", "", "", ""]);
+      setFocusedIndex(0);
+      otpInputs.current[0]?.focus();
+    }
+  };
+
+  const handleSuccessfulAuth = async (userPhone: string) => {
+    try {
+      const doc = await firestore().collection("users").doc(userPhone).get();
+      const userExists = doc.exists;
+      
+      const roleToSave = "FARMER"; // App is strictly for Farmers now
+
+      if (!userExists) {
+        // Create new user silently
+        await firestore().collection("users").doc(userPhone).set({
+          phone: userPhone,
+          role: roleToSave,
+          language: language,
+          createdAt: firestore.FieldValue.serverTimestamp(),
+          updatedAt: firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // Just update language and ensure role is farmer
+        await firestore().collection("users").doc(userPhone).update({
+          role: roleToSave,
+          language: language,
+          updatedAt: firestore.FieldValue.serverTimestamp()
+        });
       }
 
-      router.push({
-        pathname: "/pin",
-        params: { phone, role, language, mode: userExists ? "login" : "create" },
-      });
+      // Save Local State
+      await AsyncStorage.setItem("USER_PHONE", userPhone);
+      await AsyncStorage.setItem("USER_ROLE", roleToSave);
+      await AsyncStorage.setItem("APP_LANG", language);
+      
+      if (doc.exists && doc.data()?.name) {
+        await AsyncStorage.setItem("USER_NAME", doc.data()?.name);
+      }
+
+      // Smooth Route transition
       setLoading(false);
+      router.replace("/farmer/(tabs)");
     } catch (err) {
+      console.log("DB Save Error:", err);
       setLoading(false);
-      setError(language === "te" ? "నెట్‌వర్క్ లోపం" : "Network error");
+      setError(language === "te" ? "సర్వర్ లోపం, మళ్ళీ ప్రయత్నించండి" : "Server error, please try again");
     }
   };
 
@@ -92,67 +224,119 @@ export default function LoginScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <View style={styles.container}>
           
+          {/* Top Language Toggle */}
           <View style={styles.langRow}>
-            <Pressable onPress={() => setLanguage("te")}>
+            <Pressable onPress={() => setLanguage("te")} disabled={loading}>
               <AppText style={[styles.lang, language === "te" && styles.active]} language={language}>తెలుగు</AppText>
             </Pressable>
             <AppText style={{ marginHorizontal: 8, color: "#E5E7EB" }} language={language}>|</AppText>
-            <Pressable onPress={() => setLanguage("en")}>
+            <Pressable onPress={() => setLanguage("en")} disabled={loading}>
               <AppText style={[styles.lang, language === "en" && styles.active]} language={language}>English</AppText>
             </Pressable>
           </View>
 
-          <AppText style={styles.title} language={language}>Kisan Khata</AppText>
-          <AppText style={styles.tagline} language={language}>
-           {language === "te" 
-            ? "ఆధునిక వ్యవసాయానికి డిజిటల్ ఖాతా." 
-            : "The Digital Ledger for Modern Agriculture."}
-          </AppText>
-
-          <Animated.View style={[styles.inputBox, borderStyle]}>
-            <AppText style={styles.prefix} language={language}>+91</AppText>
-            <View style={styles.divider} />
-            <TextInput
-              style={[styles.input, { fontFamily: "Mandali", marginTop: Platform.OS === "android" ? 2 : 0 }]}
-              keyboardType="number-pad"
-              maxLength={10}
-              value={phone}
-              cursorColor="#1B5E20"
-              selectionColor="#1B5E20"
-              placeholder={language === "te" ? "ఫోన్ నంబర్" : "Phone Number"}
-              placeholderTextColor="#9CA3AF"
-              onFocus={() => (focus.value = withTiming(1))}
-              onBlur={() => (focus.value = withTiming(0))}
-              onChangeText={(t) => {
-                setPhone(t.replace(/[^0-9]/g, ""));
-                setError("");
-              }}
-            />
-          </Animated.View>
-
-          <View style={styles.roleRow}>
-            <TouchableOpacity activeOpacity={0.8} style={[styles.roleCard, role === "FARMER" && styles.roleActive]} onPress={() => setRole("FARMER")}>
-              <Image source={require("../assets/images/farmer.png")} style={[styles.customIcon, { opacity: role === "FARMER" ? 1 : 0.5 }]} />
-              <AppText style={[styles.roleText, role === "FARMER" && { color: "#1B5E20" }]} language={language}>
-                {language === "te" ? "రైతు" : "Farmer"}
+          {step === 1 ? (
+            // --- STEP 1: PHONE INPUT ---
+            <Animated.View entering={FadeInLeft} exiting={FadeOutLeft} style={{ flex: 1 }}>
+              <AppText style={styles.title} language={language}>Kisan Khata</AppText>
+              <AppText style={styles.tagline} language={language}>
+              {language === "te" 
+                ? "ఆధునిక వ్యవసాయానికి డిజిటల్ ఖాతా." 
+                : "The Digital Ledger for Modern Agriculture."}
               </AppText>
-            </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.roleCard, role === "MESTRI" && styles.roleActive]} onPress={() => setRole("MESTRI")}>
-              <Image source={require("../assets/images/kuli.png")} style={[styles.customIcon, { opacity: role === "MESTRI" ? 1 : 0.5 }]} />
-              <AppText style={[styles.roleText, role === "MESTRI" && { color: "#1B5E20" }]} language={language}>
-                {language === "te" ? "మేస్త్రీ" : "Mestri"}
+              <Animated.View style={[styles.inputBox, phoneBorderStyle]}>
+                <AppText style={styles.prefix} language={language}>+91</AppText>
+                <View style={styles.divider} />
+                <TextInput
+                  style={[styles.input, { fontFamily: "Mandali", marginTop: Platform.OS === "android" ? 2 : 0 }]}
+                  keyboardType="number-pad"
+                  maxLength={10}
+                  value={phone}
+                  cursorColor="#1B5E20"
+                  selectionColor="#1B5E20"
+                  placeholder={language === "te" ? "ఫోన్ నంబర్" : "Phone Number"}
+                  placeholderTextColor="#9CA3AF"
+                  onFocus={() => (focusPhone.value = withTiming(1))}
+                  onBlur={() => (focusPhone.value = withTiming(0))}
+                  onChangeText={(t) => {
+                    setPhone(t.replace(/[^0-9]/g, ""));
+                    setError("");
+                  }}
+                  editable={!loading}
+                />
+              </Animated.View>
+
+              {error !== "" && <AppText style={styles.error} language={language}>{error}</AppText>}
+
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={[styles.button, !validPhone && styles.disabledBtn]} 
+                disabled={!validPhone || loading} 
+                onPress={handleSendOTP}
+              >
+                <AppText style={styles.buttonText} language={language}>
+                  {language === "te" ? "OTP పంపండి" : "Send OTP"}
+                </AppText>
+              </TouchableOpacity>
+            </Animated.View>
+          ) : (
+            // --- STEP 2: OTP INPUT ---
+            <Animated.View entering={FadeInRight} exiting={FadeOutRight} style={{ flex: 1 }}>
+              
+              <TouchableOpacity onPress={() => { setStep(1); setError(""); }} style={styles.backBtn} disabled={loading}>
+                <Ionicons name="arrow-back" size={24} color="#1B5E20" />
+              </TouchableOpacity>
+
+              <AppText style={styles.title} language={language}>
+                {language === "te" ? "OTP నమోదు చేయండి" : "Enter OTP"}
               </AppText>
-            </TouchableOpacity>
-          </View>
+              <AppText style={styles.tagline} language={language}>
+                {language === "te" 
+                  ? `+91 ${phone} కి పంపిన 6-అంకెల కోడ్ ని ఇక్కడ ఇవ్వండి.` 
+                  : `Enter the 6-digit code sent to +91 ${phone}.`}
+              </AppText>
 
-          {error !== "" && <AppText style={styles.error} language={language}>{error}</AppText>}
+              <Animated.View style={[styles.otpRow, shakeStyle]}>
+                {otp.map((digit, index) => (
+                  <View key={index} style={[styles.otpBox, focusedIndex === index && styles.otpBoxFocused, error !== "" && styles.otpBoxError]}>
+                    <AppText style={[styles.otpText, digit !== "" && styles.otpTextActive]} language={language}>
+                      {digit}
+                    </AppText>
+                    <TextInput
+                      ref={(ref) => { otpInputs.current[index] = ref }}
+                      style={styles.hiddenInput}
+                      keyboardType="number-pad"
+                      maxLength={1}
+                      value={digit}
+                      editable={!loading}
+                      onChangeText={(text) => handleOtpChange(text, index)}
+                      onFocus={() => setFocusedIndex(index)}
+                      onKeyPress={(e) => handleOtpKeyPress(e, index)}
+                    />
+                  </View>
+                ))}
+              </Animated.View>
 
-          <TouchableOpacity activeOpacity={0.8} style={[styles.button, !valid && styles.disabled]} disabled={!valid || loading} onPress={handleContinue}>
-            <AppText style={styles.buttonText} language={language}>
-              {language === "te" ? "ముందుకు" : "Continue"}
-            </AppText>
-          </TouchableOpacity>
+              {error !== "" && <AppText style={styles.error} language={language}>{error}</AppText>}
+
+              <View style={styles.resendContainer}>
+                {resendTimer > 0 ? (
+                  <AppText style={styles.resendTextWait} language={language}>
+                    {language === "te" ? `మళ్ళీ పంపడానికి ${resendTimer}s ఆగండి` : `Resend OTP in ${resendTimer}s`}
+                  </AppText>
+                ) : (
+                  <TouchableOpacity onPress={handleSendOTP} disabled={loading}>
+                    <AppText style={styles.resendTextActive} language={language}>
+                      {language === "te" ? "OTP మళ్ళీ పంపండి" : "Resend OTP"}
+                    </AppText>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+            </Animated.View>
+          )}
+
         </View>
 
         <AgriLoader visible={loading} type="loading" language={language} />
@@ -163,24 +347,36 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
-  watermark: { position: "absolute", width: 300, height: 300, opacity: 0.04, alignSelf: "center", top: "30%" },
   container: { flex: 1, padding: 24, paddingTop: 60 },
   langRow: { flexDirection: "row", alignSelf: "flex-end", marginBottom: 40, alignItems: 'center' },
   lang: { color: "#9CA3AF", fontSize: 14 },
   active: { color: "#1B5E20", fontWeight: "500" },
-  title: { fontSize: 36, fontWeight: "800", color: "#1B5E20", letterSpacing: -1 },
-  tagline: { fontSize: 16, color: "#6B7280", marginBottom: 50, fontWeight: "500" },
-  inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 22, borderWidth: 0.5, borderColor: "#E5E7EB", paddingHorizontal: 18, height: 60, marginBottom: 20, marginTop: -20},
+  
+  title: { fontSize: 32, fontWeight: "800", color: "#1B5E20", letterSpacing: -1 },
+  tagline: { fontSize: 15, color: "#6B7280", marginBottom: 40, fontWeight: "500", lineHeight: 22 },
+  
+  inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 22, borderWidth: 0.5, borderColor: "#E5E7EB", paddingHorizontal: 18, height: 60, marginBottom: 20 },
   prefix: { fontSize: 17, fontWeight: "600", color: "#1B5E20", marginRight: 8 },
   divider: { width: 1.5, height: 24, backgroundColor: "#E5E7EB", marginRight: 15 },
   input: { flex: 1, fontSize: 18, fontWeight: "600", color: "#111827", height: '100%', paddingVertical: 0 },
-  roleRow: { flexDirection: "row", marginBottom: 30, gap: 12 },
-  roleCard: { flex: 1, backgroundColor: "#FFF", paddingVertical: 25, borderRadius: 22, alignItems: "center", borderWidth: 1, borderColor: "#F3F4F6" },
-  customIcon: { width: 55, height: 55, resizeMode: 'contain', marginBottom: 8 },
-  roleActive: { borderColor: "#1B5E20", backgroundColor: "#E8F5E9" },
-  roleText: { marginTop: 10, fontWeight: "600", color: "#6B7280", fontSize: 15 },
-  error: { color: "#D32F2F", marginBottom: 15, fontWeight: "600", textAlign: "center" },
-  button: { height: 55, borderRadius: 22, backgroundColor: "#1B5E20", justifyContent: "center", alignItems: "center" },
-  disabled: { backgroundColor: "#D1D5DB" },
+  
+  button: { height: 55, borderRadius: 22, backgroundColor: "#1B5E20", justifyContent: "center", alignItems: "center", marginTop: 20 },
+  disabledBtn: { backgroundColor: "#A7F3D0" },
   buttonText: { color: "#FFF", fontWeight: "600", fontSize: 18, letterSpacing: 0.5 },
+  
+  error: { color: "#EF4444", marginTop: 10, fontWeight: "600", textAlign: "center" },
+
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#E8F5E9", justifyContent: "center", alignItems: "center", marginBottom: 20 },
+  
+  otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8, marginTop: 10 },
+  otpBox: { flex: 1, height: 60, borderRadius: 16, backgroundColor: "#FFF", borderWidth: 1.5, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
+  otpBoxFocused: { borderColor: "#1B5E20", backgroundColor: "#F1F8F1", borderWidth: 2 },
+  otpBoxError: { borderColor: "#EF4444", backgroundColor: "#FEF2F2" },
+  otpText: { fontSize: 24, fontWeight: "700", color: "#9CA3AF" },
+  otpTextActive: { color: "#1B5E20" },
+  hiddenInput: { position: "absolute", width: '100%', height: '100%', opacity: 0 },
+  
+  resendContainer: { marginTop: 30, alignItems: "center" },
+  resendTextWait: { color: "#9CA3AF", fontSize: 14, fontWeight: "500" },
+  resendTextActive: { color: "#1B5E20", fontSize: 15, fontWeight: "600", textDecorationLine: "underline" }
 });

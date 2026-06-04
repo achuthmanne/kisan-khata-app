@@ -1287,7 +1287,7 @@ const styles = StyleSheet.create({
   weatherIcon:{ width:30, height:30, marginRight:6 },
   weatherLeft:{ flex:1, paddingRight: 110 },
   weatherRight:{ justifyContent:"center", alignItems:"center" },
-  weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding: false, lineHeight: 20, marginTop: 6 },
+  weatherText:{ color:"white", fontSize:15, marginRight:1, flexShrink:1, includeFontPadding: false, lineHeight: 24, marginTop: 4 },
   temp:{ color:"white", fontSize:55, fontWeight:"bold", marginRight: -6 },
   headerDots:{ flexDirection:"row", justifyContent:"center", marginTop:0 },
   badge: { position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: "#EF4444", justifyContent: "center", alignItems: "center", borderWidth: 2.5, borderColor: "#1B5E20" },

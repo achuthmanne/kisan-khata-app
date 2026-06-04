@@ -615,7 +615,7 @@ export default function ProfileScreen() {
               {language === "te" ? "లాగౌట్" : "Logout"}
             </AppText>
             <AppText style={styles.modalSubText} language={language}>
-              {language === "te" ? "మీరు నిజంగా నిష్క్రమించాలనుకుంటున్నారా?" : "Are you sure you want to sign out?"}
+              {language === "te" ? "మీరు యాప్ నుండి లాగౌట్ (Logout) చేయాలనుకుంటున్నారా?" : "Are you sure you want to sign out?"}
             </AppText>
             <View style={styles.modalActionRow}>
               <TouchableOpacity activeOpacity={0.8} onPress={() => setShowLogoutModal(false)} style={styles.modalSecondaryBtn}>

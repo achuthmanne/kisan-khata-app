@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   lang: { color: "#9CA3AF", fontSize: 14 },
   active: { color: "#1B5E20", fontWeight: "500" },
   
-  title: { fontSize: 32, fontWeight: "800", color: "#1B5E20", letterSpacing: -1 },
+  title: { fontSize: 28, fontWeight: "600", color: "#1B5E20", letterSpacing: -0.5 },
   tagline: { fontSize: 15, color: "#6B7280", marginBottom: 40, fontWeight: "500", lineHeight: 22 },
   
   inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 22, borderWidth: 0.5, borderColor: "#E5E7EB", paddingHorizontal: 18, height: 60, marginBottom: 20 },

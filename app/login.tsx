@@ -37,6 +37,7 @@ export default function LoginScreen() {
   const [step, setStep] = useState<1 | 2>(1); // 1 = Phone, 2 = OTP
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [loading, setLoading] = useState(false);
+  const [loaderType, setLoaderType] = useState<"loading" | "sending_otp" | "verifying_otp">("loading");
   const [error, setError] = useState("");
   
   // Phone State
@@ -77,7 +78,7 @@ export default function LoginScreen() {
 
   const phoneBorderStyle = useAnimatedStyle(() => ({
     borderColor: focusPhone.value ? "#1B5E20" : "#E5E7EB",
-    borderWidth: focusPhone.value ? 2 : 1,
+    borderWidth: focusPhone.value ? 1 : 0.5,
   }));
 
   const handleSendOTP = async () => {
@@ -86,6 +87,7 @@ export default function LoginScreen() {
       return;
     }
     Keyboard.dismiss();
+    setLoaderType("sending_otp");
     setLoading(true);
     setError("");
 
@@ -103,7 +105,8 @@ export default function LoginScreen() {
       if (err.code === 'auth/too-many-requests') {
         setError(language === "te" ? "చాలా సార్లు ప్రయత్నించారు. కాసేపు ఆగి మళ్ళీ ప్రయత్నించండి." : "Too many requests. Please try again later.");
       } else {
-        setError(language === "te" ? "OTP పంపడం విఫలమైంది" : "Failed to send OTP");
+        // Show the exact error to the user for debugging
+        setError(`Error: ${err.code || err.message}`);
       }
     }
   };
@@ -157,6 +160,7 @@ export default function LoginScreen() {
 
   const verifyOTP = async (code: string) => {
     if (!confirm) return;
+    setLoaderType("verifying_otp");
     setLoading(true);
     setError("");
     try {
@@ -176,7 +180,8 @@ export default function LoginScreen() {
   const handleSuccessfulAuth = async (userPhone: string) => {
     try {
       const doc = await firestore().collection("users").doc(userPhone).get();
-      const userExists = doc.exists;
+      const data = doc.data();
+      const userExists = !!data;
       
       const roleToSave = "FARMER"; // App is strictly for Farmers now
 
@@ -203,13 +208,18 @@ export default function LoginScreen() {
       await AsyncStorage.setItem("USER_ROLE", roleToSave);
       await AsyncStorage.setItem("APP_LANG", language);
       
-      if (doc.exists && doc.data()?.name) {
-        await AsyncStorage.setItem("USER_NAME", doc.data()?.name);
+      if (data?.name) {
+        await AsyncStorage.setItem("USER_NAME", data.name);
       }
 
-      // Smooth Route transition
-      setLoading(false);
-      router.replace("/farmer/(tabs)");
+      // Butter-smooth Route transition:
+      // 1. Hide keyboard gracefully
+      Keyboard.dismiss();
+      
+      // 2. Keep loader running while routing to prevent flicker
+      setTimeout(() => {
+        router.replace("/farmer/(tabs)");
+      }, 300);
     } catch (err) {
       console.log("DB Save Error:", err);
       setLoading(false);
@@ -254,7 +264,7 @@ export default function LoginScreen() {
                   maxLength={10}
                   value={phone}
                   cursorColor="#1B5E20"
-                  selectionColor="#1B5E20"
+                  selectionColor="#afd2a5"
                   placeholder={language === "te" ? "ఫోన్ నంబర్" : "Phone Number"}
                   placeholderTextColor="#9CA3AF"
                   onFocus={() => (focusPhone.value = withTiming(1))}
@@ -339,7 +349,7 @@ export default function LoginScreen() {
 
         </View>
 
-        <AgriLoader visible={loading} type="loading" language={language} />
+        <AgriLoader visible={loading} type={loaderType as any} language={language} />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -361,18 +371,18 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 18, fontWeight: "600", color: "#111827", height: '100%', paddingVertical: 0 },
   
   button: { height: 55, borderRadius: 22, backgroundColor: "#1B5E20", justifyContent: "center", alignItems: "center", marginTop: 20 },
-  disabledBtn: { backgroundColor: "#A7F3D0" },
+  disabledBtn: { backgroundColor: "#D1D5DB" },
   buttonText: { color: "#FFF", fontWeight: "600", fontSize: 18, letterSpacing: 0.5 },
   
   error: { color: "#EF4444", marginTop: 10, fontWeight: "600", textAlign: "center" },
 
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#E8F5E9", justifyContent: "center", alignItems: "center", marginBottom: 20 },
   
-  otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 8, marginTop: 10 },
-  otpBox: { flex: 1, height: 60, borderRadius: 16, backgroundColor: "#FFF", borderWidth: 1.5, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
+  otpRow: { flexDirection: "row", justifyContent: "space-between", gap: 6, marginTop: 10 },
+  otpBox: { flex: 1, height: 55, borderRadius: 12, backgroundColor: "#FFF", borderWidth: 1.5, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
   otpBoxFocused: { borderColor: "#1B5E20", backgroundColor: "#F1F8F1", borderWidth: 2 },
   otpBoxError: { borderColor: "#EF4444", backgroundColor: "#FEF2F2" },
-  otpText: { fontSize: 24, fontWeight: "700", color: "#9CA3AF" },
+  otpText: { fontSize: 22, fontWeight: "700", color: "#CBD5E1" },
   otpTextActive: { color: "#1B5E20" },
   hiddenInput: { position: "absolute", width: '100%', height: '100%', opacity: 0 },
   

@@ -12,7 +12,7 @@ import AppText from "./AppText";
 
 interface Props {
   visible: boolean;
-  type?: "loading" | "saving" | "deleting" | "updating" | "pin" | "open";
+  type?: "loading" | "saving" | "deleting" | "updating" | "pin" | "open" | "sending_otp" | "verifying_otp";
   language?: "te" | "en";
 }
 
@@ -27,6 +27,8 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
         case "updating": return "అప్డేట్ అవుతోంది...";
         case "pin": return "పిన్ వరిస్తోంది...";
         case "open": return "తెరవుతోంది...";
+        case "sending_otp": return "OTP పంపుతున్నాం...";
+        case "verifying_otp": return "OTP నిర్ధారిస్తున్నాం...";
         default: return "లోడ్ అవుతోంది...";
       }
     } else {
@@ -36,6 +38,8 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
         case "updating": return "Updating...";
         case "pin": return "Processing pin...";
         case "open": return "Opening...";
+        case "sending_otp": return "Sending OTP...";
+        case "verifying_otp": return "Verifying OTP...";
         default: return "Loading...";
       }
     }

@@ -185,7 +185,7 @@ export default function PaymentsScreen() {
             placeholder={language === "te" ? "మేస్త్రీ పేరుతో వెతకండి..." : "Search by mestriname..."}
             placeholderTextColor="#9CA3AF"
             cursorColor="#16A34A"
-            selectionColor="#16A34A40"
+            selectionColor="#afd2a5"
             onFocus={() => setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             style={styles.searchInput}

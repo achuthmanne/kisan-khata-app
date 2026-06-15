@@ -328,7 +328,7 @@ export default function AddReminderScreen() {
                 ref={taskRef}
                 value={task}
                 cursorColor="#16A34A"
-                selectionColor="#16A34A40"
+                selectionColor="#afd2a5"
                 onChangeText={(txt) => {
                   setTask(txt);
                   if (errors.task) setErrors({ ...errors, task: "" });

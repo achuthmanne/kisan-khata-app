@@ -298,7 +298,7 @@ export default function ProfileScreen() {
       
       if (!backupData.name || backupData.name.trim().length < 3) {
         const isFarmer = role?.toUpperCase() === "FARMER" || role === "రైతు";
-        router.replace(isFarmer ? "/farmer/(tabs)" : "/(tabs)");
+        router.replace("/farmer/(tabs)");
       }
     } catch (error) {
       console.log("Error saving data:", error);

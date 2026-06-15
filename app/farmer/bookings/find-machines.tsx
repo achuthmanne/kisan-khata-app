@@ -580,7 +580,7 @@ export default function FindMachines() {
                 <Ionicons name="location" size={24} color="#16A34A" />
                 <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
               </View>
-              <TouchableOpacity activeOpacity={0.85} onPress={() => { setShowMapModal(false); fetchMachines(); }}>
+              <TouchableOpacity activeOpacity={0.85} onPress={() => setShowMapModal(false)}>
                 <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
                   <AppText style={styles.minimalConfirmText}>{language === "te" ? "లొకేషన్ నిర్ధారించండి" : "Confirm Location"}</AppText>
                 </LinearGradient>
@@ -601,7 +601,7 @@ export default function FindMachines() {
               </TouchableOpacity>
             </View>
             <View style={[styles.searchBar, { flexDirection: "row", alignItems: "center" }]}>
-              <TextInput value={searchText} onChangeText={setSearchText} placeholder={language === "te" ? "వెతకండి..." : "Search..."} placeholderTextColor="#9CA3AF" cursorColor="green" selectionColor="green" style={{ flex: 1, height: 50, fontFamily: "Mandali", color: "#1F2937" }} />
+              <TextInput value={searchText} onChangeText={setSearchText} placeholder={language === "te" ? "వెతకండి..." : "Search..."} placeholderTextColor="#9CA3AF" cursorColor="green" selectionColor="#16A34A40" style={{ flex: 1, height: 50, fontFamily: "Mandali", color: "#1F2937" }} />
               <TouchableOpacity onPress={startVoice} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#e5e7eb" }}>
                 <MaterialCommunityIcons name={isListening ? "microphone" : "microphone-outline"} size={20} color={isListening ? "#EF4444" : "#2E7D32"} />
               </TouchableOpacity>
@@ -643,8 +643,9 @@ const styles = StyleSheet.create({
   // 🔥 ZOMATO MAP STYLES
   mapTopArea: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 50, left: 20 },
   simpleBackBtn: { width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  simpleLocateBtn: { position: 'absolute', bottom: 160, right: 20, width: 48, height: 48, backgroundColor: '#fff', borderRadius: 24, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  minimalBottomCard: { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+  bottomContainer: { position: 'absolute', bottom: 0, width: '100%' },
+  simpleLocateBtn: { position: 'absolute', bottom: "100%", right: 20, marginBottom: 15, width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
+  minimalBottomCard: { width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
   centerPinWrapper: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -23, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5 },
 
   blueMapBtn: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 10, marginLeft: 10 },

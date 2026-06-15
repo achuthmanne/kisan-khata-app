@@ -1,6 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -16,19 +16,19 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  FadeInLeft,
+  FadeInRight,
+  FadeOutLeft,
+  FadeOutRight,
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withTiming,
-  FadeInRight,
-  FadeOutLeft,
-  FadeInLeft,
-  FadeOutRight
+  withTiming
 } from "react-native-reanimated";
 
+import { Ionicons } from "@expo/vector-icons";
 import AgriLoader from "../components/AgriLoader";
 import AppText from "../components/AppText";
-import { Ionicons } from "@expo/vector-icons";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -264,7 +264,7 @@ export default function LoginScreen() {
                   maxLength={10}
                   value={phone}
                   cursorColor="#1B5E20"
-                  selectionColor="#afd2a5"
+                  selectionColor="#16A34A40"
                   placeholder={language === "te" ? "ఫోన్ నంబర్" : "Phone Number"}
                   placeholderTextColor="#9CA3AF"
                   onFocus={() => (focusPhone.value = withTiming(1))}
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   lang: { color: "#9CA3AF", fontSize: 14 },
   active: { color: "#1B5E20", fontWeight: "500" },
   
-  title: { fontSize: 28, fontWeight: "600", color: "#1B5E20", letterSpacing: -0.5 },
+  title: { fontSize: 28, fontWeight: "700", color: "#1B5E20", letterSpacing: -0.5 },
   tagline: { fontSize: 15, color: "#6B7280", marginBottom: 40, fontWeight: "500", lineHeight: 22 },
   
   inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 22, borderWidth: 0.5, borderColor: "#E5E7EB", paddingHorizontal: 18, height: 60, marginBottom: 20 },

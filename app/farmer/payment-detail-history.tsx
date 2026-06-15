@@ -473,7 +473,7 @@ export default function PaymentDetailHistory() {
 
                           const labels = {
                             morning: language === "te" ? "ఉదయం" : "Morning",
-                            evening: language === "te" ? "సాయంత్రం" : "Evening",
+                            evening: language === "te" ? "మధ్యాహ్నం" : "Afternoon",
                             full: language === "te" ? "పూర్తి రోజు" : "Full Day",
                             days: language === "te" ? "రోజులు" : "Days",
                             workers: language === "te" ? "కూలీలు" : "Workers",

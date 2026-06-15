@@ -230,9 +230,8 @@ export default function WeatherScreen() {
         const geo = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
         if (geo && geo.length > 0) {
           const g = geo[0];
-          // For rural India, g.name or g.street often contains the exact Village name.
-          // g.city / g.subregion usually contains the Mandal.
-          osCity = g.name || g.street || g.city || g.subregion || g.district || "";
+          const isValid = (s?: string | null) => s && s.length > 2 && !s.includes('+') && !/\d/.test(s);
+          osCity = (isValid(g.name) ? g.name : null) || (isValid(g.street) ? g.street : null) || g.city || g.subregion || g.district || "";
         }
       } catch (e) {}
 

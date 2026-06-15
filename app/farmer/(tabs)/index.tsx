@@ -276,7 +276,7 @@ export default function Dashboard() {
   
   const CACHE_KEY = "WEATHER_CACHE";
   const CACHE_TIME = 5 * 60 * 1000; 
-  const PRICE_CACHE_KEY = "PRICE_CACHE";
+  const PRICE_CACHE_KEY = "ADVANCED_MARKET_CACHE";
   const PRICE_CACHE_TIME = 2 * 60 * 1000; 
   const LOCATION_CACHE_KEY = "LOCATION_CACHE";
   const LOCATION_CACHE_TIME = 15 * 60 * 1000; 
@@ -519,7 +519,7 @@ export default function Dashboard() {
   },[]);
 
   const swipeAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: swipeShared.value }]
+    // transform: [{ translateX: swipeShared.value }]
   }));
 
   const priceAnimatedStyle = useAnimatedStyle(() => ({
@@ -743,7 +743,8 @@ export default function Dashboard() {
         const geo = await Location.reverseGeocodeAsync({ latitude, longitude });
         if (geo && geo.length > 0) {
           const g = geo[0];
-          osCity = g.name || g.street || g.city || g.subregion || g.district || "";
+          const isValid = (s?: string | null) => s && s.length > 2 && !s.includes('+') && !/\d/.test(s);
+          osCity = (isValid(g.name) ? g.name : null) || (isValid(g.street) ? g.street : null) || g.city || g.subregion || g.district || "";
         }
       } catch (e) {}
 
@@ -777,13 +778,26 @@ export default function Dashboard() {
     }
   };
 
+  const processPrices = (rawData: any[]) => {
+    const sorted = [...rawData].sort((a: any, b: any) => new Date(b.arrival_date).getTime() - new Date(a.arrival_date).getTime());
+    const grouped: any = {};
+    sorted.forEach((item: any) => {
+      if (!grouped[item.commodity]) grouped[item.commodity] = [];
+      grouped[item.commodity].push(item);
+    });
+    return Object.keys(grouped).map((key) => {
+      const items = grouped[key];
+      return { ...items[0], prevPrice: items[1]?.modal_price || items[0].modal_price };
+    });
+  };
+
   const fetchPrices = async () => {
     if (!isOnline) {
       const cached = await AsyncStorage.getItem(PRICE_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed.data)) {
-          setPrices(parsed.data.slice(0,3)); 
+          setPrices(processPrices(parsed.data).slice(0,3)); 
         }
         setPriceLoading(false);
       }
@@ -794,35 +808,25 @@ export default function Dashboard() {
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Date.now() - parsed.timestamp < PRICE_CACHE_TIME && Array.isArray(parsed.data)) {
-          setPrices(parsed.data.slice(0,3)); setPriceLoading(false); return;
+          setPrices(processPrices(parsed.data).slice(0,3)); setPriceLoading(false); return;
         }
       }
       setPriceLoading(true);
-      const res = await fetch("https://us-central1-agrisnap-9b487.cloudfunctions.net/getPrices");
+      const res = await fetch("https://us-central1-agrisnap-9b487.cloudfunctions.net/getAdvancedPrices");
       if (!res.ok) throw new Error("Price API failed");
       const data = await res.json();
 
-      if (Array.isArray(data)) {
-        const sorted = data.sort((a: any, b: any) => new Date(b.arrival_date).getTime() - new Date(a.arrival_date).getTime());
-        const grouped: any = {};
-        sorted.forEach((item: any) => {
-          if (!grouped[item.commodity]) grouped[item.commodity] = [];
-          grouped[item.commodity].push(item);
-        });
-
-        const finalPrices = Object.keys(grouped).map((key) => {
-          const items = grouped[key];
-          return { ...items[0], prevPrice: items[1]?.modal_price || items[0].modal_price };
-        });
-
-        setPrices(finalPrices.slice(0,3));
-        await AsyncStorage.setItem(PRICE_CACHE_KEY, JSON.stringify({ data: finalPrices, timestamp: Date.now() }));
+      if (Array.isArray(data) && data.length > 0) {
+        setPrices(processPrices(data).slice(0,3));
+        await AsyncStorage.setItem(PRICE_CACHE_KEY, JSON.stringify({ data: data, timestamp: Date.now() }));
+      } else {
+        throw new Error("Empty API Response");
       }
     } catch (e) {
       const cached = await AsyncStorage.getItem(PRICE_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed.data)) setPrices(parsed.data.slice(0,3));
+        if (Array.isArray(parsed.data)) setPrices(processPrices(parsed.data).slice(0,3));
       }
     } finally {
       setPriceLoading(false);
@@ -1011,25 +1015,31 @@ export default function Dashboard() {
                   return(
                     <View style={{ width: width - 40, alignSelf:"center" }}>
                       <TouchableOpacity style={styles.headerGlassCard} onPress={()=>router.push("/farmer/weather")} activeOpacity={0.9}>
-                        <View style={styles.weatherLeft}>
-                          <View style={styles.locationRow}>
-                            <Ionicons name="location-outline" size={16} color="white"/>
-                            {/* 🔥 PRO FIX 2: Truncate long city names to prevent overflow */}
-                            <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
-                          </View>
-                          <AppText style={styles.date} language={language}>{date} | {time}</AppText>
-                          <View style={styles.weatherRow}>
-                            <Animated.Image source={getWeatherIcon()} style={ styles.weatherIcon} />
-                            <AppText style={styles.weatherText} language={language}>{weather}</AppText>
-                          </View>
-                          <View style={styles.rightTopSection}>
-                            <View style={styles.forecastRow}>
+                        <View style={{ flex: 1, justifyContent: "space-between", height: 88 }}>
+                          {/* TOP ROW: Height ~22px */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, paddingRight: 10 }}>
+                              <Ionicons name="location-outline" size={16} color="white"/>
+                              <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                               <AppText style={styles.openText} language={language}>{t.forecast}</AppText>
-                              <AnimatedReanimated.View style={[styles.swipeIcon, swipeAnimatedStyle]}>
+                              <AnimatedReanimated.View style={swipeAnimatedStyle}>
                                 <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
                               </AnimatedReanimated.View>
                             </View>
-                            <AppText style={styles.temp} language={language}>{temp ?? "--"}°C</AppText>
+                          </View>
+
+                          {/* BOTTOM ROW: Height Exactly 60px */}
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 }}>
+                            <View style={{ height: 60, justifyContent: 'space-between' }}>
+                              <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 18 }} language={language}>{date} | {time}</AppText>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Animated.Image source={getWeatherIcon()} style={{ width: 34, height: 34, marginRight: 6 }} />
+                                <AppText style={{ color:"white", fontSize: 16, lineHeight: 34, includeFontPadding: false }} language={language}>{weather}</AppText>
+                              </View>
+                            </View>
+                            <AppText style={{ color:"white", fontSize: 58, fontWeight: "bold", lineHeight: 60, includeFontPadding: false, marginRight: 0 }} language={language}>{temp ?? "--"}°C</AppText>
                           </View>
                         </View>
                       </TouchableOpacity>
@@ -1041,7 +1051,14 @@ export default function Dashboard() {
                       <View style={styles.marketHeaderRow}>
                         <View style={styles.marketTitleRow}>
                           <Ionicons name="analytics-outline" size={16} color="white" />
-                          <AppText style={styles.marketTitle} language={language}>{language==="te" ? "పంట ధరలు" : "Crop Prices"}</AppText>
+                          <View>
+                            <AppText style={styles.marketTitle} language={language}>{language==="te" ? "పంట ధరలు" : "Crop Prices"}</AppText>
+                            {!priceLoading && prices.length > 0 && (
+                              <AppText style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2, fontFamily: "Mandali" }}>
+                                {language === "te" ? "చివరి అప్‌డేట్: " : "Last Updated: "} {prices[0].arrival_date?.slice(0,10) || "N/A"}
+                              </AppText>
+                            )}
+                          </View>
                         </View>
                         <View style={styles.marketSeeMore}>
                           <AppText style={styles.openText} language={language}>{language==="te" ? "ఇంకా చూడండి" : "See More"}</AppText>
@@ -1051,7 +1068,7 @@ export default function Dashboard() {
                         </View>
                       </View>
                       <View style={{height:80,overflow:"hidden",marginTop:4}}>
-                        <AnimatedReanimated.View style={priceAnimatedStyle}>
+                        <AnimatedReanimated.View style={!priceLoading && prices.length > 0 ? priceAnimatedStyle : {}}>
                           {priceLoading ? (
                             <View style={styles.priceLoadingBox}>
                               <Animated.View><Ionicons name="sync-outline" size={18} color="white"/></Animated.View>

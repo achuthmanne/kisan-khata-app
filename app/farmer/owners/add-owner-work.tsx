@@ -100,6 +100,10 @@ export default function AddOwnerWork() {
       if (!activeSession) return; 
       if (isMounted.current) setActiveSession(activeSession);
 
+      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession).get();
+      const landsMap: any = {};
+      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+
       const snap = await firestore()
         .collection("users")
         .doc(phone)
@@ -112,10 +116,8 @@ export default function AddOwnerWork() {
       snap.forEach(doc => {
         const data = doc.data();
         if (data.crop) {
-          // 🔥 FIX: Clean format (Crop - Nickname) without acres
-          const formatted = data.nickname 
-            ? `${data.crop} - ${data.nickname}` 
-            : data.crop;
+          const nick = landsMap[data.landId] || data.nickname;
+          const formatted = nick ? `${data.crop} - ${nick}` : data.crop;
           set.add(formatted);
           const ac = parseFloat(data.acres) || 0;
           if (!map[formatted]) map[formatted] = 0;

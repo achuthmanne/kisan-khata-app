@@ -650,9 +650,19 @@ const styles = StyleSheet.create({
 
   blueMapBtn: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 10, marginLeft: 10 },
   addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
-  minimalAddress: { flex: 1, fontSize: 15, color: '#374151', lineHeight: 22, fontFamily: "Mandali" },
-  minimalConfirmBtn: { backgroundColor: '#16A34A', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-  minimalConfirmText: { color: '#fff', fontSize: 16, fontWeight: '600', fontFamily: "Mandali" },
+  minimalAddress: { flex: 1, fontSize: 13, color: '#4B5563', lineHeight: 18, fontFamily: "Mandali" },
+  minimalConfirmBtn: { 
+    paddingVertical: 10, 
+    borderRadius: 10, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    elevation: 3, 
+    shadowColor: '#16A34A', 
+    shadowOffset: { width: 0, height: 3 }, 
+    shadowOpacity: 0.25, 
+    shadowRadius: 5 
+  },
+  minimalConfirmText: { color: '#fff', fontSize: 14, fontWeight: '600', fontFamily: "Mandali" },
   
   filterContainer: { padding: 16, backgroundColor: '#fff', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, zIndex: 10 },
   locationWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 52, borderRadius: 15, borderWidth: 1.5, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },

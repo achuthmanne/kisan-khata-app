@@ -108,6 +108,10 @@ const categoryOptions = [
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
+      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession).get();
+      const landsMap: any = {};
+      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+
       const snap = await firestore()
         .collection("users")
         .doc(phone)
@@ -119,10 +123,8 @@ const categoryOptions = [
       snap.forEach(doc => {
         const d = doc.data();
         if (d.crop) {
-          // 🔥 FIX: Clean format (Crop - Nickname) without acres
-          const formatted = d.nickname 
-            ? `${d.crop} - ${d.nickname}` 
-            : d.crop;
+          const nick = landsMap[d.landId] || d.nickname;
+          const formatted = nick ? `${d.crop} - ${nick}` : d.crop;
           set.add(formatted);
         }
       });

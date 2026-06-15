@@ -84,6 +84,10 @@ export default function AddSale() {
       
       setActiveSession(fetchedSession);
 
+      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession).get();
+      const landsMap: any = {};
+      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+
       const snap = await firestore()
         .collection("users").doc(phone).collection("fields")
         .where("session", "==", fetchedSession) 
@@ -93,7 +97,8 @@ export default function AddSale() {
       snap.forEach(doc => {
         const data = doc.data();
         if (data.crop) {
-          const formatted = data.nickname ? `${data.crop} - ${data.nickname}` : data.crop;
+          const nick = landsMap[data.landId] || data.nickname;
+          const formatted = nick ? `${data.crop} - ${nick}` : data.crop;
           set.add(formatted);
         }
       });

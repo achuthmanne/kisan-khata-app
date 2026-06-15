@@ -24,7 +24,7 @@ import { PieChart } from "react-native-chart-kit";
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from "react-native-popup-menu";
 
 // 🔥 REANIMATED
-import Animated, { Easing, FadeInDown, useAnimatedProps, useSharedValue, withTiming, withRepeat, useAnimatedStyle } from "react-native-reanimated";
+import Animated, { Easing, FadeInDown, useAnimatedProps, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 const screenWidth = Dimensions.get("window").width;
@@ -38,6 +38,8 @@ const PREM_COLORS = [
 export default function FieldsScreen() {
   const router = useRouter();
   const [data, setData] = useState<any[]>([]);
+  const [landsData, setLandsData] = useState<any[]>([]);
+  const [completedData, setCompletedData] = useState<any[]>([]);
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [totalAcres, setTotalAcres] = useState(0);
   const [ownAcres, setOwnAcres] = useState(0);
@@ -48,6 +50,9 @@ export default function FieldsScreen() {
   const [deleteVisible, setDeleteVisible] = useState(false);
   const [cantDeleteVisible, setCantDeleteVisible] = useState(false); // 🔥 NEW: Warning Modal State
   const [actionLoading, setActionLoading] = useState(false); // 🔥 NEW: Loading while checking usage
+  
+  const [showAddOptionsModal, setShowAddOptionsModal] = useState(false);
+  const [showReusePickerModal, setShowReusePickerModal] = useState(false);
   const [loading, setLoading] = useState(true); 
   const [isDeleting, setIsDeleting] = useState(false); 
   const [soilStats, setSoilStats] = useState<any[]>([]); 
@@ -57,15 +62,17 @@ export default function FieldsScreen() {
   const animatedAcres = useSharedValue(0);
 
   useEffect(() => {
+    // 🔥 PRO FIX: Speed up animation for small integers to remove "hesitation"
+    const isSmallInt = totalAcres % 1 === 0 && totalAcres <= 15;
     animatedAcres.value = withTiming(totalAcres, {
-        duration: 1500,
+        duration: isSmallInt ? 800 : 1500,
         easing: Easing.out(Easing.quad), 
     });
   }, [totalAcres]);
 
   const animatedProps = useAnimatedProps(() => {
     const val = animatedAcres.value;
-    const formatted = totalAcres % 1 !== 0 ? val.toFixed(1) : Math.floor(val).toString();
+    const formatted = totalAcres % 1 !== 0 ? val.toFixed(1) : Math.round(val).toString();
     return {
         text: formatted,
         value: formatted
@@ -94,67 +101,77 @@ export default function FieldsScreen() {
           const activeSession = userDoc.data()?.activeSession;
 
           if (!activeSession) {
-            if (isMounted) { setData([]); setLoading(false); }
+            if (isMounted) { setData([]); setLandsData([]); setLoading(false); }
             return;
           }
 
           if (isMounted) {
-            unsubscribe = firestore()
-              .collection("users").doc(phone).collection("fields")
+            const landsRef = firestore().collection("users").doc(phone).collection("lands");
+            const fieldsRef = firestore().collection("users").doc(phone).collection("fields");
+
+            // Subscribe to Lands
+            const unsubLands = landsRef
               .where("session", "==", activeSession)
-              .where("createdAt", "!=", null)  
-              .orderBy("createdAt", "desc")
               .onSnapshot((snap) => {
-                if (snap && !snap.empty) {
-                  const list: any[] = [];
-                  let total = 0, own = 0, rent = 0;
-                  const cropsMap: any = {};
-                  const soilMap: any = {};
+                if (snap) {
+                  const lands = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+                  lands.sort((a, b) => {
+                     const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                     const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                     return tB - tA;
+                  });
+                  setLandsData(lands);
+                } else {
+                  setLandsData([]);
+                }
+              }, (err) => console.log("Lands Error:", err));
 
-                  snap.forEach((doc) => {
-                    const d: any = doc.data();
-                    list.push({ id: doc.id, ...d });
+            // Subscribe to Crops (Fields)
+            unsubscribe = fieldsRef
+              .where("session", "==", activeSession)
+              .onSnapshot((snap) => {
+                if (snap) {
+                  const activeList: any[] = [];
+                  const completedList: any[] = [];
 
-                    const acres = Number(d.acres) || 0; 
-                    total += acres;
-
-                    if (d.type === "own") { own += acres; } 
-                    else { rent += acres; }
-
-                    const cropName = d.crop || "Others";
-                    if (!cropsMap[cropName]) cropsMap[cropName] = 0;
-                    cropsMap[cropName] += acres;
-
-                    const soilName = d.soilType || "Others";
-                    if (!soilMap[soilName]) soilMap[soilName] = 0;
-                    soilMap[soilName] += acres;
+                  snap.docs.forEach(doc => {
+                    const item = { id: doc.id, ...doc.data() as any };
+                    if (item.status === "completed") {
+                      completedList.push(item);
+                    } else {
+                      activeList.push(item);
+                    }
                   });
 
-                  setData(list);
-                  setTotalAcres(total);
-                  setOwnAcres(own);
-                  setRentAcres(rent);
-                  
-                  setSoilStats(Object.keys(soilMap).map((name, index) => ({
-                    name, population: soilMap[name],
-                    color: PREM_COLORS[(index + 4) % PREM_COLORS.length],
-                    legendFontColor: "#475569", legendFontSize: 12
-                  })));
+                  activeList.sort((a, b) => {
+                     const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                     const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                     return tB - tA;
+                  });
+                  completedList.sort((a, b) => {
+                     const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                     const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                     return tB - tA;
+                  });
 
-                  setCropStats(Object.keys(cropsMap).map((name, index) => ({
-                    name, population: cropsMap[name],
-                    color: PREM_COLORS[index % PREM_COLORS.length],
-                    legendFontColor: "#475569", legendFontSize: 12
-                  })));
-
+                  setData(activeList);
+                  setCompletedData(completedList);
                 } else {
-                  setData([]); setTotalAcres(0); setOwnAcres(0); setRentAcres(0);
+                  setData([]);
+                  setCompletedData([]);
                 }
                 setLoading(false);
               }, (err) => {
-                console.log("SNAPSHOT ERROR:", err);
+                console.log("Fields Error:", err);
                 if (isMounted) setLoading(false);
               });
+              
+            // Store unsubLands somewhere if we want to clean it up, but for now we can just return a combined unsubscribe
+            const oldUnsub = unsubscribe;
+            unsubscribe = () => {
+               if (oldUnsub) oldUnsub();
+               if (unsubLands) unsubLands();
+            };
           }
         } catch (e: any) {
           console.log("LOAD ERROR:", e);
@@ -175,6 +192,102 @@ export default function FieldsScreen() {
     }, [language]) 
   );
   
+  
+  // 🔥 AUTO-MIGRATION & STATS DERIVATION 🔥
+  useEffect(() => {
+    let isMounted = true;
+    const processStats = async () => {
+      // 1. Auto-Migration
+      if (landsData.length === 0 && (data.length > 0 || completedData.length > 0)) {
+        // Only run migration if there are literally no lands in DB but fields exist
+        try {
+          const phone = await AsyncStorage.getItem("USER_PHONE");
+          const userDoc = await firestore().collection("users").doc(phone as string).get();
+          const activeSession = userDoc.data()?.activeSession;
+          
+          const landsSnap = await firestore().collection("users").doc(phone as string).collection("lands").where("session", "==", activeSession).get();
+          if (landsSnap.empty) {
+             console.log("RUNNING SILENT MIGRATION TO LANDS...");
+             const migStats = new Map();
+             const allDocs = [...data, ...completedData];
+             allDocs.forEach(item => {
+               const key = item.nickname || item.id;
+               const acres = Number(item.acres) || 0;
+               if (!migStats.has(key)) {
+                 migStats.set(key, { ...item, capacity: acres });
+               } else {
+                 const existing = migStats.get(key);
+                 if (acres > existing.capacity) existing.capacity = acres;
+               }
+             });
+             
+             const batch = firestore().batch();
+             migStats.forEach((stat, key) => {
+               const newLandRef = firestore().collection("users").doc(phone as string).collection("lands").doc();
+               batch.set(newLandRef, {
+                 session: activeSession,
+                 nickname: stat.nickname || key,
+                 acres: stat.capacity,
+                 type: stat.type || "own",
+                 soilType: stat.soilType || "",
+                 rent: stat.rent || 0,
+                 createdAt: firestore.FieldValue.serverTimestamp()
+               });
+             });
+             await batch.commit();
+             console.log("MIGRATION COMPLETE!");
+             return; // State will update automatically via listener
+          }
+        } catch (e) {
+           console.log("Migration error:", e);
+        }
+      }
+
+      // 2. Derive Dashboard Stats purely from Lands
+      let t = 0, o = 0, r = 0;
+      const sMap: any = {};
+      landsData.forEach(land => {
+         const acres = Number(land.acres) || 0;
+         t += acres;
+         if (land.type === "own") o += acres;
+         else r += acres;
+         const sName = land.soilType || "Others";
+         if (!sMap[sName]) sMap[sName] = 0;
+         sMap[sName] += acres;
+      });
+
+      // 3. Derive Crop Stats purely from Active Crops
+      const cMap: any = {};
+      data.forEach(item => {
+         const cName = item.crop || "Others";
+         if (!cMap[cName]) cMap[cName] = 0;
+         cMap[cName] += (Number(item.acres) || 0);
+      });
+
+      if (isMounted) {
+         setTotalAcres(parseFloat(t.toFixed(2)));
+         setOwnAcres(parseFloat(o.toFixed(2)));
+         setRentAcres(parseFloat(r.toFixed(2)));
+         
+         const PREM_COLORS = ["#6366F1", "#EC4899", "#F59E0B", "#10B981", "#8B5CF6", "#14B8A6"];
+         setSoilStats(Object.keys(sMap).map((name, index) => ({
+            name, population: parseFloat(sMap[name].toFixed(2)),
+            color: PREM_COLORS[(index + 4) % PREM_COLORS.length],
+            legendFontColor: "#475569", legendFontSize: 12
+         })));
+
+         setCropStats(Object.keys(cMap).map((name, index) => ({
+            name, population: parseFloat(cMap[name].toFixed(2)),
+            color: PREM_COLORS[index % PREM_COLORS.length],
+            legendFontColor: "#475569", legendFontSize: 12
+         })));
+      }
+    };
+
+    processStats();
+    return () => { isMounted = false; };
+  }, [landsData, data, completedData]);
+
   const PremiumDonutChart = ({ chartData, title }: any) => {
     const totalPop = chartData.reduce((a: any, b: any) => a + Number(b.population), 0);
     const safeData = totalPop > 0 ? chartData : [{ name: "No Data", population: 1, color: "#E5E7EB" }];
@@ -293,7 +406,10 @@ export default function FieldsScreen() {
       const userDoc = await firestore().collection("users").doc(phone!).get();
       const activeSession = userDoc.data()?.activeSession;
 
-      const fullCropName = item.nickname ? `${item.crop} - ${item.nickname}` : item.crop;
+      const land = landsData.find(l => l.id === item.landId) || landsData.find(l => l.nickname === item.nickname);
+      const nick = land?.nickname || item.nickname;
+      
+      const fullCropName = nick ? `${item.crop} - ${nick}` : item.crop;
       const baseCropName = item.crop;
 
       const checkCollection = async (collRef: any) => {
@@ -307,18 +423,24 @@ export default function FieldsScreen() {
       };
 
       // 1. Check Expenses
-      if (await checkCollection(firestore().collection("users").doc(phone!).collection("expenses").where("session", "==", activeSession))) return true;
+      if (await checkCollection(firestore().collection("users").doc(phone!).collection("expenses"))) return true;
 
       // 2. Check Sales
-      if (await checkCollection(firestore().collection("users").doc(phone!).collection("sales").where("session", "==", activeSession))) return true;
+      if (await checkCollection(firestore().collection("users").doc(phone!).collection("sales"))) return true;
 
-      // 3. Collection Group Checks for nested entries (Works & Attendance)
+      // 3. Check Locker Documents
+      if (await checkCollection(firestore().collection("users").doc(phone!).collection("locker"))) return true;
+
+      // 4. Check Reminders
+      if (await checkCollection(firestore().collection("users").doc(phone!).collection("reminders"))) return true;
+
+      // 5. Collection Group Checks for nested entries (Works & Attendance)
       try {
-        if (await checkCollection(firestore().collectionGroup("entries").where("session", "==", activeSession))) return true;
+        if (await checkCollection(firestore().collectionGroup("entries"))) return true;
       } catch(e) {} 
 
       try {
-        if (await checkCollection(firestore().collectionGroup("attendance").where("session", "==", activeSession))) return true;
+        if (await checkCollection(firestore().collectionGroup("attendance"))) return true;
       } catch(e) {}
 
       return false; // Not used anywhere!
@@ -334,16 +456,25 @@ export default function FieldsScreen() {
     const isUsed = await checkCropUsage(item);
     setActionLoading(false);
 
+    const land = landsData.find(l => l.id === item.landId) || landsData.find(l => l.nickname === item.nickname);
+
+    let maxAcres = "";
+    if (land) {
+      const landCrops = data.filter(c => c.landId === land.id || (c.nickname && c.nickname === land.nickname));
+      const usedAcres = parseFloat(landCrops.reduce((sum, c) => sum + Number(c.acres || 0), 0).toFixed(2));
+      const remainingAcres = Math.max(0, parseFloat((Number(land.acres) - usedAcres).toFixed(2)));
+      maxAcres = parseFloat((remainingAcres + Number(item.acres || 0)).toFixed(2)).toString();
+    }
+
     router.push({ 
       pathname: "/farmer/fields/add-field", 
       params: { 
-        editId: item.id,
+        editId: JSON.stringify(item.ids || [item.id]),
         crop: item.crop || "",
-        nickname: item.nickname || "", // 🔥 NEW
-        type: item.type || "",
+        landId: land?.id || item.landId || "",
+        nickname: land?.nickname || item.nickname || "",
         acres: item.acres?.toString() || "",
-        rent: item.rent?.toString() || "",
-        soilType: item.soilType || "",
+        maxAcres: maxAcres,
         isUsed: isUsed ? "true" : "false" // 🔥 Sending lock status to Edit Screen
       } 
     });
@@ -363,13 +494,72 @@ export default function FieldsScreen() {
     }
   };
 
+  const handleEndCrop = async (item: any) => {
+    try {
+      setActionLoading(true);
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      const batch = firestore().batch();
+      const ids = item.ids || [item.id];
+      ids.forEach((id: string) => {
+         batch.update(firestore().collection("users").doc(phone!).collection("fields").doc(id), {
+           status: "completed",
+           endedAt: firestore.FieldValue.serverTimestamp()
+         });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.log(e);
+    } finally {
+      setActionLoading(false);
+      setSelectedItem(null);
+    }
+  };
+
+  const handleEndCropFromPicker = (item: any, remainingAcres?: number) => {
+    setShowReusePickerModal(false);
+    const itemToReplace = (remainingAcres === 0 && item.activeItem) ? item.activeItem : (item.latestItem || item);
+    handleReUseLand(itemToReplace, remainingAcres);
+  };
+
+  const handleReUseLand = (item: any, remainingAcres?: number) => {
+    setShowAddOptionsModal(false);
+    setShowReusePickerModal(false);
+    router.push({
+      pathname: "/farmer/fields/add-field",
+      params: {
+        landId: item.id, // 🔥 CRITICAL
+        nickname: item.nickname,
+        maxAcres: remainingAcres?.toString() || item.acres?.toString() || "",
+        defaultAcres: remainingAcres?.toString() || item.acres?.toString() || "",
+      }
+    });
+  };
+
+  const handleDeleteLandClick = (land: any) => {
+    const hasCrops = data.some(c => c.landId === land.id || c.nickname === land.nickname) || completedData.some(c => c.landId === land.id || c.nickname === land.nickname);
+    if (hasCrops) {
+       setErrorMsg(language === "te" ? "ముందుగా ఈ భూమిలోని పంటలను తొలగించండి!" : "Delete all crops in this land first!");
+       setShowErrorModal(true);
+       return;
+    }
+    setSelectedItem(land);
+    setDeleteVisible(true);
+  };
+
   const handleDelete = async () => {
     if (isDeleting) return;
     try {
       setIsDeleting(true);
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone && selectedItem) {
-        await firestore().collection("users").doc(phone).collection("fields").doc(selectedItem.id).delete();
+        // If it doesn't have a crop field, it's a Land!
+        const collectionName = selectedItem.crop ? "fields" : "lands";
+        const batch = firestore().batch();
+        const ids = selectedItem.ids || [selectedItem.id];
+        ids.forEach((id: string) => {
+           batch.delete(firestore().collection("users").doc(phone).collection(collectionName).doc(id));
+        });
+        await batch.commit();
       }
     } catch (e: any) { 
       console.log("Delete error", e);
@@ -382,6 +572,59 @@ export default function FieldsScreen() {
     }
   };
 
+  const getLandStats = () => {
+    const stats = new Map();
+    
+    // First, register all physical lands
+    landsData.forEach(land => {
+      const key = land.nickname || land.id;
+      stats.set(key, { ...land, capacity: Number(land.acres) || 0, activeAcres: 0, latestItem: null, activeItem: null, id: land.id });
+    });
+
+    // Then, calculate how much of each land is actively planted
+    data.forEach(item => {
+      // Find matching land
+      // If crop has landId, use it. Otherwise fallback to nickname (for migrated data)
+      let matchedKey = null;
+      if (item.landId && stats.has(item.landId)) matchedKey = item.landId;
+      else if (stats.has(item.nickname)) matchedKey = item.nickname;
+      else {
+         // Legacy crops that might not match perfectly. Just try to find one.
+         const fallback = Array.from(stats.values()).find(s => s.nickname === item.nickname);
+         if (fallback) matchedKey = fallback.nickname;
+      }
+
+      if (matchedKey) {
+        const stat = stats.get(matchedKey);
+        stat.activeAcres += (Number(item.acres) || 0);
+        stat.activeItem = item;
+      }
+    });
+
+    // Also track latest completed crop for defaults if needed
+    completedData.forEach(item => {
+      let matchedKey = null;
+      if (item.landId && stats.has(item.landId)) matchedKey = item.landId;
+      else if (stats.has(item.nickname)) matchedKey = item.nickname;
+      
+      if (matchedKey) {
+         const stat = stats.get(matchedKey);
+         if (!stat.latestItem || item.createdAt > stat.latestItem.createdAt) {
+            stat.latestItem = item;
+         }
+      }
+    });
+
+    stats.forEach(stat => {
+      stat.remainingAcres = Math.max(0, stat.capacity - stat.activeAcres);
+    });
+
+    return Array.from(stats.values());
+  };
+
+  const landStats = getLandStats();
+  const availableLands = landStats.filter(stat => stat.remainingAcres > 0);
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
@@ -392,15 +635,15 @@ export default function FieldsScreen() {
       />
       <ScrollView 
         showsVerticalScrollIndicator={false} 
-        scrollEnabled={!loading && data.length > 0}
+        scrollEnabled={!loading && (data.length > 0 || completedData.length > 0 || landsData.length > 0)}
         contentContainerStyle={[
           { paddingBottom: 120 },
-          (data.length === 0 || loading) && { flex: 1, justifyContent: 'center', paddingBottom: 0 }
+          ((data.length === 0 && completedData.length === 0 && landsData.length === 0) || loading) && { flex: 1, justifyContent: 'center', paddingBottom: 0 }
         ]}
       >
         {loading ? (
           <ShimmerLoader />
-        ) : data.length === 0 ? (
+        ) : (data.length === 0 && completedData.length === 0 && landsData.length === 0) ? (
           <AppEmptyState
             iconName="leaf-outline"
             title={language === "te" ? "పొలాలు లేవు" : "No Fields Added"}
@@ -411,7 +654,7 @@ export default function FieldsScreen() {
           />
         ) : (
           <>
-             <LinearGradient colors={["#53143d", "#2e0513"]} style={styles.mainCard}>
+             <LinearGradient colors={["#312E81", "#1E1B4B"]} style={styles.mainCard}>
                 <AppText style={styles.cardLabel}>{language === "te" ? "మొత్తం సాగు భూమి" : "Total Cultivated Area"}</AppText>
                 
                 <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 5 }}>
@@ -420,14 +663,14 @@ export default function FieldsScreen() {
                     animatedProps={animatedProps}
                     style={{ color: "#fff", fontSize: 32, fontWeight: "600", padding: 0, margin: 0 }}
                   />
-                  <AppText style={{fontSize: 18, color: '#ef86e4', marginLeft: 6}}>
+                  <AppText style={{fontSize: 18, color: '#C7D2FE', marginLeft: 6}}>
                     {language === "te" ? "ఎకరాలు" : "Acres"}
                   </AppText>
                 </View>
 
                 <View style={styles.glassRow}>
                   <View style={styles.glassBox}>
-                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}><Ionicons name="leaf" size={16} color="#10B981" /></View>
+                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(16, 185, 129, 0.2)' }]}><Ionicons name="home" size={16} color="#10B981" /></View>
                     <View>
                       <AppText style={styles.glassLabel}>{language === "te" ? "సొంతం" : "Own"}</AppText>
                       <AppText style={styles.glassValue}>{ownAcres} <AppText style={styles.glassUnit}>{language === "te" ? "ఎకరాలు" : "Acres"}</AppText></AppText>
@@ -435,7 +678,7 @@ export default function FieldsScreen() {
                   </View>
 
                   <View style={styles.glassBox}>
-                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}><Ionicons name="business" size={16} color="#F59E0B" /></View>
+                    <View style={[styles.glassIconBg, { backgroundColor: 'rgba(245, 158, 11, 0.2)' }]}><Ionicons name="document-text" size={16} color="#F59E0B" /></View>
                     <View>
                       <AppText style={styles.glassLabel}>{language === "te" ? "కౌలు" : "Rent"}</AppText>
                       <AppText style={styles.glassValue}>{rentAcres} <AppText style={styles.glassUnit}>{language === "te" ? "ఎకరాలు" : "Acres"}</AppText></AppText>
@@ -503,68 +746,179 @@ export default function FieldsScreen() {
                 <PremiumDonutChart chartData={soilStats} title={language === "te" ? "నేల రకాల విశ్లేషణ" : "Soil Type Analytics"} />
             </View>
 
-            <AppText style={styles.listHeading}>{language === "te" ? "పొలాల పూర్తి వివరాలు" : "Detailed Field List"}</AppText>
+            {landsData.length > 0 && (
+              <>
+                <AppText style={styles.listHeading}>{language === "te" ? "మీ పొలాలు" : "Your Lands"}</AppText>
 
-            <View style={{ paddingHorizontal: 16 }}>
-              {data.map((item, index) => {
-                const cropColor = PREM_COLORS[index % PREM_COLORS.length];
-                return (
-                  <Animated.View key={item.id} entering={FadeInDown.delay(index * 100)} style={styles.fieldCard}>
-                    <View style={[styles.sideBar, { backgroundColor: cropColor }]} />
-                    <View style={styles.fieldInfo}>
-                      <AppText style={styles.cropName} numberOfLines={2}>
-                        {item.nickname ? `${item.crop} - ${item.nickname}` : item.crop}
-                      </AppText>
-                      <AppText style={styles.fieldMeta}>
-                        {item.acres} {language === "te" ? "ఎకరాలు" : "Acres"} | 
-                        <AppText style={{ color: item.type === 'own' ? '#10B981' : '#F59E0B', fontWeight: '600' }}>
-                            {item.type === 'own' ? (language === 'te' ? ' సొంతం' : ' OWN') : (language === 'te' ? ' కౌలు' : ' RENT')}
-                        </AppText>
-                      </AppText>
-                    </View>
+                <View style={{ paddingHorizontal: 16 }}>
+                  {landsData.map((land, index) => {
+                    const landCrops = data.filter(c => c.landId === land.id || (c.nickname && c.nickname === land.nickname));
+                    const completedCrops = completedData.filter(c => c.landId === land.id || (c.nickname && c.nickname === land.nickname));
                     
-                    <View style={styles.cardRightSection}>
-                      {item.type === 'rent' && (
-                        <View style={styles.priceContainer}>
-                          <AppText style={styles.rentPrice}>₹{item.rent?.toLocaleString('en-IN')}</AppText>
-                          <AppText style={styles.rentUnit}>{language === 'te' ? 'సంవత్సరానికి' : 'PER YEAR'}</AppText>
-                        </View>
-                      )}
+                    const usedAcres = parseFloat(landCrops.reduce((sum, c) => sum + Number(c.acres || 0), 0).toFixed(2));
+                    const remainingAcres = Math.max(0, parseFloat((Number(land.acres) - usedAcres).toFixed(2)));
+                    
+                    // Group Active Crops
+                    const groupedLandCrops = Object.values(landCrops.reduce((acc: any, c: any) => {
+                        if (!acc[c.crop]) acc[c.crop] = { ...c, acres: parseFloat(c.acres || 0), ids: [c.id] };
+                        else {
+                            acc[c.crop].acres = parseFloat((acc[c.crop].acres + parseFloat(c.acres || 0)).toFixed(2));
+                            acc[c.crop].ids.push(c.id);
+                        }
+                        return acc;
+                    }, {})) as any[];
 
-                      <Menu>
-                        <MenuTrigger style={styles.menuBtn}>
-                          {/* 🔥 Show loader if checking usage */}
-                          {actionLoading && selectedItem?.id === item.id ? (
-                             <Ionicons name="sync" size={18} color="#2563EB" />
-                          ) : (
-                             <Ionicons name="ellipsis-vertical" size={18} color="#94A3B8" />
-                          )}
-                        </MenuTrigger>
+                    // Group Completed Crops
+                    const groupedCompletedCrops = Object.values(completedCrops.reduce((acc: any, c: any) => {
+                        if (!acc[c.crop]) acc[c.crop] = { ...c, acres: parseFloat(c.acres || 0), ids: [c.id] };
+                        else {
+                            acc[c.crop].acres = parseFloat((acc[c.crop].acres + parseFloat(c.acres || 0)).toFixed(2));
+                            acc[c.crop].ids.push(c.id);
+                        }
+                        return acc;
+                    }, {})) as any[];
+                    
+                    return (
+                       <View key={land.id} style={{ backgroundColor: "#fff", borderRadius: 16, marginBottom: 20, padding: 16, borderWidth: 1, borderColor: "#E5E7EB" }}>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#F3F4F6", paddingBottom: 12, marginBottom: 12 }}>
+                             <View>
+                                <AppText style={{ fontSize: 18, fontWeight: "600", color: "#1F2937" }}>{land.nickname}</AppText>
+                                <AppText style={{ fontSize: 14, color: "#6B7280", marginTop: 2 }}>
+                                   {land.acres} {language === "te" ? "ఎకరాలు" : "Acres"} | {land.type === "own" ? (language === "te" ? "సొంతం" : "Own") : (language === "te" ? `కౌలు (₹${land.rent})` : `Rent (₹${land.rent})`)}
+                                </AppText>
+                             </View>
+                             
+                             <Menu>
+                                <MenuTrigger style={{ padding: 4 }}>
+                                   <Ionicons name="ellipsis-vertical" size={20} color="#9CA3AF" />
+                                </MenuTrigger>
+                                <MenuOptions customStyles={optionsStyles}>
+                                   <MenuOption onSelect={() => handleDeleteLandClick(land)}>
+                                      <View style={styles.modernMenuItem}>
+                                         <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                         <AppText style={styles.menuTextDelete} language={language}>{language === "te" ? "భూమిని తొలగించు" : "Delete Land"}</AppText>
+                                      </View>
+                                   </MenuOption>
+                                </MenuOptions>
+                             </Menu>
+                          </View>
 
-                        <MenuOptions customStyles={optionsStyles}>
-                          <MenuOption onSelect={() => { setSelectedItem(item); handleEditClick(item); }}>
-                            <View style={styles.modernMenuItem}>
-                              <Ionicons name="create-outline" size={18} color="#2563EB" />
-                              <AppText style={styles.menuTextEdit} language={language}>{language === "te" ? "సవరించు" : "Edit"}</AppText>
-                            </View>
-                          </MenuOption>
-                          
-                          <View style={styles.menuDivider} />
+                          {/* Active Crops List */}
+                          {groupedLandCrops.map(cropItem => {
+                             const cropColor = cropStats.find(s => s.name === (cropItem.crop || "Others"))?.color || "#10B981";
+                             return (
+                             <View key={cropItem.id} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 12, borderRadius: 12, marginBottom: 8 }}>
+                                <View style={{ width: 8, height: "100%", backgroundColor: cropColor, borderRadius: 4, marginRight: 12 }} />
+                                <View style={{ flex: 1 }}>
+                                   <AppText style={{ fontSize: 15, fontWeight: "600", color: "#374151" }}>{cropItem.crop}</AppText>
+                                   <AppText style={{ fontSize: 13, color: "#6B7280" }}>{cropItem.acres} {language === "te" ? "ఎకరాలు" : "Acres"}</AppText>
+                                </View>
+                                <Menu>
+                                  <MenuTrigger style={{ padding: 8 }}>
+                                    {actionLoading && selectedItem?.id === cropItem.id ? (
+                                       <Ionicons name="sync" size={18} color="#2563EB" />
+                                    ) : (
+                                       <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
+                                    )}
+                                  </MenuTrigger>
+                                  <MenuOptions customStyles={optionsStyles}>
+                                    <MenuOption onSelect={() => { setSelectedItem(cropItem); handleEditClick(cropItem); }}>
+                                       <View style={styles.modernMenuItem}>
+                                          <Ionicons name="create-outline" size={18} color="#2563EB" />
+                                          <AppText style={styles.menuTextEdit} language={language}>{language === "te" ? "సవరించు" : "Edit"}</AppText>
+                                       </View>
+                                    </MenuOption>
+                                    <View style={styles.menuDivider} />
+                                    <MenuOption onSelect={() => { setSelectedItem(cropItem); handleEndCrop(cropItem); }}>
+                                       <View style={styles.modernMenuItem}>
+                                          <Ionicons name="checkmark-done-outline" size={18} color="#10B981" />
+                                          <AppText style={[styles.menuTextEdit, { color: "#10B981" }]} language={language}>{language === "te" ? "పంట పూర్తయింది" : "End Crop"}</AppText>
+                                       </View>
+                                    </MenuOption>
+                                    <View style={styles.menuDivider} />
+                                    <MenuOption onSelect={() => { setSelectedItem(cropItem); handleDeleteClick(cropItem); }}>
+                                       <View style={styles.modernMenuItem}>
+                                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                          <AppText style={styles.menuTextDelete} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+                                       </View>
+                                    </MenuOption>
+                                  </MenuOptions>
+                                </Menu>
+                             </View>
+                             );
+                          })}
 
-                          <MenuOption onSelect={() => { setSelectedItem(item); handleDeleteClick(item); }}>
-                            <View style={styles.modernMenuItem}>
-                              <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                              <AppText style={styles.menuTextDelete} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
-                            </View>
-                          </MenuOption>
-                        </MenuOptions>
-                      </Menu>
-                      
-                    </View>
-                  </Animated.View>
-                );
-              })}
-            </View>
+                          {/* Completed Crops List (Opactiy 0.7) */}
+                          {groupedCompletedCrops.length > 0 && groupedCompletedCrops.map(cropItem => (
+                             <View key={cropItem.id} style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F3F4F6", padding: 10, borderRadius: 12, marginBottom: 8, opacity: 0.7 }}>
+                                <Ionicons name="checkmark-circle" size={20} color="#9CA3AF" style={{ marginRight: 10 }} />
+                                <View style={{ flex: 1 }}>
+                                   <AppText style={{ fontSize: 14, color: "#4B5563" }}>{cropItem.crop}</AppText>
+                                   <AppText style={{ fontSize: 12, color: "#9CA3AF" }}>{cropItem.acres} {language === "te" ? "ఎకరాలు" : "Acres"}</AppText>
+                                </View>
+                                <Menu>
+                                  <MenuTrigger style={{ padding: 8 }}>
+                                    {actionLoading && selectedItem?.id === cropItem.id ? (
+                                       <Ionicons name="sync" size={18} color="#2563EB" />
+                                    ) : (
+                                       <Ionicons name="ellipsis-vertical" size={18} color="#9CA3AF" />
+                                    )}
+                                  </MenuTrigger>
+                                  <MenuOptions customStyles={optionsStyles}>
+                                    <MenuOption onSelect={() => { setSelectedItem(cropItem); handleEditClick(cropItem); }}>
+                                       <View style={styles.modernMenuItem}>
+                                          <Ionicons name="create-outline" size={18} color="#2563EB" />
+                                          <AppText style={styles.menuTextEdit} language={language}>{language === "te" ? "సవరించు" : "Edit"}</AppText>
+                                       </View>
+                                    </MenuOption>
+                                    <View style={styles.menuDivider} />
+                                    <MenuOption onSelect={() => { setSelectedItem(cropItem); handleDeleteClick(cropItem); }}>
+                                       <View style={styles.modernMenuItem}>
+                                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                          <AppText style={styles.menuTextDelete} language={language}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+                                       </View>
+                                    </MenuOption>
+                                  </MenuOptions>
+                                </Menu>
+                             </View>
+                          ))}
+
+                          {/* Remaining Acres / Add Crop Button */}
+                          {landCrops.length === 0 && completedCrops.length === 0 ? (
+                             <TouchableOpacity 
+                               style={{ backgroundColor: "#F3F4F6", padding: 14, borderRadius: 12, alignItems: "center", marginTop: 4, borderWidth: 1, borderColor: "#D1D5DB", borderStyle: "dashed" }}
+                               onPress={() => router.push({
+                                  pathname: "/farmer/fields/add-field",
+                                  params: { landId: land.id, nickname: land.nickname, maxAcres: remainingAcres.toString() }
+                               })}
+                             >
+                               <Ionicons name="add-circle-outline" size={24} color="#16A34A" />
+                               <AppText style={{ color: "#16A34A", fontSize: 15, fontWeight: "600", marginTop: 4 }}>
+                                 {language === "te" ? "పంటను జోడించండి" : "Add Crop"}
+                               </AppText>
+                             </TouchableOpacity>
+                          ) : remainingAcres > 0 ? (
+                             <View style={{ backgroundColor: "#FEF3C7", borderRadius: 12, padding: 12, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: "#FDE68A" }}>
+                                <AppText style={{ fontSize: 13, color: "#92400E", flex: 1, marginRight: 10 }}>
+                                  {language === "te" ? `ఈ భూమిలో ఇంకా ${remainingAcres} ఎకరాలు ఖాళీగా ఉంది.` : `${remainingAcres} acres available.`}
+                                </AppText>
+                                <TouchableOpacity 
+                                  style={{ backgroundColor: "#F59E0B", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }} 
+                                  onPress={() => router.push({
+                                     pathname: "/farmer/fields/add-field",
+                                     params: { landId: land.id, nickname: land.nickname, maxAcres: remainingAcres.toString() }
+                                  })}
+                                >
+                                  <AppText style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>{language === "te" ? "+ కొత్త పంట" : "+ Add Crop"}</AppText>
+                                </TouchableOpacity>
+                             </View>
+                          ) : null}
+                       </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -646,7 +1000,9 @@ export default function FieldsScreen() {
         </View>
       </Modal>
 
-      <TouchableOpacity activeOpacity={0.9} style={styles.fab} onPress={() => router.push("/farmer/fields/add-field")}>
+      <TouchableOpacity activeOpacity={0.9} style={styles.fab} onPress={() => {
+        router.push("/farmer/fields/add-land");
+      }}>
         <LinearGradient colors={["#16A34A", "#064E3B"]} style={styles.fabGradient}>
           <Ionicons name="add" size={32} color="#fff" />
         </LinearGradient>
@@ -664,7 +1020,7 @@ const styles = StyleSheet.create({
   glassValue: { fontSize: 16, color: '#fff', fontWeight: '700' },
   glassUnit: { fontSize: 10, color: 'rgba(255, 255, 255, 0.5)', fontWeight: '400' },
   mainCard: { margin: 16, padding: 20, borderRadius: 24 },
-  cardLabel: { color: "#f7bbe4", fontSize: 13, fontWeight: '500', letterSpacing: 0.5 },
+  cardLabel: { color: "#A5B4FC", fontSize: 13, fontWeight: '500', letterSpacing: 0.5 },
   divider: { height: 1, backgroundColor: "rgba(255,255,255,0.15)", marginVertical: 15 },
   miniChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, marginRight: 8 },
   dot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
@@ -689,6 +1045,21 @@ const styles = StyleSheet.create({
   menuTextEdit: { fontSize: 14, color: "#1E293B", fontWeight: "500" },
   menuTextDelete: { fontSize: 14, color: "#EF4444", fontWeight: "500" },
   menuDivider: { height: 1, backgroundColor: "#F1F5F9", marginHorizontal: 10 },
+
+  bottomSheet: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, alignItems: "center", position: "absolute", bottom: 0 },
+  bottomSheetLarge: { width: "100%", backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 40, alignItems: "center", position: "absolute", bottom: 0, maxHeight: "80%" },
+  dragHandle: { width: 40, height: 4, backgroundColor: "#E5E7EB", borderRadius: 2, marginBottom: 20 },
+  bottomSheetTitle: { fontSize: 20, fontWeight: "600", color: "#1F2937", marginBottom: 20, fontFamily: "Mandali", lineHeight: 32, paddingBottom: 4 },
+  sheetOptionBtn: { flexDirection: "row", alignItems: "center", width: "100%", padding: 16, backgroundColor: "#F9FAFB", borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" },
+  sheetIconBg: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 },
+  sheetOptionTexts: { flex: 1 },
+  sheetOptionTitle: { fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 4, fontFamily: "Mandali", lineHeight: 26, paddingBottom: 4 },
+  sheetOptionSub: { fontSize: 13, color: "#6B7280", fontFamily: "Mandali", lineHeight: 20, paddingBottom: 4 },
+  sheetCancelBtn: { width: "100%", padding: 16, borderRadius: 16, backgroundColor: "#FEF2F2", alignItems: "center", marginTop: 8 },
+  sheetCancelText: { color: "#EF4444", fontSize: 16, fontWeight: "600", fontFamily: "Mandali", textAlign: "center" },
+  pickerItem: { flexDirection: "row", alignItems: "center", width: "100%", backgroundColor: "#fff", borderRadius: 12, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden" },
+  pickerCropName: { fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 2, fontFamily: "Mandali", lineHeight: 26, paddingBottom: 4 },
+  pickerCropMeta: { fontSize: 13, color: "#6B7280", fontFamily: "Mandali", lineHeight: 20, paddingBottom: 4 },
 
   fab: { position: "absolute", bottom: 30, right: 20, elevation: 5, shadowColor: '#16A34A', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: {width: 0, height: 4} },
   fabGradient: { width: 64, height: 64, borderRadius: 35, justifyContent: "center", alignItems: "center" },
@@ -735,14 +1106,14 @@ const styles = StyleSheet.create({
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25, fontSize: 14, lineHeight: 22 },
-  modalButtonsStandard: { flexDirection: "row", gap: 12 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, justifyContent: "center", width: "100%" },
   modalCancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
   modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
   modalCancelText: { color: "#64748B", fontWeight: "500" },
   modalConfirmTextStandard: { color: "white", fontWeight: "500" },
   modalIconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   modalTitleStandardWarning: { fontSize: 20, fontWeight: "500", color: "#F59E0B", marginVertical: 10, textAlign: "center" },
-  modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
+  modalWarningBtnStandard: { paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
 });

@@ -1,61 +1,77 @@
 // app/farmer/fields/add-field.tsx
 
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter, useLocalSearchParams } from "expo-router"; 
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSpeechRecognitionEvent } from "expo-speech-recognition";
 import React, { useEffect, useRef, useState } from "react";
-import { Keyboard, Platform, KeyboardAvoidingView } from "react-native";
-import {
-  FlatList, Modal, SafeAreaView, ScrollView, StatusBar,
-  StyleSheet, TextInput, TouchableOpacity, View
-} from "react-native";
+import { FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 
 import AgriLoader from "@/components/AgriLoader";
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
-import { useIsFocused } from "@react-navigation/native";
 
-// URL params helper
 const getStr = (val: string | string[] | undefined) => (Array.isArray(val) ? val[0] : val || "");
 
 export default function AddField() {
   const router = useRouter();
   const params = useLocalSearchParams(); 
-  const isScreenFocused = useIsFocused(); 
 
   const editId = getStr(params.editId);
-  const isUsed = getStr(params.isUsed) === "true"; // 🔥 NEW: Check if crop is locked
+  const isUsed = getStr(params.isUsed) === "true"; 
+  const landId = getStr(params.landId);
+  const landName = getStr(params.nickname) || getStr(params.oldNickname) || "";
 
-  // 🔥 INSTANT DATA LOAD FROM PARAMS
   const [crop, setCrop] = useState(getStr(params.crop));
-  const [nickname, setNickname] = useState(getStr(params.nickname) || ""); 
-  const [soilType, setSoilType] = useState(getStr(params.soilType));
-  const [acres, setAcres] = useState(getStr(params.acres));
-  const [type, setType] = useState<"own" | "rent" | null>(getStr(params.type) as "own" | "rent" | null);
-  const [rent, setRent] = useState(getStr(params.rent) !== "0" ? getStr(params.rent) : "");
+  const [acres, setAcres] = useState(getStr(params.defaultAcres) || getStr(params.acres) || getStr(params.maxAcres));
 
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [loading, setLoading] = useState(false);
   const [activeSession, setActiveSession] = useState("");
   
-  // 🔥 STANDARD PATTERN STATES
   const [activeInput, setActiveInput] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({}); 
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
-  const [modalType, setModalType] = useState<"crop" | "soil" | null>(null); 
+  const [modalType, setModalType] = useState<"crop" | null>(null); 
   const [searchText, setSearchText] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [voiceTarget, setVoiceTarget] = useState<"search" | "nickname" | null>(null);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const nicknameRef = useRef<TextInput>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTarget, setVoiceTarget] = useState<string | null>(null);
+
+  useSpeechRecognitionEvent("start", () => setIsListening(true));
+  useSpeechRecognitionEvent("end", () => setIsListening(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    const text = event.results[0]?.transcript;
+    if (text && voiceTarget === "cropSearch") {
+      setSearchText(text);
+    }
+  });
+  useSpeechRecognitionEvent("error", (event) => {
+    console.log("Speech error:", event.error, event.message);
+    setIsListening(false);
+  });
+
+  const startListening = async (target: string) => {
+    try {
+      const ExpoSpeechRecognitionModule = require("expo-speech-recognition").ExpoSpeechRecognitionModule;
+      const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!result.granted) {
+        setErrorMsg(language === "te" ? "మైక్ పర్మిషన్ లేదు!" : "Microphone permission denied!");
+        setShowErrorModal(true);
+        return;
+      }
+      setVoiceTarget(target);
+      ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-IN", interimResults: true, maxAlternatives: 1 });
+    } catch (e) {
+      console.log("Speech Error:", e);
+    }
+  };
+
   const acresRef = useRef<TextInput>(null);
-  const rentRef = useRef<TextInput>(null);
 
   const cropOptions = [
     { "en": "Acid Lime / Lemon", "te": "నిమ్మ" },
@@ -157,21 +173,6 @@ export default function AddField() {
     { "en": "Wood Apple", "te": "వెలగపండు" }
   ];
 
-  
-const soilOptions = [
-  { "en": "Black Soil", "te": "నల్ల రేగడి నేల" },
-  { "en": "Red Soil", "te": "ఎర్ర నేల" },
-  { "en": "Sandy Soil", "te": "ఇసుక నేల" },
-  { "en": "Clay Soil", "te": "బంక మట్టి నేల" },
-  { "en": "Alluvial Soil", "te": "ఒండ్రు నేల" },
-  { "en": "Laterite Soil", "te": "లేటరైట్ నేల" },
-  { "en": "Red Sandy Soil", "te": "ఎర్ర ఇసుక నేల" },
-  { "en": "Saline Soil", "te": "చవుడు నేల" },
-  { "en": "Coastal Alluvial Soil", "te": "తీర ప్రాంత ఒండ్రు నేల" },
-  { "en": "Delta Alluvial Soil", "te": "డెల్టా ఒండ్రు నేల" },
-  { "en": "Rocky Soil", "te": "రాతి నేల" }
-];
-
   useEffect(() => {
     let isMounted = true;
     AsyncStorage.getItem("APP_LANG").then((l) => { if (l && isMounted) setLanguage(l as any); });
@@ -187,31 +188,19 @@ const soilOptions = [
     return () => { isMounted = false; };
   }, []);
 
-  const getCurrentSession = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const startYear = now.getMonth() >= 5 ? year : year - 1;
-    return `${startYear}-${(startYear + 1).toString().slice(-2)}`;
-  };
-
-  const handleSave = async (bypassDuplicate = false) => {
+  const handleSave = async () => {
     if (loading) return;
     Keyboard.dismiss();
 
-    // 🔥 INLINE VALIDATION LOGIC
     const newErrors: any = {};
     if (!crop.trim()) newErrors.crop = language === "te" ? "పంటను ఎంచుకోండి*" : "Select Crop Name*";
-    if (!nickname.trim()) newErrors.nickname = language === "te" ? "పొలం గుర్తు/ఆనవాలు నమోదు చేయండి*" : "Enter Field Nickname/Location*";
-    if (!soilType.trim()) newErrors.soilType = language === "te" ? "నేల రకాన్ని ఎంచుకోండి*" : "Select Soil Type*";
     
     const acresNum = Number(acres);
-    if (!acres || isNaN(acresNum) || acresNum <= 0) newErrors.acres = language === "te" ? "సరైన ఎకరాలు నమోదు చేయండి*" : "Enter valid acres*";
-    
-    if (!type) newErrors.type = language === "te" ? "పొలం రకం ఎంచుకోండి*" : "Select field type*";
-    
-    if (type === "rent") {
-      const rentNum = Number(rent);
-      if (!rent || isNaN(rentNum) || rentNum <= 0) newErrors.rent = language === "te" ? "సరైన కౌలు మొత్తం నమోదు చేయండి*" : "Enter valid rent amount*";
+    const maxAcresNum = Number(getStr(params.maxAcres));
+    if (!acres || isNaN(acresNum) || acresNum <= 0) {
+      newErrors.acres = language === "te" ? "సరైన ఎకరాలు నమోదు చేయండి*" : "Enter valid acres*";
+    } else if (maxAcresNum > 0 && acresNum > maxAcresNum) {
+      newErrors.acres = language === "te" ? `ఈ భూమిలో కేవలం ${maxAcresNum} ఎకరాలు మాత్రమే ఖాళీగా ఉంది*` : `Only ${maxAcresNum} acres available in this land*`;
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -223,126 +212,77 @@ const soilOptions = [
 
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) {
-        setLoading(false);
-        return;
-      }
-
-      const userDoc = await firestore().collection("users").doc(phone).get();
-      const activeSession = userDoc.data()?.activeSession;
-
-      if (!activeSession) {
-        setLoading(false);
-        return;
+      if (!phone || !activeSession) {
+        setLoading(false); return;
       }
 
       const fieldData = {
         session: activeSession,
         crop: crop.trim(),
-        nickname: nickname.trim(), // 🔥 Saved to DB
-        soilType: soilType.trim(),
+        landId: landId,
         acres: Number(acres),
-        type,
-        rent: type === "rent" ? Number(rent || 0) : 0,
-        updatedAt: firestore.FieldValue.serverTimestamp()
+        updatedAt: firestore.FieldValue.serverTimestamp(),
+        status: "active"
       };
 
-      const ref = firestore()
-        .collection("users")
-        .doc(phone)
-        .collection("fields");
-
-      // 🔥 STRICT DUPLICATE CHECK: Crop + Nickname + Acres
-      if (!editId && !bypassDuplicate) {
-        const duplicateCheck = await ref
-          .where("crop", "==", fieldData.crop)
-          .where("nickname", "==", fieldData.nickname)
-          .where("acres", "==", fieldData.acres) // 🔥 Added Acres logic
-          .where("session", "==", activeSession)
-          .get();
-
-        if (!duplicateCheck.empty) {
-          setLoading(false);
-          setShowDuplicateModal(true);
-          return;
-        }
-      }
+      const ref = firestore().collection("users").doc(phone).collection("fields");
 
       if (editId) {
-        await ref
-          .doc(editId as string)
-          .update(fieldData);
+        let ids = [editId as string];
+        try { ids = JSON.parse(editId as string); } catch(e){}
+        
+        if (Array.isArray(ids) && ids.length > 0) {
+           await ref.doc(ids[0]).update(fieldData);
+           if (ids.length > 1) {
+              const batch = firestore().batch();
+              for (let i = 1; i < ids.length; i++) {
+                 batch.delete(ref.doc(ids[i]));
+              }
+              await batch.commit();
+           }
+        } else {
+           await ref.doc(editId as string).update(fieldData);
+        }
       } else {
-        await ref
-          .add({
+        const markCompletedId = getStr(params.markCompletedId);
+        if (markCompletedId) {
+          const batch = firestore().batch();
+          const newRef = ref.doc();
+          batch.set(newRef, {
             ...fieldData,
             createdAt: firestore.FieldValue.serverTimestamp()
           });
+          batch.update(ref.doc(markCompletedId), {
+            status: "completed",
+            endedAt: firestore.FieldValue.serverTimestamp()
+          });
+          await batch.commit();
+        } else {
+          await ref.add({
+            ...fieldData,
+            createdAt: firestore.FieldValue.serverTimestamp()
+          });
+        }
       }
 
       router.back();
-
     } catch (e: any) {
       console.log("SAVE ERROR:", e);
-      setErrorMsg(language === "te" ? "సర్వర్ లోపం! దయచేసి ఇంటర్నెట్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి." : "Server Error! Please check your internet and try again.");
+      setErrorMsg(language === "te" ? "సర్వర్ లోపం! దయచేసి ఇంటర్నెట్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి." : "Server Error! Please try again.");
       setShowErrorModal(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const startVoice = async (target: "search" | "nickname" = "search") => {
-    try {
-      Keyboard.dismiss();
-      const res = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!res.granted) return;
-      setVoiceTarget(target);
-      setIsListening(true);
-      ExpoSpeechRecognitionModule.start({ lang: language === "te" ? "te-IN" : "en-US", interimResults: true });
-    } catch (e) {
-      console.log("Voice Search Error:", e);
-      setErrorMsg(language === "te" ? "మీ ఫోన్ వాయిస్ రికగ్నిషన్ సపోర్ట్ చేయడం లేదు." : "Voice search is not supported on your device.");
-      setShowErrorModal(true);
-    }
-  };
-
-  useSpeechRecognitionEvent("result", (event) => {
-    if (!isListening) return; // 🔥 Safety check
-    const text = event.results?.[0]?.transcript?.replace(/[.,?!]/g, ""); // 🔥 Punctuation fix
-    if (text) {
-      if (voiceTarget === "nickname") setNickname(text);
-      else setSearchText(text);
-    }
-  });
-  useSpeechRecognitionEvent("end", () => {
-    setIsListening(false);
-    setVoiceTarget(null);
-  });
-
-  useEffect(() => {
-    if (!isScreenFocused) {
-      ExpoSpeechRecognitionModule.stop();
-      setIsListening(false);
-    }
-    return () => {
-      ExpoSpeechRecognitionModule.stop();
-    };
-  }, [isScreenFocused]);
-
-  const filteredData = modalType === "crop" 
-    ? cropOptions.filter(i => (language === "te" ? i.te : i.en).toLowerCase().includes(searchText.toLowerCase().trim()))
-    : soilOptions.filter(i => (language === "te" ? i.te : i.en).toLowerCase().includes(searchText.toLowerCase().trim()));
+  const filteredData = cropOptions.filter(i => (language === "te" ? i.te : i.en).toLowerCase().includes(searchText.toLowerCase().trim()));
 
   const handleAddItem = (manualName: string) => {
     if (manualName.trim().length > 0) {
-      if (modalType === "crop") setCrop(manualName.trim());
-      else setSoilType(manualName.trim());
-      
+      setCrop(manualName.trim());
       setSearchText("");
       setModalType(null);
       setActiveInput(null);
-      ExpoSpeechRecognitionModule.stop(); 
-      setIsListening(false);
     }
   };
 
@@ -350,35 +290,26 @@ const soilOptions = [
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
       <AppHeader
-        title={editId ? (language === "te" ? "వివరాలు మార్చండి" : "Edit Field") : (language === "te" ? "పొలం వివరాలు" : "Field Details")}
-        subtitle={language === "te" ? "మీ పొలం వివరాలను నమోదు చేయండి" : "Enter your field details"}
+        title={editId ? (language === "te" ? "పంట వివరాలు మార్చండి" : "Edit Crop") : (language === "te" ? "కొత్త పంట నమోదు" : "Add Crop")}
+        subtitle={language === "te" ? "పంట వివరాలను నమోదు చేయండి" : "Enter your crop details"}
         language={language}
       />
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : undefined} 
-        style={{ flex: 1 }}
-      >
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
 
-          {/* 🔥 OLD SESSION WARNING BANNER */}
-          {activeSession && activeSession !== getCurrentSession() && (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#FFFBEB", borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: "#FDE68A" }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center" }}>
-                <Ionicons name="warning" size={22} color="#D97706" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppText style={{ fontSize: 14, color: "#92400E", fontWeight: "600", marginBottom: 2 }} language={language}>
-                  {language === "te" ? "పాత సాగు సంవత్సరం" : "Old Active Season"}
+          {/* 🔥 LAND BANNER */}
+          <View style={{ backgroundColor: "#EFF6FF", padding: 14, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: "#BFDBFE", flexDirection: "row", alignItems: "center" }}>
+            <Ionicons name="location" size={24} color="#2563EB" />
+            <View style={{ marginLeft: 10 }}>
+                <AppText style={{ color: "#1E3A8A", fontSize: 13, fontWeight: "600" }}>
+                {language === "te" ? "ఎంచుకున్న భూమి" : "Selected Land"}
                 </AppText>
-                <AppText style={{ fontSize: 13, color: "#92400E", lineHeight: 18 }} language={language}>
-                  {language === "te" 
-                    ? `మీరు పాత సాగు సంవత్సరం (${activeSession}) లో పొలం వివరాలు నమోదు చేస్తున్నారు.` 
-                    : `You are adding a field to an older season (${activeSession}).`}
+                <AppText style={{ color: "#1D4ED8", fontSize: 16, fontWeight: "600" }}>
+                {landName || (language === "te" ? "భూమి పేరు లేదు" : "Unnamed Land")}
                 </AppText>
-              </View>
             </View>
-          )}
+          </View>
 
           {/* 🌾 CROP BOX (🔥 WITH LOCK LOGIC) */}
           <TouchableOpacity 
@@ -387,16 +318,16 @@ const soilOptions = [
               styles.inputBox, 
               activeInput === "crop" && !isUsed && styles.inputFocused, 
               errors.crop && styles.inputError,
-              isUsed && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" } // 🔥 Disabled Style
+              isUsed && { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" }
             ]} 
             onPress={() => { 
-              if (isUsed) return; // 🔥 LOCK EDITING IF CROP IS IN USE
+              if (isUsed) return;
               setModalType("crop"); setActiveInput("crop"); if (errors.crop) setErrors({...errors, crop: ""}); 
             }}
           >
             <Ionicons name={isUsed ? "lock-closed" : "leaf-outline"} size={20} color={isUsed ? "#D97706" : (crop ? "#16A34A" : "#9CA3AF")} />
             <View style={styles.inputWrapper}>
-              <AppText style={{ color: isUsed ? "#4B5563" : (crop ? "#1F2937" : "#9CA3AF"), fontSize: 16, fontFamily: "Mandali" }}>
+              <AppText style={{ color: isUsed ? "#4B5563" : (crop ? "#1F2937" : "#9CA3AF"), fontSize: 16, fontFamily: "Mandali", fontWeight: "600" }}>
                 {crop || (language === "te" ? "పంటను ఎంచుకోండి*" : "Select Crop*")}
               </AppText>
             </View>
@@ -415,64 +346,6 @@ const soilOptions = [
               </AppText>
             </View>
           )}
-
-          {/* 🔥 NICKNAME / LOCATION BOX */}
-          <TouchableOpacity 
-            activeOpacity={1}
-            onPress={() => {
-              setActiveInput("nickname");
-              setTimeout(() => nicknameRef.current?.focus(), 50);
-            }}
-            style={[styles.inputBox, activeInput === "nickname" && styles.inputFocused, errors.nickname && styles.inputError]}
-          >
-            <Ionicons name="location-outline" size={20} color={nickname ? "#16A34A" : "#9CA3AF"} />
-            <View style={styles.inputWrapper}>
-              {!nickname && activeInput !== "nickname" && (
-                <AppText style={styles.placeholder}>
-                  {language === "te" ? "ఆనవాలు (ఉదా: చెరువు కాడ)*" : "Nickname / Location*"}
-                </AppText>
-              )}
-              <TextInput
-                ref={nicknameRef}
-                value={nickname}
-                maxLength={40}
-                cursorColor="#16A34A"
-                selectionColor="#16A34A40"
-                onChangeText={(txt) => {
-                  setNickname(txt);
-                  if (errors.nickname) setErrors({ ...errors, nickname: "" });
-                }}
-                style={[styles.input, { display: (nickname || activeInput === "nickname") ? "flex" : "none", paddingRight: 40 }]}
-                onFocus={() => setActiveInput("nickname")}
-                onBlur={() => setActiveInput(null)}
-              />
-            </View>
-            {/* MIC BUTTON */}
-            <TouchableOpacity onPress={() => startVoice("nickname")}>
-              <Ionicons 
-                name={voiceTarget === "nickname" && isListening ? "mic" : "mic-outline"} 
-                size={22} 
-                color={voiceTarget === "nickname" && isListening ? "#EF4444" : "#9CA3AF"} 
-              />
-            </TouchableOpacity>
-          </TouchableOpacity>
-          {errors.nickname && <AppText style={styles.errorText} language={language}>{errors.nickname}</AppText>}
-
-          {/* 🪨 SOIL TYPE BOX */}
-          <TouchableOpacity 
-            activeOpacity={1}
-            style={[styles.inputBox, activeInput === "soil" && styles.inputFocused, errors.soilType && styles.inputError]} 
-            onPress={() => { setModalType("soil"); setActiveInput("soil"); if (errors.soilType) setErrors({...errors, soilType: ""}); }}
-          >
-            <Ionicons name="layers-outline" size={20} color={soilType ? "#16A34A" : "#9CA3AF"} />
-            <View style={styles.inputWrapper}>
-              <AppText style={{ color: soilType ? "#1F2937" : "#9CA3AF", fontSize: 16, fontFamily: "Mandali" }}>
-                {soilType || (language === "te" ? "నేల రకాన్ని ఎంచుకోండి*" : "Select Soil Type*")}
-              </AppText>
-            </View>
-            <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
-          {errors.soilType && <AppText style={styles.errorText} language={language}>{errors.soilType}</AppText>}
 
           {/* 📏 ACRES BOX */}
           <TouchableOpacity
@@ -508,84 +381,13 @@ const soilOptions = [
           </TouchableOpacity>
           {errors.acres && <AppText style={styles.errorText} language={language}>{errors.acres}</AppText>}
 
-          {/* 🔘 TYPE SELECTION */}
-          <AppText style={styles.label}>{language === "te" ? "పొలం రకం*" : "Field Type*"}</AppText>
-          <View style={styles.row}>
-            <TouchableOpacity activeOpacity={0.8}
-              style={[styles.pill, type === "own" && styles.activePill, errors.type && !type && { borderColor: "#EF4444" }]} 
-              onPress={() => { 
-                setType("own"); 
-                setRent(""); 
-                setActiveInput(null); 
-                if (errors.type) setErrors({ ...errors, type: "", rent: "" }); 
-              }}
-            >
-              <AppText style={[styles.pillText, { color: type === "own" ? "#fff" : "#4B5563" }]}>
-                {language === "te" ? "సొంతం" : "Own"}
-              </AppText>
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.8}
-              style={[styles.pill, type === "rent" && styles.activePill, errors.type && !type && { borderColor: "#EF4444" }]} 
-              onPress={() => { 
-                setType("rent"); 
-                setActiveInput(null); 
-                if (errors.type) setErrors({ ...errors, type: "" }); 
-              }}
-            >
-              <AppText style={[styles.pillText, { color: type === "rent" ? "#fff" : "#4B5563" }]}>
-                {language === "te" ? "కౌలు" : "Rent"}
-              </AppText>
-            </TouchableOpacity>
-          </View>
-          {errors.type && <AppText style={[styles.errorText, {marginTop: -10, marginBottom: 16}]} language={language}>{errors.type}</AppText>}
-
-          {/* 💰 RENT BOX */}
-          {type === "rent" && (
-            <View>
-              <TouchableOpacity
-                style={[styles.inputBox, activeInput === "rent" && styles.inputFocused, errors.rent && styles.inputError]}
-                activeOpacity={1}
-                onPress={() => {
-                  setActiveInput("rent");
-                  setTimeout(() => rentRef.current?.focus(), 50);
-                }}
-              >
-                <Ionicons name="cash-outline" size={20} color={rent ? "#16A34A" : "#9CA3AF"} />
-                <View style={styles.inputWrapper}>
-                  {!rent && activeInput !== "rent" && (
-                    <AppText style={styles.placeholder}>
-                      {language === "te" 
-                        ? `${acres || 0} ఎకరాలకు కలిపి మొత్తం కౌలు (రూ!!)*` 
-                        : `Total rent for ${acres || 0} acres (₹)*`}
-                    </AppText>
-                  )}
-                  <TextInput
-                    ref={rentRef}
-                    value={rent}
-                    onChangeText={(txt) => {
-                      setRent(txt);
-                      if (errors.rent) setErrors({ ...errors, rent: "" });
-                    }}
-                    keyboardType="numeric"
-                    cursorColor="#16A34A"
-                    selectionColor="#16A34A40"
-                    style={[styles.input, { display: (rent || activeInput === "rent") ? "flex" : "none" }]}
-                    onFocus={() => setActiveInput("rent")}
-                    onBlur={() => setActiveInput(null)}
-                  />
-                </View>
-              </TouchableOpacity>
-              {errors.rent && <AppText style={styles.errorText} language={language}>{errors.rent}</AppText>}
-            </View>
-          )}
-
           {/* 💾 SAVE BUTTON */}
-          <TouchableOpacity style={styles.saveBtn} onPress={() => handleSave(false)} disabled={loading} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={loading} activeOpacity={0.8}>
             <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.saveGradient}>
               <AppText style={styles.saveText}>
                 {editId 
                   ? (language === "te" ? "వివరాలు మార్చండి" : "Update Details") 
-                  : (language === "te" ? "భద్రపరచండి" : "Save Details")}
+                  : (language === "te" ? "పంటను భద్రపరచండి" : "Save Crop")}
               </AppText>
             </LinearGradient>
           </TouchableOpacity>
@@ -596,23 +398,17 @@ const soilOptions = [
       <AgriLoader visible={loading} type={editId ? "updating" : "saving"} language={language} />
       
       {/* 🔥 MODAL WRAPPER */}
-      <Modal visible={modalType !== null} transparent animationType="slide" onRequestClose={() => {
-        setModalType(null);
-        ExpoSpeechRecognitionModule.stop(); 
-        setIsListening(false);
-      }}>
+      <Modal visible={modalType !== null} transparent animationType="slide" onRequestClose={() => setModalType(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <AppText style={{ fontSize: 18, fontWeight: "600", fontFamily: "Mandali" }}>
-                {modalType === "crop" ? (language === "te" ? "పంటను ఎంచుకోండి" : "Select Crop") : (language === "te" ? "నేల రకాన్ని ఎంచుకోండి" : "Select Soil Type")}
+                {language === "te" ? "పంటను ఎంచుకోండి" : "Select Crop"}
               </AppText>
               <TouchableOpacity onPress={() => { 
                 setModalType(null); 
                 setActiveInput(null); 
                 setSearchText(""); 
-                ExpoSpeechRecognitionModule.stop(); 
-                setIsListening(false);
               }}>
                 <Ionicons name="close-circle" size={30} color="#9CA3AF" />
               </TouchableOpacity>
@@ -627,15 +423,17 @@ const soilOptions = [
                 placeholderTextColor={'#9CA3AF'}
                 cursorColor={'#16A34A'}
                 style={[styles.searchInput, { fontFamily: 'Mandali' }]}
-                onSubmitEditing={() => handleAddItem(searchText)}
+                onSubmitEditing={() => {
+                   if (searchText.trim().length > 0) handleAddItem(searchText);
+                }}
               />
               {searchText.trim().length > 0 && (
-                <TouchableOpacity onPress={() => handleAddItem(searchText)} style={{ backgroundColor: "#16A34A", borderRadius: 12, padding: 6, marginRight: 6 }}>
+                <TouchableOpacity onPress={() => handleAddItem(searchText)} style={{ backgroundColor: "#16A34A", borderRadius: 12, padding: 6, marginLeft: 6 }}>
                   <Ionicons name="add" size={20} color="#fff" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={() => startVoice("search")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
-                <Ionicons name={voiceTarget === "search" && isListening ? "mic" : "mic-outline"} size={24} color={voiceTarget === "search" && isListening ? "#EF4444" : "#16A34A"} />
+              <TouchableOpacity onPress={() => startListening("cropSearch")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                <Ionicons name={isListening && voiceTarget === "cropSearch" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "cropSearch" ? "#EF4444" : "#157c3e"} />
               </TouchableOpacity>
             </View>
 
@@ -656,51 +454,17 @@ const soilOptions = [
                   style={styles.item}
                   onPress={() => {
                     const selected = language === "te" ? item.te : item.en;
-                    if (modalType === "crop") {
-                      setCrop(selected);
-                      if (errors.crop) setErrors({ ...errors, crop: "" });
-                    } else {
-                      setSoilType(selected);
-                      if (errors.soilType) setErrors({ ...errors, soilType: "" });
-                    }
+                    setCrop(selected);
+                    if (errors.crop) setErrors({ ...errors, crop: "" });
                     setModalType(null);
                     setSearchText("");
                     setActiveInput(null);
-                    ExpoSpeechRecognitionModule.stop(); 
-                    setIsListening(false);
                   }}
                 >
                   <AppText style={styles.itemText}>{language === "te" ? item.te : item.en}</AppText>
                 </TouchableOpacity>
               )}
             />
-          </View>
-        </View>
-      </Modal>
-
-      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
-      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.modalOverlayStandard}>
-          <View style={styles.modalContentStandard}>
-            <View style={styles.modalIconBgStandardInfo}>
-              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
-            </View>
-            <AppText style={styles.modalTitleStandardInfo} language={language}>
-              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
-            </AppText>
-            <AppText style={styles.modalSubStandard} language={language}>
-              {language === "te" ? "సరిగ్గా ఇదే పొలం వివరాలు (పంట, ఆనవాలు, ఎకరాలు) ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "Exactly same field details (Crop, Location, Acres) already exist.\n\nAre you sure you want to add this duplicate entry?"}
-            </AppText>
-            <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
-                <AppText style={styles.modalCancelTextStandard} language={language}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
-                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
-              >
-                <AppText style={styles.modalInfoTextStandard} language={language}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
@@ -726,14 +490,13 @@ const soilOptions = [
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
-  container: { padding: 20, paddingBottom: 120 }, 
+  container: { padding: 20, paddingBottom: 150 }, 
   label: { fontSize: 14, color: "#6B7280", marginBottom: 6, marginLeft: 4, fontWeight: '500', fontFamily: 'Mandali' },
   
   inputBox: {
@@ -763,68 +526,31 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: "Mandali",
     marginTop: -10,
-    marginBottom: 10,
+    marginBottom: 16,
     marginLeft: 4,
   },
-  inputWrapper: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center'
-  },
-  input: { 
-    flex: 1, 
-    fontSize: 16, 
-    color: "#1F2937", 
-    fontFamily: "Mandali",
-    textAlignVertical: "center",
-    includeFontPadding: false,
-  },
-  placeholder: {
-    position: "absolute",
-    fontSize: 16,
-    color: "#9CA3AF",
-    fontFamily: "Mandali"
-  },
+  inputWrapper: { flex: 1, marginLeft: 10, justifyContent: 'center', height: '100%' },
+  placeholder: { color: "#9CA3AF", fontSize: 16, position: 'absolute', fontFamily: "Mandali", fontWeight: "600" },
+  input: { fontSize: 16, color: "#1F2937", height: '100%', fontFamily: "Mandali", width: '100%', fontWeight: "600" },
 
-  row: { flexDirection: "row", gap: 12, marginBottom: 20 },
-  pill: {
-    flex: 1, padding: 15, borderRadius: 12, backgroundColor: "#F9FAFB", 
-    alignItems: "center", borderWidth: 1, borderColor: "#D1D5DB"
-  },
-  
-  activePill: { backgroundColor: "#1B5E20"},
-  pillText: { fontSize: 16, fontWeight: "600", fontFamily: "Mandali" },
-
-  saveBtn: { marginTop: 10, borderRadius: 18, overflow: "hidden", elevation: 6, shadowColor: "#1B5E20", shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 8 },
-  saveGradient: { height: 56, justifyContent: "center", alignItems: "center" },
-  saveText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  saveBtn: { marginTop: 10, borderRadius: 14, overflow: 'hidden' },
+  saveGradient: { paddingVertical: 10, alignItems: "center" },
+  saveText: { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Mandali", letterSpacing: 0.5 },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#fff", height: "70%", borderTopLeftRadius: 25, borderTopRightRadius: 25 },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", padding: 20, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', alignItems: "center" },
-  searchBar: {
-    flexDirection: "row",
-    margin: 20,
-    backgroundColor: "#F3F4F6",
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB"
-  },
-  searchInput: { flex: 1, height: 54, fontSize: 16, fontFamily: 'Mandali' },
-  item: { padding: 20, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
-  itemText: { fontSize: 17, fontFamily: "Mandali" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, height: "75%" },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', marginHorizontal: 20, marginVertical: 15, borderRadius: 18, paddingHorizontal: 12, borderWidth: 1, borderColor: '#E5E7EB' },
+  searchInput: { flex: 1, height: 54, fontSize: 16, color: '#1F2937' },
+  item: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  itemText: { fontSize: 16, color: "#1F2937", fontFamily: "Mandali" },
 
-  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
-  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
-  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
-  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
-  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
-  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
-  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
-  modalInfoTextStandard: { color: "white", fontWeight: "600" },
-  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
-  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
+  modalContentStandard: { backgroundColor: "#fff", borderRadius: 24, padding: 24, width: "100%", maxWidth: 340, alignItems: "center", elevation: 10 },
+  modalIconBgStandardInfo: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginBottom: 16 },
+  modalTitleStandardInfo: { fontSize: 20, fontWeight: "bold", color: "#1E3A8A", marginBottom: 8, fontFamily: "Mandali", textAlign: "center" },
+  modalSubStandard: { fontSize: 14, color: "#4B5563", textAlign: "center", marginBottom: 24, lineHeight: 22, fontFamily: "Mandali" },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: "100%" },
+  modalCancelBtnStandard: { flex: 1, backgroundColor: "#F3F4F6", paddingVertical: 14, borderRadius: 12, alignItems: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontSize: 15, fontWeight: "600", fontFamily: "Mandali" },
 });

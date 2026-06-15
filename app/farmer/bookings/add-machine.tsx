@@ -945,9 +945,19 @@ const styles = StyleSheet.create({
   
   minimalBottomCard: { width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
   addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
-  minimalAddress: { flex: 1, fontSize: 14, color: '#374151', lineHeight: 22, fontFamily: "Mandali" },
-  minimalConfirmBtn: { backgroundColor: '#16A34A', height: 46, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  minimalConfirmText: { color: '#fff', fontSize: 15, fontWeight: '600', fontFamily: "Mandali" },
+  minimalAddress: { flex: 1, fontSize: 13, color: '#4B5563', lineHeight: 18, fontFamily: "Mandali" },
+  minimalConfirmBtn: { 
+    paddingVertical: 10, 
+    borderRadius: 10, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    elevation: 3, 
+    shadowColor: '#16A34A', 
+    shadowOffset: { width: 0, height: 3 }, 
+    shadowOpacity: 0.25, 
+    shadowRadius: 5 
+  },
+  minimalConfirmText: { color: '#fff', fontSize: 14, fontWeight: '600', fontFamily: "Mandali" },
 
   statusOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 20 },
   statusContent: { width: "100%", maxWidth: 340, backgroundColor: "#fff", borderRadius: 30, padding: 25, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },

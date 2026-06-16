@@ -53,12 +53,19 @@ export default function AddDriverWork() {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  // 🔥 BREAK TIME STATES
-  const [hasBreak, setHasBreak] = useState(false);
-  const [breakStartTime, setBreakStartTime] = useState<Date | null>(null);
-  const [breakEndTime, setBreakEndTime] = useState<Date | null>(null);
+  // 🔥 MULTIPLE BREAK TIME STATES
+  interface BreakEntry { id: string; startTime: Date | null; endTime: Date | null; }
+  const [breaks, setBreaks] = useState<BreakEntry[]>([]);
+  const [activeBreakId, setActiveBreakId] = useState<string | null>(null);
   const [showBreakStartTimePicker, setShowBreakStartTimePicker] = useState(false);
   const [showBreakEndTimePicker, setShowBreakEndTimePicker] = useState(false);
+
+  const handleAddBreak = () => {
+    setBreaks([...breaks, { id: Date.now().toString(), startTime: null, endTime: null }]);
+  };
+  const handleRemoveBreak = (id: string) => {
+    setBreaks(breaks.filter(b => b.id !== id));
+  };
 
   const [acresWorked, setAcresWorked] = useState("");
   const acresWorkedRef = useRef<TextInput>(null);
@@ -171,20 +178,38 @@ export default function AddDriverWork() {
   };
 
   const isBreakTimeValid = () => {
-    if (!startTime || !endTime || !breakStartTime || !breakEndTime) return false;
-    
+    if (!startTime || !endTime) return false;
     const startMins = startTime.getHours() * 60 + startTime.getMinutes();
     let endMins = endTime.getHours() * 60 + endTime.getMinutes();
     if (endMins < startMins) endMins += 24 * 60;
-    
-    let bStartMins = breakStartTime.getHours() * 60 + breakStartTime.getMinutes();
-    if (bStartMins < startMins) bStartMins += 24 * 60;
-    
-    let bEndMins = breakEndTime.getHours() * 60 + breakEndTime.getMinutes();
-    if (bEndMins < bStartMins) bEndMins += 24 * 60;
 
-    if (bStartMins < startMins || bEndMins > endMins) {
-      return false;
+    for (const b of breaks) {
+      if (!b.startTime || !b.endTime) continue;
+      let bStartMins = b.startTime.getHours() * 60 + b.startTime.getMinutes();
+      if (bStartMins < startMins) bStartMins += 24 * 60;
+      let bEndMins = b.endTime.getHours() * 60 + b.endTime.getMinutes();
+      if (bEndMins < bStartMins) bEndMins += 24 * 60;
+
+      if (bStartMins < startMins || bEndMins > endMins) return false;
+    }
+    for (let i = 0; i < breaks.length; i++) {
+       for (let j = i + 1; j < breaks.length; j++) {
+          const b1 = breaks[i];
+          const b2 = breaks[j];
+          if (!b1.startTime || !b1.endTime || !b2.startTime || !b2.endTime) continue;
+          
+          let b1Start = b1.startTime.getHours() * 60 + b1.startTime.getMinutes();
+          if (b1Start < startMins) b1Start += 24 * 60;
+          let b1End = b1.endTime.getHours() * 60 + b1.endTime.getMinutes();
+          if (b1End < b1Start) b1End += 24 * 60;
+
+          let b2Start = b2.startTime.getHours() * 60 + b2.startTime.getMinutes();
+          if (b2Start < startMins) b2Start += 24 * 60;
+          let b2End = b2.endTime.getHours() * 60 + b2.endTime.getMinutes();
+          if (b2End < b2Start) b2End += 24 * 60;
+
+          if (b1Start < b2End && b2Start < b1End) return false;
+       }
     }
     return true;
   };
@@ -204,7 +229,8 @@ export default function AddDriverWork() {
     let breakStr = "";
     let netStr = gross;
 
-    if (hasBreak && breakStartTime && breakEndTime) {
+    const validBreaks = breaks.filter(b => b.startTime && b.endTime);
+    if (validBreaks.length > 0) {
       if (!isBreakTimeValid()) {
         return { 
           gross, 
@@ -213,11 +239,15 @@ export default function AddDriverWork() {
         };
       }
 
-      let breakDiff = breakEndTime.getTime() - breakStartTime.getTime();
-      if (breakDiff < 0) breakDiff += 24 * 60 * 60 * 1000;
-      breakStr = formatMs(breakDiff);
+      let totalBreakMs = 0;
+      for (const b of validBreaks) {
+        let breakDiff = b.endTime!.getTime() - b.startTime!.getTime();
+        if (breakDiff < 0) breakDiff += 24 * 60 * 60 * 1000;
+        totalBreakMs += breakDiff;
+      }
+      breakStr = formatMs(totalBreakMs);
 
-      let netMs = diffMs - breakDiff;
+      let netMs = diffMs - totalBreakMs;
       if (netMs < 0) netMs = 0;
       netStr = formatMs(netMs);
     }
@@ -326,10 +356,13 @@ export default function AddDriverWork() {
         if (workMode === "hourly") {
           entryData.startTimeRaw = startTime ? startTime.toISOString() : null;
           entryData.endTimeRaw = endTime ? endTime.toISOString() : null;
-          entryData.hasBreak = hasBreak;
-          if (hasBreak) {
-            entryData.breakStartTimeRaw = breakStartTime ? breakStartTime.toISOString() : null;
-            entryData.breakEndTimeRaw = breakEndTime ? breakEndTime.toISOString() : null;
+          const validBreaks = breaks.filter(b => b.startTime && b.endTime);
+          entryData.hasBreak = validBreaks.length > 0;
+          if (validBreaks.length > 0) {
+             entryData.breaksRaw = validBreaks.map(b => ({
+               startTimeRaw: b.startTime!.toISOString(),
+               endTimeRaw: b.endTime!.toISOString()
+             }));
           }
           entryData.totalHoursStr = calculateTotalHoursStr();
         } else {
@@ -349,10 +382,13 @@ export default function AddDriverWork() {
       if (workMode === "hourly") {
         entryData.startTimeRaw = startTime ? startTime.toISOString() : null;
         entryData.endTimeRaw = endTime ? endTime.toISOString() : null;
-        entryData.hasBreak = hasBreak;
-        if (hasBreak) {
-          entryData.breakStartTimeRaw = breakStartTime ? breakStartTime.toISOString() : null;
-          entryData.breakEndTimeRaw = breakEndTime ? breakEndTime.toISOString() : null;
+        const validBreaks = breaks.filter(b => b.startTime && b.endTime);
+        entryData.hasBreak = validBreaks.length > 0;
+        if (validBreaks.length > 0) {
+           entryData.breaksRaw = validBreaks.map(b => ({
+             startTimeRaw: b.startTime!.toISOString(),
+             endTimeRaw: b.endTime!.toISOString()
+           }));
         }
         entryData.totalHoursStr = calculateTotalHoursStr();
       } else {
@@ -392,13 +428,15 @@ export default function AddDriverWork() {
        if (workMode === "hourly" && (!startTime || !endTime)) {
          newErrors.time = language === "te" ? "సమయం ఎంచుకోండి*" : "Select Time*";
        }
-       if (workMode === "hourly" && hasBreak && (!breakStartTime || !breakEndTime)) {
-         newErrors.breakTime = language === "te" ? "బ్రేక్ సమయం ఎంచుకోండి*" : "Select Break Time*";
-       } else if (workMode === "hourly" && hasBreak && breakStartTime && breakEndTime && startTime && endTime) {
-          if (!isBreakTimeValid()) {
-            newErrors.breakTime = language === "te" ? "బ్రేక్ సమయం పని మొదలైన, ముగిసిన సమయాల మధ్యలోనే ఉండాలి*" : "Break time must be between work start and end*";
-          }
-        }
+       if (workMode === "hourly" && breaks.length > 0) {
+         if (breaks.some(b => !b.startTime || !b.endTime)) {
+            newErrors.breakTime = language === "te" ? "అన్ని బ్రేక్స్ కి సమయం ఎంచుకోండి*" : "Select time for all breaks*";
+         } else if (startTime && endTime) {
+            if (!isBreakTimeValid()) {
+               newErrors.breakTime = language === "te" ? "బ్రేక్ సమయం తప్పుగా ఉంది (ఓవర్లాప్ లేదా బయట సమయం)*" : "Invalid break times (Overlap or out of bounds)*";
+            }
+         }
+       }
        if (workMode === "acres" && !acresWorked) {
          newErrors.acresWorked = language === "te" ? "ఎకరాలు రాయండి*" : "Enter Acres*";
        }
@@ -653,7 +691,7 @@ export default function AddDriverWork() {
             {/* ⏰ TIME OR ACRES INPUT */}
             {workMode === "hourly" ? (
               <View style={{ marginBottom: 16 }}>
-                <View style={{ flexDirection: "row", gap: 10, marginBottom: 16 }}>
+                <View style={{ flexDirection: "row", gap: 10, marginBottom: errors.time ? 0 : 16 }}>
                   <View style={{ flex: 1 }}>
                     <AppText style={styles.label}>{language === "te" ? "పని మొదలైన సమయం*" : "Start Time*"}</AppText>
                     <TouchableOpacity
@@ -681,51 +719,53 @@ export default function AddDriverWork() {
                 </View>
                 
                 {/* BREAK TIME LOGIC */}
-                {!hasBreak ? (
-                  <TouchableOpacity style={{ alignSelf: "flex-start", paddingVertical: 5 }} onPress={() => setHasBreak(true)}>
-                    <AppText style={{ color: "#3B82F6", fontWeight: "600", fontFamily: "Mandali", fontSize: 16 }}>
-                      {language === "te" ? "+ బ్రేక్ సమయం జోడించండి (ఆప్షనల్)" : "+ Add Break Time (Optional)"}
-                    </AppText>
+                {/* MULTIPLE BREAKS LOGIC */}
+                <View style={{ marginTop: 10 }}>
+                  {breaks.map((b, idx) => (
+                     <View key={b.id} style={{ marginBottom: 15, padding: 12, backgroundColor: "#EFF6FF", borderRadius: 12, borderWidth: 1, borderColor: "#DBEAFE" }}>
+                        <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+                           <AppText style={{ color: "#1D4ED8", fontWeight: "600", fontFamily: "Mandali", fontSize: 16 }}>
+                             {language === "te" ? `బ్రేక్ సమయం ${idx + 1}` : `Break Time ${idx + 1}`}
+                           </AppText>
+                           <TouchableOpacity onPress={() => handleRemoveBreak(b.id)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+                              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                           </TouchableOpacity>
+                        </View>
+                        <View style={{flexDirection: 'row', gap: 10}}>
+                          <View style={{flex: 1}}>
+                            <AppText style={[styles.label, {fontSize: 12, color: '#6B7280'}]}>{language === "te" ? "మొదలు*" : "Start*"}</AppText>
+                            <TouchableOpacity activeOpacity={0.8} style={[styles.inputBox, {padding: 12}]} onPress={() => { setActiveBreakId(b.id); setActiveInput(null); setShowBreakStartTimePicker(true); if(errors.breakTime) setErrors({...errors, breakTime: ""}); }}>
+                              <Ionicons name="cafe-outline" size={18} color={b.startTime ? "#16A34A" : "#9CA3AF"} />
+                              <AppText style={{ marginLeft: 8, color: b.startTime ? "#1F2937" : "#9CA3AF", flex: 1, fontFamily: "Mandali", fontSize: 13 }}>
+                                {b.startTime ? b.startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                              </AppText>
+                            </TouchableOpacity>
+                          </View>
+                          <View style={{flex: 1}}>
+                            <AppText style={[styles.label, {fontSize: 12, color: '#6B7280'}]}>{language === "te" ? "ముగింపు*" : "End*"}</AppText>
+                            <TouchableOpacity activeOpacity={0.8} style={[styles.inputBox, {padding: 12}]} onPress={() => { setActiveBreakId(b.id); setActiveInput(null); setShowBreakEndTimePicker(true); if(errors.breakTime) setErrors({...errors, breakTime: ""}); }}>
+                              <Ionicons name="cafe-outline" size={18} color={b.endTime ? "#16A34A" : "#9CA3AF"} />
+                              <AppText style={{ marginLeft: 8, color: b.endTime ? "#1F2937" : "#9CA3AF", flex: 1, fontFamily: "Mandali", fontSize: 13 }}>
+                                {b.endTime ? b.endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                              </AppText>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                     </View>
+                  ))}
+                  
+                  <TouchableOpacity 
+                     activeOpacity={0.8} 
+                     onPress={handleAddBreak}
+                     style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10, borderRadius: 10, backgroundColor: "#FEF3C7", borderWidth: 1, borderColor: "#FDE68A", marginBottom: errors.breakTime ? 0 : 20 }}
+                  >
+                     <Ionicons name="add-circle-outline" size={20} color="#D97706" style={{ marginRight: 6 }} />
+                     <AppText style={{ fontSize: 14, fontWeight: "600", color: "#D97706" }}>
+                       {language === "te" ? "బ్రేక్ యాడ్ చేయండి" : "Add Break"}
+                     </AppText>
                   </TouchableOpacity>
-                ) : (
-                  <View style={{ backgroundColor: "#EFF6FF", padding: 12, borderRadius: 12, marginBottom: 10 }}>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
-                      <AppText style={{ color: "#1D4ED8", fontWeight: "600", fontFamily: "Mandali", fontSize: 16 }}>
-                        {language === "te" ? "బ్రేక్ సమయం" : "Break Time"}
-                      </AppText>
-                      <TouchableOpacity onPress={() => { setHasBreak(false); setBreakStartTime(null); setBreakEndTime(null); }}>
-                        <Ionicons name="close-circle" size={24} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                    <View style={{ flexDirection: "row", gap: 10 }}>
-                      <View style={{ flex: 1 }}>
-                        <AppText style={styles.label}>{language === "te" ? "బ్రేక్ మొదలైన సమయం*" : "Break Start*"}</AppText>
-                        <TouchableOpacity
-                          style={[styles.inputBox, errors.breakTime && styles.inputError, { marginBottom: 0, height: 45, backgroundColor: "#fff" }]}
-                          onPress={() => { setShowBreakStartTimePicker(true); if(errors.breakTime) setErrors({...errors, breakTime: ""}); }}
-                        >
-                          <Ionicons name="cafe-outline" size={18} color={breakStartTime ? "#16A34A" : "#9CA3AF"} />
-                          <AppText style={{ marginLeft: 8, color: breakStartTime ? "#1F2937" : "#9CA3AF", flex: 1, fontFamily: "Mandali", fontSize: 14 }}>
-                            {breakStartTime ? breakStartTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
-                          </AppText>
-                        </TouchableOpacity>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <AppText style={styles.label}>{language === "te" ? "బ్రేక్ ముగిసిన సమయం*" : "Break End*"}</AppText>
-                        <TouchableOpacity
-                          style={[styles.inputBox, errors.breakTime && styles.inputError, { marginBottom: 0, height: 45, backgroundColor: "#fff" }]}
-                          onPress={() => { setShowBreakEndTimePicker(true); if(errors.breakTime) setErrors({...errors, breakTime: ""}); }}
-                        >
-                          <Ionicons name="cafe-outline" size={18} color={breakEndTime ? "#16A34A" : "#9CA3AF"} />
-                          <AppText style={{ marginLeft: 8, color: breakEndTime ? "#1F2937" : "#9CA3AF", flex: 1, fontFamily: "Mandali", fontSize: 14 }}>
-                            {breakEndTime ? breakEndTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
-                          </AppText>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                    {errors.breakTime && <AppText style={styles.errorText} language={language}>{errors.breakTime}</AppText>}
-                  </View>
-                )}
+                  {errors.breakTime && <AppText style={styles.errorText} language={language}>{errors.breakTime}</AppText>}
+                </View>
 
                 {startTime && endTime && (
                   <View style={{ marginTop: 5, padding: 12, backgroundColor: "#F0FDF4", borderRadius: 12, borderWidth: 1, borderColor: "#BBF7D0" }}>
@@ -765,7 +805,7 @@ export default function AddDriverWork() {
 
               </View>
             ) : (
-              <View style={{ marginBottom: 16 }}>
+              <View style={{ marginBottom: errors.acresWorked ? 0 : 16 }}>
                 <AppText style={styles.label}>{language === "te" ? "ఎన్ని ఎకరాలు?*" : "How many acres?*"}</AppText>
                 <TouchableOpacity
                   activeOpacity={1}
@@ -961,7 +1001,7 @@ export default function AddDriverWork() {
         )}
 
         {/* 📝 REMARKS / NOTES */}
-        <View style={{ marginBottom: 20 }}>
+        <View style={{ marginBottom: errors.breakTime ? 0 : 20 }}>
           <AppText style={styles.label}>
             {language === "te" ? "ఇతర వివరాలు (అవసరమైతేనే)" : "Additional Remarks (Optional)"}
           </AppText>
@@ -1038,6 +1078,7 @@ export default function AddDriverWork() {
           value={date ? new Date(date.split('-').reverse().join('-')) : new Date()}
           mode="date"
           display="default"
+          maximumDate={new Date()}
           onChange={(event, selectedDate) => {
             setShowDatePicker(false);
             setActiveInput(null);
@@ -1077,28 +1118,32 @@ export default function AddDriverWork() {
         />
       )}
 
-      {/* ☕ BREAK START TIME PICKER */}
-      {showBreakStartTimePicker && (
+      {/* ☕ DYNAMIC BREAK START TIME PICKER */}
+      {showBreakStartTimePicker && activeBreakId && (
         <DateTimePicker
-          value={breakStartTime || startTime || new Date()}
+          value={breaks.find(b => b.id === activeBreakId)?.startTime || startTime || new Date()}
           mode="time"
           display="default"
           onChange={(event, selectedTime) => {
             setShowBreakStartTimePicker(false);
-            if (selectedTime) setBreakStartTime(selectedTime);
+            if (selectedTime) {
+              setBreaks(breaks.map(b => b.id === activeBreakId ? { ...b, startTime: selectedTime } : b));
+            }
           }}
         />
       )}
 
-      {/* ☕ BREAK END TIME PICKER */}
-      {showBreakEndTimePicker && (
+      {/* ☕ DYNAMIC BREAK END TIME PICKER */}
+      {showBreakEndTimePicker && activeBreakId && (
         <DateTimePicker
-          value={breakEndTime || breakStartTime || new Date()}
+          value={breaks.find(b => b.id === activeBreakId)?.endTime || breaks.find(b => b.id === activeBreakId)?.startTime || new Date()}
           mode="time"
           display="default"
           onChange={(event, selectedTime) => {
             setShowBreakEndTimePicker(false);
-            if (selectedTime) setBreakEndTime(selectedTime);
+            if (selectedTime) {
+              setBreaks(breaks.map(b => b.id === activeBreakId ? { ...b, endTime: selectedTime } : b));
+            }
           }}
         />
       )}
@@ -1316,6 +1361,7 @@ const styles = StyleSheet.create({
   },
   inputError: {
     borderColor: "#EF4444",
+    marginBottom: 0,
   },
   errorText: {
     color: "#EF4444",

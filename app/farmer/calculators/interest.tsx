@@ -82,6 +82,19 @@ export default function InterestCalculator() {
     return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
   };
 
+  const formatNumberInput = (numStr: string) => {
+    if (!numStr) return "";
+    const raw = numStr.replace(/,/g, '');
+    let integerPart = raw.split('.')[0];
+    const decimalPart = raw.includes('.') ? '.' + raw.split('.')[1] : '';
+    if (integerPart.length > 3) {
+      const lastThree = integerPart.substring(integerPart.length - 3);
+      const otherNumbers = integerPart.substring(0, integerPart.length - 3);
+      integerPart = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+    }
+    return integerPart + decimalPart;
+  };
+
   const handleCalculate = () => {
     // 🔥 INLINE VALIDATION LOGIC
     let newErrors: any = {};
@@ -218,8 +231,8 @@ export default function InterestCalculator() {
                 <TextInput 
                   ref={principalRef}
                   style={[styles.input, { display: (principal || activeInput === "principal") ? "flex" : "none" }]} 
-                  value={principal} 
-                  onChangeText={(txt) => { setPrincipal(txt); if(errors.principal) setErrors({...errors, principal: ""}); }} 
+                  value={formatNumberInput(principal)} 
+                  onChangeText={(txt) => { setPrincipal(txt.replace(/,/g, '')); if(errors.principal) setErrors({...errors, principal: ""}); }} 
                   keyboardType="numeric" 
                   cursorColor="#16A34A" 
                   selectionColor="#16A34A40"

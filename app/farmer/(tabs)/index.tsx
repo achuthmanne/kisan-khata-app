@@ -1014,7 +1014,7 @@ export default function Dashboard() {
                           {/* TOP ROW: Height ~22px */}
                           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, paddingRight: 10 }}>
-                              <Ionicons name="location-outline" size={16} color="white"/>
+                              <Ionicons name="location-outline" size={16} color="white" style={{ marginTop: -4 }} />
                               <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
   openText:{ color:"white", fontSize:12, opacity:0.9 },
   weatherCard:{ marginTop:30, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, padding:18, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
   locationRow:{ flexDirection:"row", alignItems:"center", paddingRight: 5, flexShrink: 1 },
-  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, includeFontPadding: false, lineHeight: 22, marginTop: -2 },
+  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, lineHeight: 28, paddingBottom: 4, marginTop: -6 },
   date:{ color:"rgba(255,255,255,0.8)", fontSize:14, marginTop:5 },
   greetRow:{ flexDirection:"row", alignItems:"center", gap:6 },
   rightTopSection:{ position:"absolute", right:8, alignItems:"flex-end" },

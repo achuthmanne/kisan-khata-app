@@ -135,6 +135,22 @@ export default function StandardCalculator() {
     return IS_SMALL_SCREEN ? 50 : 64;
   };
 
+  const formatIndianNumber = (numStr: string) => {
+    if (!numStr) return "";
+    return numStr.replace(/\d+(?:\.\d+)?/g, (match) => {
+      const parts = match.split('.');
+      let integerPart = parts[0];
+      const decimalPart = parts.length > 1 ? '.' + parts[1] : '';
+      
+      if (integerPart.length > 3) {
+        const lastThree = integerPart.substring(integerPart.length - 3);
+        const otherNumbers = integerPart.substring(0, integerPart.length - 3);
+        integerPart = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ",") + "," + lastThree;
+      }
+      return integerPart + decimalPart;
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor="#F6F7F6" />
@@ -159,11 +175,11 @@ export default function StandardCalculator() {
             numberOfLines={3} // 3 లైన్ల కన్నా మించకుండా లాక్
             adjustsFontSizeToFit // ఆండ్రాయిడ్/ఐఓఎస్ లో ఆటో స్కేల్ కోసం
           >
-            {input || '0'}
+            {formatIndianNumber(input) || '0'}
           </AppText>
           
           <AppText style={styles.previewText} numberOfLines={1}>
-            {resultPreview ? `= ${resultPreview}` : ''}
+            {resultPreview ? `= ${formatIndianNumber(resultPreview)}` : ''}
           </AppText>
         </View>
 

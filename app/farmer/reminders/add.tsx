@@ -216,6 +216,9 @@ export default function AddReminderScreen() {
           importance: AndroidImportance.HIGH,
           category: AndroidCategory.ALARM,
           visibility: AndroidVisibility.PUBLIC,
+          loopSound: true,
+          ongoing: true,
+          autoCancel: false,
           fullScreenAction: {
             id: 'default',
           },

@@ -6,15 +6,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, Easing } from 'react-native-reanimated';
 import notifee from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useKeepAwake } from 'expo-keep-awake';
 
 import AppText from '@/components/AppText';
 
 const { width, height } = Dimensions.get('window');
 
+const isSmallScreen = height < 700;
+const outerSize = Math.min(width * 0.40, 180);
+const innerSize = Math.min(width * 0.35, 160);
+
 export default function AlarmRingScreen() {
   const router = useRouter();
   const { task, crop, reminderId, notifId } = useLocalSearchParams();
   const [language, setLanguage] = useState<"te" | "en">("te");
+  
+  useKeepAwake(); // Prevents screen from turning off while alarm rings
 
   // Pulse animation for the logo
   const scale = useSharedValue(1);
@@ -156,18 +163,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Mandali',
   },
   logoOuter: {
-    width: width * 0.50,
-    height: width * 0.50,
-    borderRadius: (width * 0.50) / 2,
+    width: outerSize,
+    height: outerSize,
+    borderRadius: outerSize / 2,
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 50,
+    marginBottom: isSmallScreen ? 30 : 50,
   },
   logoInner: {
-    width: width * 0.44,
-    height: width * 0.44,
-    borderRadius: (width * 0.44) / 2,
+    width: innerSize,
+    height: innerSize,
+    borderRadius: innerSize / 2,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -176,8 +183,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   logo: {
-    width: '75%',
-    height: '75%',
+    width: '90%',
+    height: '90%',
     resizeMode: 'contain',
   },
   taskCard: {

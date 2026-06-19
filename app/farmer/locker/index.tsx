@@ -1,401 +1,445 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
-
-import { View, StyleSheet, TouchableOpacity, FlatList, RefreshControl, StatusBar, SafeAreaView, Modal } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useFocusEffect } from "expo-router";
+import React, { useState, useEffect } from "react";
+import { View, StyleSheet, TouchableOpacity, Dimensions, Animated, Easing, Vibration, Modal } from "react-native";
+import { useRouter } from "expo-router";
+import * as SecureStore from 'expo-secure-store';
+import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import firestore from "@react-native-firebase/firestore";
+import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image } from "expo-image";
-import ShimmerPlaceholder from "react-native-shimmer-placeholder";
-
 import AppText from "@/components/AppText";
-import AppHeader from "@/components/AppHeader";
-import AppEmptyState from "@/components/AppEmptyState";
+
+const { width, height } = Dimensions.get("window");
+
+// Calculate responsive sizes for smaller phones (e.g., iPhone SE height is ~667)
+const isSmallScreen = height < 700;
+const btnSize = isSmallScreen ? 60 : 70;
+const gapSize = isSmallScreen ? 12 : 20;
+const iconSize = isSmallScreen ? 30 : 36;
+const titleMargin = isSmallScreen ? 15 : 30;
+const lockIconSize = isSmallScreen ? 48 : 60;
 
 const translations = {
   te: {
-    title: "వ్యవసాయ లాకర్",
-    subtitle: "మీ విత్తనాలు, మందుల వివరాలు భద్రంగా దాచుకోండి",
-    all: "అన్ని",
-    seed: "విత్తనాలు",
-    fertilizer: "ఎరువులు",
-    pesticide: "మందులు",
-    other: "ఇతరాలు",
-    noData: "లాకర్ ఖాళీగా ఉంది",
-    emptySubtitle: "కింద ఉన్న ప్లస్ (+) బటన్ నొక్కి మీ విత్తనాల లేదా మందుల వివరాలు దాచుకోండి.",
-    errorText: "డేటా తీసుకురావడంలో లోపం జరిగింది",
-    delete: "తొలగించు",
-    price: "ధర:",
-    crop: "పంట:"
+    setupTitle: "లాకర్‌కి పిన్ సెట్ చేయండి",
+    confirmTitle: "పిన్ నిర్ధారించండి",
+    enterTitle: "లాకర్ పిన్ ఎంటర్ చేయండి",
+    wrongPin: "పిన్ తప్పు! మళ్ళీ ప్రయత్నించండి",
+    setupSuccess: "పిన్ సెట్ అయ్యింది!",
+    useFingerprint: "వేలిముద్ర వాడండి",
+    fingerprintReason: "లాకర్ ఓపెన్ చేయడానికి వేలిముద్ర వేయండి",
+    biometricFailed: "వేలిముద్ర పనిచేయలేదు, పిన్ వాడండి",
   },
   en: {
-    title: "Agri Locker",
-    subtitle: "Safely store your seeds and pesticides details",
-    all: "All",
-    seed: "Seeds",
-    fertilizer: "Fertilizers",
-    pesticide: "Pesticides",
-    other: "Others",
-    noData: "Locker is empty",
-    emptySubtitle: "Click the plus (+) button below to safely store your farm inputs.",
-    errorText: "Error fetching locker data",
-    delete: "Delete",
-    price: "Price:",
-    crop: "Crop:"
-  },
+    setupTitle: "Set Locker PIN",
+    confirmTitle: "Confirm PIN",
+    enterTitle: "Enter Locker PIN",
+    wrongPin: "Wrong PIN! Try again",
+    setupSuccess: "PIN Setup Successful!",
+    useFingerprint: "Use Fingerprint",
+    fingerprintReason: "Authenticate to unlock Agri-Locker",
+    biometricFailed: "Biometrics failed, use PIN",
+  }
 };
 
-export default function LockerScreen() {
+export default function LockerSecurityScreen() {
   const router = useRouter();
   const [language, setLanguage] = useState<"te" | "en">("te");
   const t = translations[language];
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [items, setItems] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"seed" | "fertilizer" | "pesticide" | "other">("seed");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      const checkNewTab = async () => {
-        try {
-          const newTab = await AsyncStorage.getItem("LOCKER_NEW_TAB");
-          if (newTab) {
-            setActiveTab(newTab as any);
-            await AsyncStorage.removeItem("LOCKER_NEW_TAB");
-          }
-        } catch (e) {
-          console.log("Error reading new tab", e);
-        }
-      };
-      checkNewTab();
-    }, [])
-  );
+  const [phone, setPhone] = useState("");
+  const [mode, setMode] = useState<"loading" | "setup" | "confirm" | "auth">("loading");
+  
+  const [pin, setPin] = useState<string>("");
+  const [confirmPin, setConfirmPin] = useState<string>("");
+  const [enteredPin, setEnteredPin] = useState<string>("");
+  
+  const [errorMsg, setErrorMsg] = useState("");
+  const [shakeAnim] = useState(new Animated.Value(0));
+  
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  
+  const [biometricType, setBiometricType] = useState<"fingerprint" | "face">("fingerprint");
 
   useEffect(() => {
-    let isMounted = true;
-    const init = async () => {
-      const lang = await AsyncStorage.getItem("APP_LANG");
-      if (lang && isMounted) setLanguage(lang as "te" | "en");
-      fetchItems(false, isMounted);
-    };
-    init();
-    return () => { isMounted = false; };
+    AsyncStorage.getItem("APP_LANG").then((l) => { if (l) setLanguage(l as any); });
+    checkSecurityStatus();
   }, []);
 
-  const fetchItems = async (forceRefresh = false, isMounted = true) => {
+  const checkSecurityStatus = async () => {
     try {
-      if (!forceRefresh) setLoading(true);
-      setError(false);
+      const p = await AsyncStorage.getItem("USER_PHONE");
+      if (!p) { router.replace("/farmer/(tabs)"); return; }
+      setPhone(p);
 
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) { setLoading(false); return; }
+      const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) && !types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+        setBiometricType("face");
+      }
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
-      const activeSession = userDoc.data()?.activeSession;
-
-      // Listen to snapshot for instant updates when adding/deleting
-      const unsub = firestore()
-        .collection("users")
-        .doc(phone)
-        .collection("locker")
-        .orderBy("createdAt", "desc")
-        .onSnapshot(
-          (snap) => {
-            if (!isMounted) return;
-            if (snap.empty) {
-              setItems([]);
-              setLoading(false);
-              setRefreshing(false);
-              return;
-            }
-
-            let data = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-            if (activeSession) {
-              data = data.filter((item: any) => !item.session || item.session === activeSession);
-            }
-            setItems(data);
-            setLoading(false);
-            setRefreshing(false);
-          },
-          (err) => {
-            console.log("Locker fetch error", err);
-            if (isMounted) setError(true);
-            if (isMounted) { setLoading(false); setRefreshing(false); }
-          }
-        );
-
-    } catch (err) {
-      console.log("Locker API Error:", err);
-      if (isMounted) setError(true);
-      if (isMounted) { setLoading(false); setRefreshing(false); }
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchItems(true);
-  };
-
-  const deleteItem = async (id: string) => {
-    try {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (phone) {
-        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("locker").doc(id).delete());
+      const savedPin = await SecureStore.getItemAsync(`locker_pin_${p}`);
+      if (savedPin) {
+        setMode("auth");
+        triggerBiometrics(p, savedPin);
+      } else {
+        setMode("setup");
       }
     } catch (e) {
-      console.log("Error deleting item", e);
+      console.log("Security Init Error:", e);
+      setMode("setup");
     }
   };
 
-  const filteredItems = items.filter((item) => {
-    return item.type === activeTab;
-  });
+  const triggerBiometrics = async (userPhone: string, savedPin: string) => {
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      
+      if (hasHardware && isEnrolled) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: t.fingerprintReason,
+          fallbackLabel: "Use PIN",
+          disableDeviceFallback: true,
+        });
 
-  const getCategoryColor = (cat: string) => {
-    switch (cat) {
-      case "seed": return "#16A34A"; // Green
-      case "fertilizer": return "#0284C7"; // Blue
-      case "pesticide": return "#DC2626"; // Red
-      case "other": return "#7C3AED"; // Purple
-      default: return "#1F2937"; // Dark Gray for ALL
-    }
-  };
-
-  const getCategoryBgColor = (cat: string) => {
-    switch (cat) {
-      case "seed": return "#DCFCE7";
-      case "fertilizer": return "#E0F2FE";
-      case "pesticide": return "#FEE2E2";
-      case "other": return "#F3E8FF";
-      default: return "#F3F4F6";
-    }
-  };
-
-  const getTabStyle = (tab: string) => {
-    if (activeTab !== tab) return styles.tabBtn;
-    return [styles.tabBtn, { backgroundColor: getCategoryColor(tab) }];
-  };
-
-  const getIconForType = (type: string) => {
-    switch(type) {
-      case "seed": return "leaf-outline";
-      case "fertilizer": return "flask-outline";
-      case "pesticide": return "bug-outline";
-      default: return "document-outline";
-    }
-  };
-
-  const getPriceSuffix = (type: string) => {
-    if (language === "te") {
-      switch (type) {
-        case "seed": return "/ ప్యాకెట్";
-        case "fertilizer": return "/ బస్తా";
-        case "pesticide": return "/ డబ్బా";
-        default: return "/ వస్తువు";
+        if (result.success) {
+          router.replace("/farmer/locker/locker-main");
+        }
       }
-    } else {
-      switch (type) {
-        case "seed": return "/ packet";
-        case "fertilizer": return "/ bag";
-        case "pesticide": return "/ bottle";
-        default: return "/ item";
+    } catch (e) {
+      console.log("Biometric Error:", e);
+    }
+  };
+
+  const shake = () => {
+    Vibration.vibrate(400);
+    shakeAnim.setValue(0);
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true })
+    ]).start();
+  };
+
+  const handleKeyPress = async (val: string) => {
+    setErrorMsg("");
+    
+    if (val === "del") {
+      if (mode === "setup") setPin(prev => prev.slice(0, -1));
+      else if (mode === "confirm") setConfirmPin(prev => prev.slice(0, -1));
+      else if (mode === "auth") setEnteredPin(prev => prev.slice(0, -1));
+      return;
+    }
+
+    if (mode === "setup") {
+      if (pin.length < 4) {
+        const newPin = pin + val;
+        setPin(newPin);
+        if (newPin.length === 4) {
+          setTimeout(() => setMode("confirm"), 300);
+        }
+      }
+    } 
+    else if (mode === "confirm") {
+      if (confirmPin.length < 4) {
+        const newConfirm = confirmPin + val;
+        setConfirmPin(newConfirm);
+        if (newConfirm.length === 4) {
+          if (newConfirm === pin) {
+            await SecureStore.setItemAsync(`locker_pin_${phone}`, pin);
+            router.replace("/farmer/locker/locker-main");
+          } else {
+            setErrorMsg(t.wrongPin);
+            shake();
+            setTimeout(() => {
+              setConfirmPin("");
+              setPin("");
+              setMode("setup");
+            }, 1000);
+          }
+        }
+      }
+    }
+    else if (mode === "auth") {
+      if (enteredPin.length < 4) {
+        const newEntered = enteredPin + val;
+        setEnteredPin(newEntered);
+        if (newEntered.length === 4) {
+          const savedPin = await SecureStore.getItemAsync(`locker_pin_${phone}`);
+          if (savedPin === newEntered) {
+            setFailedAttempts(0);
+            router.replace("/farmer/locker/locker-main");
+          } else {
+            setFailedAttempts(prev => prev + 1);
+            setErrorMsg(t.wrongPin);
+            shake();
+            setTimeout(() => setEnteredPin(""), 800);
+          }
+        }
       }
     }
   };
 
-  const ShimmerSkeleton = () => (
-    <View style={styles.listContent}>
-      {[1, 2, 3].map((i) => (
-        <View key={i} style={styles.card}>
-          <View style={styles.cardHeader}>
-            <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 80, height: 80, borderRadius: 10 }} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <View style={{ flex: 1, paddingRight: 10 }}>
-                  <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: "80%", height: 18, borderRadius: 4, marginBottom: 8 }} />
-                  <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: "50%", height: 14, borderRadius: 4, marginBottom: 8 }} />
-                  <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: "60%", height: 14, borderRadius: 4 }} />
-                </View>
-                <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 60, height: 20, borderRadius: 6 }} />
-              </View>
-              <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: "100%", height: 12, borderRadius: 4, marginTop: 12 }} />
-            </View>
-          </View>
-          <View style={styles.cardActions}>
-            <ShimmerPlaceholder LinearGradient={LinearGradient} style={{ width: 80, height: 30, borderRadius: 8 }} />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-
-  const renderItem = ({ item }: { item: any }) => {
-    const dateObj = item.createdAt ? item.createdAt.toDate() : new Date();
-    const dateStr = dateObj.toLocaleDateString(language === "te" ? "te-IN" : "en-IN", { day: 'numeric', month: 'short', year: 'numeric' });
-
+  if (mode === "loading") {
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          {(item.imageUrls && item.imageUrls.length > 0) ? (
-            <View style={{ flexDirection: "column", gap: 8 }}>
-              {item.imageUrls.map((url: string, idx: number) => (
-                <TouchableOpacity key={idx} onPress={() => setSelectedImage(url)} activeOpacity={0.8}>
-                  <Image source={{ uri: url }} style={{ width: 80, height: item.imageUrls.length > 1 ? 75 : 80, borderRadius: 10, backgroundColor: "#F3F4F6" }} contentFit="cover" transition={300} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : item.imageUrl ? (
-            <TouchableOpacity onPress={() => setSelectedImage(item.imageUrl)} activeOpacity={0.8}>
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} contentFit="cover" transition={300} />
-            </TouchableOpacity>
-          ) : (
-            <View style={[styles.iconPlaceholder, { backgroundColor: getCategoryBgColor(item.type) }]}>
-              <Ionicons name={getIconForType(item.type)} size={32} color={getCategoryColor(item.type)} />
-            </View>
-          )}
-          
-          <View style={styles.cardBody}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <View style={{ flex: 1, paddingRight: 10, flexShrink: 1 }}>
-                <AppText style={styles.brandTitle} language={language} numberOfLines={2}>{item.brandName || "N/A"}</AppText>
-                {item.type !== "other" && item.crop && (
-                  <AppText style={styles.cropText} language={language}>{t.crop} <AppText style={{ color: "#1F2937", fontWeight: "600" }}>{item.crop}</AppText></AppText>
-                )}
-                {item.price ? (
-                  <AppText style={styles.priceText} language={language}>{t.price} <AppText style={{ color: "#16A34A", fontWeight: "700" }}>₹{Number(item.price).toLocaleString("en-IN")} <AppText style={{ fontSize: 11, color: "#6B7280", fontWeight: "600" }}>{getPriceSuffix(item.type)}</AppText></AppText></AppText>
-                ) : null}
-              </View>
-              <View style={[styles.dateBadge, { flexShrink: 0 }]}>
-                <AppText style={styles.dateText}>{dateStr}</AppText>
-              </View>
-            </View>
-            
-            {item.notes ? (
-              <AppText style={styles.notesText} language={language} numberOfLines={2}>{item.notes}</AppText>
-            ) : null}
-          </View>
-        </View>
-        
-        <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => deleteItem(item.id)}>
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-            <AppText style={[styles.actionText, { color: "#EF4444" }]} language={language}>{t.delete}</AppText>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.container}>
+        <AppText style={{ color: "white" }}>Loading...</AppText>
       </View>
     );
-  };
+  }
+
+  let currentVal = "";
+  let titleText = "";
+  if (mode === "setup") { currentVal = pin; titleText = t.setupTitle; }
+  else if (mode === "confirm") { currentVal = confirmPin; titleText = t.confirmTitle; }
+  else if (mode === "auth") { currentVal = enteredPin; titleText = t.enterTitle; }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" />
-      <AppHeader title={t.title} subtitle={t.subtitle} language={language} onBack={() => router.back()} />
+    <View style={styles.container}>
+      <LinearGradient colors={["#0F172A", "#1E293B"]} style={StyleSheet.absoluteFillObject} />
 
-      {!loading && !error && (
-        <View style={styles.stickyHeader}>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity style={getTabStyle("seed")} onPress={() => setActiveTab("seed")}>
-              <AppText style={[styles.tabText, activeTab === "seed" && styles.activeTabText]} language={language}>{t.seed}</AppText>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.replace("/farmer/(tabs)")} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color="white" />
+        </TouchableOpacity>
+        <AppText style={styles.headerTitle} language={language}>
+          {language === "te" ? "అగ్రి లాకర్" : "Agri-Locker"}
+        </AppText>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <View style={styles.content}>
+        <Ionicons name="lock-closed" size={lockIconSize} color="#16A34A" style={{ marginBottom: isSmallScreen ? 10 : 20 }} />
+        
+        <Animated.View style={{ transform: [{ translateX: shakeAnim }] }}>
+          <AppText style={[styles.title, { marginBottom: titleMargin }]} language={language}>{titleText}</AppText>
+          
+          <View style={styles.dotsContainer}>
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} style={[styles.dot, currentVal.length > i && styles.dotFilled]} />
+            ))}
+          </View>
+          
+          <AppText style={styles.errorText} language={language}>{errorMsg}</AppText>
+        </Animated.View>
+
+        {/* Numpad */}
+        <View style={styles.numpad}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+            <TouchableOpacity key={num} style={styles.numBtn} onPress={() => handleKeyPress(num.toString())} activeOpacity={0.6}>
+              <AppText style={styles.numText}>{num}</AppText>
             </TouchableOpacity>
-            <TouchableOpacity style={getTabStyle("fertilizer")} onPress={() => setActiveTab("fertilizer")}>
-              <AppText style={[styles.tabText, activeTab === "fertilizer" && styles.activeTabText]} language={language}>{t.fertilizer}</AppText>
+          ))}
+          
+          {mode === "auth" ? (
+            <TouchableOpacity style={styles.numBtn} onPress={() => triggerBiometrics(phone, "")} activeOpacity={0.6}>
+              <Ionicons name={biometricType === "face" ? "scan-outline" : "finger-print"} size={iconSize} color="#16A34A" />
             </TouchableOpacity>
-            <TouchableOpacity style={getTabStyle("pesticide")} onPress={() => setActiveTab("pesticide")}>
-              <AppText style={[styles.tabText, activeTab === "pesticide" && styles.activeTabText]} language={language}>{t.pesticide}</AppText>
-            </TouchableOpacity>
-            <TouchableOpacity style={getTabStyle("other")} onPress={() => setActiveTab("other")}>
-              <AppText style={[styles.tabText, activeTab === "other" && styles.activeTabText]} language={language}>{t.other}</AppText>
+          ) : (
+            <View style={styles.numBtn} />
+          )}
+          
+          <TouchableOpacity style={styles.numBtn} onPress={() => handleKeyPress("0")} activeOpacity={0.6}>
+            <AppText style={styles.numText}>0</AppText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.numBtn} onPress={() => handleKeyPress("del")} activeOpacity={0.6}>
+            <Ionicons name="backspace-outline" size={28} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+
+        {mode === "auth" && failedAttempts >= 3 && (
+          <TouchableOpacity 
+            style={{ marginTop: 40, padding: 10 }}
+            onPress={() => setShowForgotModal(true)}
+          >
+            <AppText style={{ color: "#9CA3AF", fontSize: 16, textDecorationLine: "underline" }} language={language}>
+              {language === "te" ? "పిన్ మర్చిపోయారా?" : "Forgot PIN?"}
+            </AppText>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Premium Custom Forgot PIN Modal */}
+      <Modal visible={showForgotModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalIconBox}>
+              <Ionicons name="key-outline" size={32} color="#16A34A" />
+            </View>
+            <AppText style={styles.modalTitle} language={language}>
+              {language === "te" ? "పిన్ మర్చిపోయారా?" : "Forgot PIN?"}
+            </AppText>
+            <AppText style={styles.modalDesc} language={language}>
+              {language === "te" 
+                ? "మీ లాకర్ పిన్ మార్చుకోవడానికి, ముందుగా మీ ప్రొఫైల్ కి వెళ్లి యాప్ నుండి లాగౌట్ అవ్వండి. మళ్ళీ మీ ఫోన్ నంబర్ తో లాగిన్ అయ్యాక కొత్త పిన్ సెట్ చేసుకోవచ్చు." 
+                : "To reset your Locker PIN, please go to your Profile, Logout of the app, and login again with your phone number."}
+            </AppText>
+            
+            <TouchableOpacity 
+              style={styles.modalBtn} 
+              activeOpacity={0.8} 
+              onPress={() => setShowForgotModal(false)}
+            >
+              <AppText style={styles.modalBtnText} language={language}>
+                {language === "te" ? "అర్థమైంది" : "Understood"}
+              </AppText>
             </TouchableOpacity>
           </View>
         </View>
-      )}
-
-      {loading && !refreshing ? (
-        <ShimmerSkeleton />
-      ) : error ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => fetchItems(true)} language={language} />
-        </View>
-      ) : filteredItems.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <AppEmptyState 
-            iconName="shield-checkmark-outline" 
-            title={t.noData} 
-            subtitle={t.emptySubtitle} 
-            language={language} 
-          />
-        </View>
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#16A34A"]} />}
-        />
-      )}
-
-      {/* FAB */}
-      <TouchableOpacity activeOpacity={0.9} style={styles.fab} onPress={() => router.push("/farmer/locker/add")}>
-        <LinearGradient colors={["#16A34A", "#064E3B"]} style={styles.fabGradient}>
-          <Ionicons name="add" size={32} color="#fff" />
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* FULL SCREEN IMAGE MODAL */}
-      <Modal visible={!!selectedImage} transparent animationType="fade" onRequestClose={() => setSelectedImage(null)}>
-        <View style={styles.fullScreenModal}>
-          <TouchableOpacity style={styles.closeModalBtn} onPress={() => setSelectedImage(null)}>
-            <Ionicons name="close" size={28} color="#fff" />
-          </TouchableOpacity>
-          {selectedImage && (
-            <Image source={{ uri: selectedImage }} style={styles.fullScreenImage} contentFit="contain" />
-          )}
-        </View>
       </Modal>
-    </SafeAreaView>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F6F7F6" },
-  stickyHeader: { backgroundColor: "#F6F7F6", paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5, zIndex: 10 },
-  tabContainer: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#E5E7EB", borderRadius: 14, padding: 4, marginBottom: 15 },
-  tabBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  tabText: { fontSize: 14, color: "#6B7280", fontWeight: "600" },
-  activeTabText: { color: "#ffffff", fontWeight: "600" },
-  
-  listContent: { paddingHorizontal: 20, paddingBottom: 100, paddingTop: 10 },
-  card: { backgroundColor: "#ffffff", borderRadius: 16, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden" },
-  cardHeader: { flexDirection: "row", padding: 12 },
-  cardImage: { width: 80, height: 80, borderRadius: 10, backgroundColor: "#F3F4F6" },
-  iconPlaceholder: { width: 80, height: 80, borderRadius: 10, justifyContent: "center", alignItems: "center" },
-  cardBody: { flex: 1, marginLeft: 12, flexShrink: 1 },
-  brandTitle: { fontSize: 16, fontWeight: "600", color: "#1F2937", marginBottom: 4, flexShrink: 1 },
-  cropText: { fontSize: 13, color: "#6B7280", marginBottom: 2 },
-  priceText: { fontSize: 14, color: "#6B7280", marginTop: 2 },
-  notesText: { fontSize: 12, color: "#9CA3AF", marginTop: 6, fontStyle: "italic" },
-  
-  dateBadge: { backgroundColor: "#F3F4F6", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  dateText: { fontSize: 11, fontWeight: "600", color: "#4B5563" },
-  
-  cardActions: { flexDirection: "row", justifyContent: "flex-end", gap: 10, borderTopWidth: 1, borderTopColor: "#F3F4F6", padding: 10, backgroundColor: "#F9FAFB" },
-  actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#fff" },
-  actionText: { fontSize: 13, fontWeight: "600" },
-  
-  shimmerCard: { backgroundColor: "#ffffff", borderRadius: 20, marginBottom: 20, overflow: "hidden", borderWidth: 1, borderColor: "#E5E7EB" },
-  
-  fab: { position: "absolute", bottom: 30, right: 20, elevation: 5, shadowColor: '#16A34A', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: {width: 0, height: 4} },
-  fabGradient: { width: 64, height: 64, borderRadius: 35, justifyContent: "center", alignItems: "center" },
-
-  fullScreenModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" },
-  fullScreenImage: { width: "100%", height: "80%" },
-  closeModalBtn: { position: "absolute", top: 40, right: 20, zIndex: 10, padding: 8, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: "#0F172A",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 50,
+    paddingHorizontal: 20,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 20,
+  },
+  headerTitle: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: isSmallScreen ? 20 : 40,
+  },
+  title: {
+    color: "white",
+    fontSize: 18,
+    textAlign: "center",
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 20,
+    marginBottom: 20,
+  },
+  dot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#475569",
+    backgroundColor: "transparent",
+  },
+  dotFilled: {
+    backgroundColor: "#16A34A",
+    borderColor: "#16A34A",
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 14,
+    minHeight: 24,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  numpad: {
+    width: width * 0.8,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    rowGap: gapSize,
+    columnGap: gapSize,
+  },
+  numBtn: {
+    width: btnSize,
+    height: btnSize,
+    borderRadius: btnSize / 2,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  numText: {
+    color: "white",
+    fontSize: 28,
+    fontFamily: "Mandali",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: "#1E293B",
+    width: "100%",
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  modalIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(22, 163, 74, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    color: "white",
+    fontSize: 20,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  modalDesc: {
+    color: "#9CA3AF",
+    fontSize: 15,
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  modalBtn: {
+    backgroundColor: "#16A34A",
+    width: "100%",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modalBtnText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  fingerprintBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 40,
+    padding: 12,
+    backgroundColor: "rgba(22, 163, 74, 0.1)",
+    borderRadius: 20,
+    paddingHorizontal: 20,
+  },
+  fingerprintText: {
+    color: "#16A34A",
+    fontSize: 16,
+    marginLeft: 8,
+    fontWeight: "600",
+  }
 });

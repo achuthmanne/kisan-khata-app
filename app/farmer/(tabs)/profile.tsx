@@ -317,6 +317,11 @@ export default function ProfileScreen() {
   const confirmLogout = async () => {
     setShowLogoutModal(false);
     const lang = await AsyncStorage.getItem("APP_LANG");
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    if (userPhone) {
+      const SecureStore = require('expo-secure-store');
+      await SecureStore.deleteItemAsync(`locker_pin_${userPhone}`);
+    }
     await AsyncStorage.clear();
     if (lang) await AsyncStorage.setItem("APP_LANG", lang);
     router.replace("/login");

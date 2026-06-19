@@ -24,7 +24,7 @@ const translations = {
     seed: "విత్తనాలు",
     fertilizer: "ఎరువులు",
     pesticide: "మందులు",
-    other: "ఇతరాలు",
+    other: "డాక్యుమెంట్లు",
     category: "కేటగిరీ ఎంచుకోండి*",
     crop: "పంట పేరు (ఉదా: పత్తి)*",
     brandName: "కంపెనీ / బ్రాండ్ పేరు*",
@@ -48,7 +48,7 @@ const translations = {
     seed: "Seeds",
     fertilizer: "Fertilizers",
     pesticide: "Pesticides",
-    other: "Others",
+    other: "Documents",
     category: "Select Category*",
     crop: "Crop Name (e.g., Cotton)*",
     brandName: "Company / Brand Name*",
@@ -457,24 +457,26 @@ export default function AddLockerScreen() {
           </TouchableOpacity>
           {errors.brandName && <AppText style={styles.errorText} language={language}>{errors.brandName}</AppText>}
 
-          <View style={[styles.inputBox, activeInput === "price" && styles.inputFocused]}>
-            <Ionicons name="cash-outline" size={20} color={price ? "#16A34A" : "#9CA3AF"} />
-            <View style={styles.inputWrapper}>
-              <TextInput
-                value={price}
-                onChangeText={setPrice}
-                placeholder={getDynamicPricePlaceholder()}
-                placeholderTextColor="#9CA3AF"
-                cursorColor="#16A34A"
-                keyboardType="numeric"
-                style={styles.input}
-                onFocus={() => setActiveInput("price")}
-                onBlur={() => setActiveInput(null)}
-                autoComplete="off"
-                importantForAutofill="no"
-              />
+          {category !== "other" && (
+            <View style={[styles.inputBox, activeInput === "price" && styles.inputFocused]}>
+              <Ionicons name="cash-outline" size={20} color={price ? "#16A34A" : "#9CA3AF"} />
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  value={price}
+                  onChangeText={setPrice}
+                  placeholder={getDynamicPricePlaceholder()}
+                  placeholderTextColor="#9CA3AF"
+                  cursorColor="#16A34A"
+                  keyboardType="numeric"
+                  style={styles.input}
+                  onFocus={() => setActiveInput("price")}
+                  onBlur={() => setActiveInput(null)}
+                  autoComplete="off"
+                  importantForAutofill="no"
+                />
+              </View>
             </View>
-          </View>
+          )}
 
           <TouchableOpacity activeOpacity={1} style={[styles.inputBox, { height: 120, alignItems: "flex-start", paddingTop: 14, paddingRight: 8 }, activeInput === "notes" && styles.inputFocused]} onPress={() => { setActiveInput("notes"); }}>
             <Ionicons name="document-text-outline" size={20} color={notes || activeInput === "notes" ? "#16A34A" : "#9CA3AF"} style={{ marginTop: 4 }} />

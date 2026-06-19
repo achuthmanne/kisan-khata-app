@@ -262,10 +262,10 @@ export default function AddReminderScreen() {
 
       const docRef = await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("reminders").add(reminderData));
 
-      if (date && time) {
-        const notifId = await scheduleLocalNotification(task, date, time, docRef.id);
+      if (date && time && docRef) {
+        const notifId = await scheduleLocalNotification(task, date, time, (docRef as any).id);
         if (notifId) {
-          await docRef.update({ notificationId: notifId });
+          await (docRef as any).update({ notificationId: notifId });
         }
       }
 

@@ -59,7 +59,7 @@ export default function AlarmRingScreen() {
     const isFarmer = role?.toUpperCase() === "FARMER" || role === "రైతు";
     
     // First, force the root stack to go to Home so we have a valid back-history
-    router.replace(isFarmer ? "/farmer/(tabs)" : "/(tabs)");
+    router.replace(isFarmer ? ("/farmer/(tabs)" as any) : ("/(tabs)" as any));
     
     // Then immediately push the reminders screen on top!
     setTimeout(() => {

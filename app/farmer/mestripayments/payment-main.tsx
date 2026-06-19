@@ -84,7 +84,7 @@ export default function PaymentWorkHistory() {
       });
 
       const allList = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
-      const list = allList.filter(item =>
+      const list = allList.filter((item: any) =>
         item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
         item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
         !paidIds.includes(item.id) 

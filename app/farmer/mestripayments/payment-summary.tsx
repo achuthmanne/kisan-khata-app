@@ -91,7 +91,7 @@ export default function PaymentSummary() {
 
         const list = snap.docs
           .map((d: any) => ({ id: d.id, ...(d.data() as any) }))
-          .filter(item => selectedIds.includes(item.id))
+          .filter((item: any) => selectedIds.includes(item.id))
           .sort((a: any, b: any) => {
             const parseDate = (dStr: string) => {
               if (!dStr) return 0;

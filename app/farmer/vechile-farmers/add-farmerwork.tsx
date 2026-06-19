@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { useIsFocused } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -93,7 +94,7 @@ export default function AddFarmerWork() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -259,7 +260,7 @@ export default function AddFarmerWork() {
 
   /* ---------------- SAVE ENTRY FUNCTION ---------------- */
   const executeSave = async (activeSession: string, phone: string, vId: string, fId: string) => {
-    await firestore()
+    await executeOfflineSafeWrite(firestore()
       .collection("users")
       .doc(phone)
       .collection("vehicles")
@@ -286,7 +287,7 @@ export default function AddFarmerWork() {
         paymentStatus: "pending", 
         session: activeSession,
         createdAt: firestore.FieldValue.serverTimestamp()
-      });
+      }));
 
     setTimeout(() => {
       if (isMounted.current) {
@@ -335,7 +336,7 @@ export default function AddFarmerWork() {
         return;
       }
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
 
       if (!activeSession) {
@@ -351,7 +352,7 @@ export default function AddFarmerWork() {
       const fId = Array.isArray(farmerId) ? farmerId[0] : farmerId;
 
       if (!bypassDuplicate) {
-        const duplicateCheck = await firestore()
+        const duplicateCheck = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
           .collection("vehicles")
@@ -363,7 +364,7 @@ export default function AddFarmerWork() {
           .where("date", "==", date)
           .where("crop", "==", crop.trim())
           .where("work", "==", work.trim())
-          .get();
+          );
 
         if (!duplicateCheck.empty) {
           if (isMounted.current) {

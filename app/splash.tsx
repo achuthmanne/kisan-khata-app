@@ -4,6 +4,7 @@ import firestore from "@react-native-firebase/firestore";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Dimensions, PermissionsAndroid, Platform, StyleSheet, View } from "react-native";
+import { executeOfflineSafeRead } from "@/utils/offlineHelper";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -112,7 +113,7 @@ export default function SplashScreen() {
       }
 
       try {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         if (doc.exists()) {
           goNext(role === "FARMER" ? "/farmer/(tabs)" : "/(tabs)");
         } else {

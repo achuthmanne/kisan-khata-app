@@ -1,5 +1,7 @@
 // vechile farmer work history
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -99,7 +101,7 @@ export default function FarmerHistory() {
             return;
         }
 
-        const userDoc = await firestore().collection("users").doc(userPhone).get();
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
@@ -123,7 +125,7 @@ export default function FarmerHistory() {
             }
 
             const list: WorkItem[] = [];
-            snap.forEach(doc => list.push({ id: doc.id, ...(doc.data() as any) }));
+            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
 
             list.sort((a, b) => {
               const timeA = a.createdAt?.toMillis() || 0;
@@ -153,7 +155,7 @@ export default function FarmerHistory() {
     if (!userPhone || !deleteId || !vId || !fId) return;
 
     try {
-        await firestore()
+        await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("vehicles")
@@ -162,7 +164,7 @@ export default function FarmerHistory() {
         .doc(fId)
         .collection("entries")
         .doc(deleteId)
-        .delete();
+        .delete());
     } catch (error) {
         console.log("Delete Error: ", error);
     }
@@ -239,7 +241,7 @@ export default function FarmerHistory() {
         if (u) uploadedProofs.push(u);
       }
 
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("vehicles")
@@ -255,7 +257,7 @@ export default function FarmerHistory() {
           splitUpi: paymentMode === "both" ? splitUpi : (paymentMode === "upi" ? lockBalance.toString() : ""),
           proofs: uploadedProofs,
           lockedAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
 
       if (isMounted.current) {
         setStatusId(null);

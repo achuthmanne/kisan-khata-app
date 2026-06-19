@@ -16,6 +16,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
@@ -106,7 +107,7 @@ export default function AdminSchemeScreen() {
     setErrors({});
 
     const cleanEligibility = eligibility.map(e => e.trim()).filter(e => e.length > 0);
-    const cleanDocuments = documents.map(d => d.trim()).filter(d => d.length > 0);
+    const cleanDocuments = documents.map((d: any) => d.trim()).filter(d => d.length > 0);
 
     try {
       setLoading(true);
@@ -136,7 +137,7 @@ export default function AdminSchemeScreen() {
         createdAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore().collection("schemes").add(schemeData);
+      await executeOfflineSafeWrite(firestore().collection("schemes").add(schemeData));
 
       setLoading(false);
       Alert.alert(

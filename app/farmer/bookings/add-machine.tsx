@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -86,7 +87,7 @@ export default function AddMachine() {
   const fetchMachineData = async () => {
     if (!machineId) return;
     try {
-      const doc = await firestore().collection("machines").doc(machineId as string).get();
+      const doc = await executeOfflineSafeRead(firestore().collection("machines").doc(machineId as string));
       const data = doc.data(); 
       if (data) {
         setOwnerName(data.ownerName || "");

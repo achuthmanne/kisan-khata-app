@@ -1,5 +1,7 @@
 //drivers list
-import AppEmptyState from "@/components/AppEmptyState"; 
+import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+ 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -104,7 +106,7 @@ export default function VehicleDetails() {
              return;
           }
 
-          const userDoc = await firestore().collection("users").doc(phone).get();
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
@@ -118,14 +120,14 @@ export default function VehicleDetails() {
           if (isMounted.current) setActiveSession(session);
 
           try {
-            const pastVehiclesSnap = await firestore()
+            const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
               .collection("users")
               .doc(phone)
               .collection("vehicles")
               .where("session", "!=", session)
-              .get();
+              );
               
-            const fetchPromises = pastVehiclesSnap.docs.map(vDoc => 
+            const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
               vDoc.ref.collection("drivers").get()
             );
             
@@ -133,8 +135,8 @@ export default function VehicleDetails() {
             const uniquePast: any[] = [];
             const phones = new Set();
             
-            snaps.forEach(snap => {
-              snap.docs.forEach(doc => {
+            snaps.forEach((snap: any) => {
+              snap.docs.forEach((doc: any) => {
                 const d = { id: doc.id, ...(doc.data() as any) };
                 const key = d.phone ? d.phone.trim() : d.driverName?.trim().toLowerCase();
                 if (key && !phones.has(key)) {
@@ -165,7 +167,7 @@ export default function VehicleDetails() {
                 }
 
                 const list: any[] = [];
-                snap.forEach(doc => {
+                snap.forEach((doc: any) => {
                   const d = doc.data();
                   if (!d) return;
                   list.push({ id: doc.id, ...d });
@@ -230,7 +232,7 @@ export default function VehicleDetails() {
       const batch = firestore().batch();
       const driverRef = firestore().collection("users").doc(phone).collection("vehicles").doc(vId as string).collection("drivers");
       
-      selectedPastDrivers.forEach(did => {
+      selectedPastDrivers.forEach((did: any) => {
         const d = pastDrivers.find(x => x.id === did);
         if (d) {
           const newRef = driverRef.doc();
@@ -247,7 +249,7 @@ export default function VehicleDetails() {
         }
       });
       
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
       setShowImportModal(false);
       setSelectedPastDrivers([]);
     } catch (e) {
@@ -269,14 +271,14 @@ export default function VehicleDetails() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone || !vId || !activeSession) return false;
 
-      const entriesSnap = await firestore()
+      const entriesSnap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone)
         .collection("vehicles").doc(vId as string)
         .collection("drivers").doc(driverId)
         .collection("entries")
         .where("session", "==", activeSession)
         .limit(1) 
-        .get();
+        );
 
       return !entriesSnap.empty;
     } catch (error) {
@@ -333,14 +335,14 @@ export default function VehicleDetails() {
     setShowDeleteModal(false);
 
     try {
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(phone)
         .collection("vehicles")
         .doc(vId as string)
         .collection("drivers")
         .doc(deleteItem.id)
-        .delete();
+        .delete());
     } catch (e) {
       console.log("Delete Error:", e);
     }

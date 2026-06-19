@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import storage from "@react-native-firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -151,7 +152,7 @@ export default function ProfileScreen() {
         if (!userPhone) { router.replace("/login"); return; }
 
         setPhone(userPhone);
-        const doc = await firestore().collection("users").doc(userPhone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
         const data = doc.data();
 
         if (data) {
@@ -185,7 +186,7 @@ export default function ProfileScreen() {
       const fetchTierColor = async () => {
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone) return;
-        const doc = await firestore().collection("users").doc(userPhone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
         const activeSession = doc.data()?.activeSession;
         
         if (activeSession) {
@@ -220,17 +221,22 @@ export default function ProfileScreen() {
       const fileName = `profileImages/${userPhone}_${Date.now()}.jpg`;
       const reference = storage().ref(fileName);
       
-      await reference.putFile(uri);
-      const downloadURL = await reference.getDownloadURL();
+      let downloadURL = uri;
+      try {
+        await reference.putFile(uri);
+        downloadURL = await reference.getDownloadURL();
+      } catch (uploadError) {
+        console.log("Image upload failed, using local URI:", uploadError);
+      }
       
-      await firestore().collection("users").doc(userPhone!).update({
-        profileImage: downloadURL
-      });
+      await executeOfflineSafeWrite(firestore().collection("users").doc(userPhone!).update({
+        profileImage: downloadURL,
+      }));
       
       setProfileImage(downloadURL);
     } catch (error) {
-      console.log("Image upload error:", error);
-      alert(language === "te" ? "ఫోటో అప్‌లోడ్ విఫలమైంది." : "Image upload failed.");
+      console.log("Error processing photo:", error);
+      alert(language === "te" ? "ఫోటో ప్రాసెస్ చేయడంలో లోపం." : "Error processing photo.");
     } finally {
       setUploadingImage(false);
     }
@@ -284,12 +290,12 @@ export default function ProfileScreen() {
     setLoaderType("updating");
     setLoading(true);
     try {
-      await firestore().collection("users").doc(phone).update({
+      await executeOfflineSafeWrite(firestore().collection("users").doc(phone).update({
         name: name.trim(),
         language: language,
         state: selectedState.toLowerCase().trim(),
         updatedAt: firestore.FieldValue.serverTimestamp(),
-      });
+      }));
       
       await AsyncStorage.setItem("APP_LANG", language);
       

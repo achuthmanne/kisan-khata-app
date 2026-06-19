@@ -4,6 +4,7 @@ import { getDrawer, setDrawer } from "@/assets/stores/drawerStore";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter, useSegments } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
@@ -159,7 +160,7 @@ export default function FarmerLayout() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
 
       if (phone) {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         const data = doc.data();
         setName(data?.name || "");
         setProfileImage(data?.profileImage || null);

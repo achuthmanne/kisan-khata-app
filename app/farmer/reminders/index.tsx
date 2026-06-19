@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
 import notifee from '@notifee/react-native';
@@ -97,7 +98,7 @@ export default function RemindersScreen() {
               return;
             }
 
-            const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a: any, b: any) => {
+            const data = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).sort((a: any, b: any) => {
               const dateA = new Date(a.date).getTime();
               const dateB = new Date(b.date).getTime();
               return dateA - dateB; 
@@ -135,10 +136,10 @@ export default function RemindersScreen() {
         if (notificationId) {
           await notifee.cancelNotification(notificationId);
         }
-        await firestore().collection("users").doc(phone).collection("reminders").doc(id).update({
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("reminders").doc(id).update({
           status: "completed",
           completedAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
       }
     } catch (e) {
       console.log("Error marking completed", e);
@@ -152,7 +153,7 @@ export default function RemindersScreen() {
         if (notificationId) {
           await notifee.cancelNotification(notificationId);
         }
-        await firestore().collection("users").doc(phone).collection("reminders").doc(id).delete();
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("reminders").doc(id).delete());
       }
     } catch (e) {
       console.log("Error deleting reminder", e);

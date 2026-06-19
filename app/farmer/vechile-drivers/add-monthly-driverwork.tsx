@@ -1,5 +1,7 @@
 // add-driverwork.tsx (Simplified & Practical)
 import AgriLoader from "@/components/AgriLoader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -108,7 +110,7 @@ export default function AddDriverWork() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -138,7 +140,7 @@ export default function AddDriverWork() {
       if (!userPhone) return;
       
       try {
-        const snap = await firestore()
+        const snap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(userPhone)
           .collection("vehicles")
@@ -147,10 +149,10 @@ export default function AddDriverWork() {
           .doc(dIdStr)
           .collection("entries")
           .where("date", "==", date)
-          .get();
+          );
 
         let latestTime: Date | null = null;
-        snap.forEach(doc => {
+        snap.forEach((doc: any) => {
           const data = doc.data();
           if (data.endTimeRaw) {
              const t = new Date(data.endTimeRaw);
@@ -408,7 +410,7 @@ export default function AddDriverWork() {
       }
     }
 
-    await firestore()
+    await executeOfflineSafeWrite(firestore()
       .collection("users")
       .doc(phone)
       .collection("vehicles")
@@ -416,7 +418,7 @@ export default function AddDriverWork() {
       .collection("drivers") 
       .doc(dId)
       .collection("entries")
-      .add(entryData);
+      .add(entryData));
 
     setTimeout(() => {
       if (isMounted.current) {
@@ -479,7 +481,7 @@ export default function AddDriverWork() {
         return;
       }
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
 
       if (!activeSession) {
@@ -495,7 +497,7 @@ export default function AddDriverWork() {
       const dId = Array.isArray(driverId) ? driverId[0] : driverId;
 
       if (!bypassDuplicate) {
-        const duplicateCheck = await firestore()
+        const duplicateCheck = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
           .collection("vehicles")
@@ -505,11 +507,11 @@ export default function AddDriverWork() {
           .collection("entries")
           .where("session", "==", activeSession)
           .where("date", "==", date)
-          .get();
+          );
 
         let isDuplicate = false;
         
-        duplicateCheck.forEach(doc => {
+        duplicateCheck.forEach((doc: any) => {
            const d = doc.data();
            let matches = (d.work || "") === work.trim() && (d.customerName || "") === customerName.trim();
            

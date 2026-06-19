@@ -1,6 +1,8 @@
 // app/farmer/fields/add-field.tsx
 
 import { Ionicons } from "@expo/vector-icons";
+import { executeOfflineSafeFetch, executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
@@ -180,7 +182,7 @@ export default function AddField() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         if (isMounted) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -232,16 +234,16 @@ export default function AddField() {
         try { ids = JSON.parse(editId as string); } catch(e){}
         
         if (Array.isArray(ids) && ids.length > 0) {
-           await ref.doc(ids[0]).update(fieldData);
+           await executeOfflineSafeWrite(ref.doc(ids[0]).update(fieldData));
            if (ids.length > 1) {
               const batch = firestore().batch();
               for (let i = 1; i < ids.length; i++) {
                  batch.delete(ref.doc(ids[i]));
               }
-              await batch.commit();
+              await executeOfflineSafeWrite(batch.commit());
            }
         } else {
-           await ref.doc(editId as string).update(fieldData);
+           await executeOfflineSafeWrite(ref.doc(editId as string).update(fieldData));
         }
       } else {
         const markCompletedId = getStr(params.markCompletedId);
@@ -256,12 +258,12 @@ export default function AddField() {
             status: "completed",
             endedAt: firestore.FieldValue.serverTimestamp()
           });
-          await batch.commit();
+          await executeOfflineSafeWrite(batch.commit());
         } else {
-          await ref.add({
+          await executeOfflineSafeWrite(ref.add({
             ...fieldData,
             createdAt: firestore.FieldValue.serverTimestamp()
-          });
+          }));
         }
       }
 

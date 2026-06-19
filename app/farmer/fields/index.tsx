@@ -1,6 +1,8 @@
 // app/farmer/fields/index.tsx
 
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -97,7 +99,7 @@ export default function FieldsScreen() {
             return;
           }
 
-          const userDoc = await firestore().collection("users").doc(phone).get();
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
           const activeSession = userDoc.data()?.activeSession;
 
           if (!activeSession) {
@@ -114,7 +116,7 @@ export default function FieldsScreen() {
               .where("session", "==", activeSession)
               .onSnapshot((snap) => {
                 if (snap) {
-                  const lands = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+                  const lands = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() as any }));
                   lands.sort((a, b) => {
                      const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
                      const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
@@ -134,7 +136,7 @@ export default function FieldsScreen() {
                   const activeList: any[] = [];
                   const completedList: any[] = [];
 
-                  snap.docs.forEach(doc => {
+                  snap.docs.forEach((doc: any) => {
                     const item = { id: doc.id, ...doc.data() as any };
                     if (item.status === "completed") {
                       completedList.push(item);
@@ -202,10 +204,10 @@ export default function FieldsScreen() {
         // Only run migration if there are literally no lands in DB but fields exist
         try {
           const phone = await AsyncStorage.getItem("USER_PHONE");
-          const userDoc = await firestore().collection("users").doc(phone as string).get();
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone as string));
           const activeSession = userDoc.data()?.activeSession;
           
-          const landsSnap = await firestore().collection("users").doc(phone as string).collection("lands").where("session", "==", activeSession).get();
+          const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone as string).collection("lands").where("session", "==", activeSession));
           if (landsSnap.empty) {
              console.log("RUNNING SILENT MIGRATION TO LANDS...");
              const migStats = new Map();
@@ -234,7 +236,7 @@ export default function FieldsScreen() {
                  createdAt: firestore.FieldValue.serverTimestamp()
                });
              });
-             await batch.commit();
+             await executeOfflineSafeWrite(batch.commit());
              console.log("MIGRATION COMPLETE!");
              return; // State will update automatically via listener
           }
@@ -346,11 +348,11 @@ export default function FieldsScreen() {
   ];
 
   const safeOwnershipData = (ownAcres + rentAcres) > 0 
-    ? ownershipData.map(d => ({ ...d, name: "" })) 
+    ? ownershipData.map((d: any) => ({ ...d, name: "" })) 
     : [{ population: 1, color: "#E5E7EB", name: "" }];
 
   const safeCropStats = totalAcres > 0 && cropStats.length > 0
-    ? cropStats.map(d => ({ ...d, name: "" }))
+    ? cropStats.map((d: any) => ({ ...d, name: "" }))
     : [{ population: 1, color: "#E5E7EB", name: "" }];
 
   const ShimmerLoader = () => {
@@ -403,7 +405,7 @@ export default function FieldsScreen() {
   const checkCropUsage = async (item: any) => {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      const userDoc = await firestore().collection("users").doc(phone!).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!));
       const activeSession = userDoc.data()?.activeSession;
 
       const land = landsData.find(l => l.id === item.landId) || landsData.find(l => l.nickname === item.nickname);
@@ -506,7 +508,7 @@ export default function FieldsScreen() {
            endedAt: firestore.FieldValue.serverTimestamp()
          });
       });
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
     } catch (e) {
       console.log(e);
     } finally {
@@ -559,7 +561,7 @@ export default function FieldsScreen() {
         ids.forEach((id: string) => {
            batch.delete(firestore().collection("users").doc(phone).collection(collectionName).doc(id));
         });
-        await batch.commit();
+        await executeOfflineSafeWrite(batch.commit());
       }
     } catch (e: any) { 
       console.log("Delete error", e);

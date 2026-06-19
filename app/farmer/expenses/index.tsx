@@ -1,6 +1,8 @@
 // app/farmer/expenses/index.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState";
 import { Ionicons } from "@expo/vector-icons";
@@ -158,7 +160,7 @@ export default function ExpensesScreen() {
               return;
             }
             
-            const userDoc = await firestore().collection("users").doc(phone).get();
+            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
             const session = userDoc.data()?.activeSession;
 
             if (!session) {
@@ -182,7 +184,7 @@ export default function ExpensesScreen() {
                 const cropMap: any = {};
                 const catMap: any = {};
 
-                snap.docs.forEach(doc => {
+                snap.docs.forEach((doc: any) => {
                     const d: any = doc.data();
                     const amt = Number(d.amount) || 0;
                     total += amt;
@@ -229,12 +231,12 @@ export default function ExpensesScreen() {
         setLoading(true);
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (phone) {
-          await firestore()
+          await executeOfflineSafeWrite(firestore()
             .collection("users")
             .doc(phone)
             .collection("expenses")
             .doc(selectedItem.id)
-            .delete();
+            .delete());
         }
       } catch (e) {
         console.log("Delete error", e);

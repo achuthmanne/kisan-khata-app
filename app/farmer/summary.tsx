@@ -1,6 +1,9 @@
 // app/farmer/summary/index.tsx
 
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import NetInfo from "@react-native-community/netinfo";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { LOGO_BASE64 } from "@/constants/logoBase64";
@@ -492,9 +495,9 @@ export default function SummaryScreen() {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        await firestore().collection("users").doc(phone).update({
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).update({
           viewedRankCardSession: sessionStr
-        });
+        }));
       }
     } catch (e) {
       console.log("Error updating rank card view", e);
@@ -977,7 +980,7 @@ export default function SummaryScreen() {
       if (!phone) return;
       if (isMounted) setUserPhone(phone);
       
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
       const uState = (userDoc.data()?.state || "ap").toLowerCase() === "telangana" ? "Telangana" : "AP";
       if (isMounted) {
@@ -1023,21 +1026,31 @@ export default function SummaryScreen() {
 
       try {
         // Fetch real-time total farmers count from Firebase!
-        const [usersCountSnap, stateCountSnap] = await Promise.all([
-          firestore().collection("users").count().get(),
-          firestore().collection("users").where("state", "==", uState.toLowerCase()).count().get()
-        ]);
+        // But count() doesn't work offline! So we check NetInfo first
+        const netState = await NetInfo.fetch();
+        const isOffline = netState.isConnected === false || netState.isInternetReachable === false;
         
-        if (isMounted) {
-           if (usersCountSnap.data().count > 0) setTotalFarmers(usersCountSnap.data().count);
-           if (stateCountSnap.data().count > 0) setStateFarmers(stateCountSnap.data().count);
+        if (!isOffline) {
+          try {
+            const [usersCountSnap, stateCountSnap] = await Promise.all([
+              firestore().collection("users").count().get(),
+              firestore().collection("users").where("state", "==", uState.toLowerCase()).count().get()
+            ]);
+            
+            if (isMounted) {
+               if (usersCountSnap.data().count > 0) setTotalFarmers(usersCountSnap.data().count);
+               if (stateCountSnap.data().count > 0) setStateFarmers(stateCountSnap.data().count);
+            }
+          } catch (e) {
+            console.log("Count query failed", e);
+          }
         }
 
         const [expSnap, salesSnap, paySnap, fieldsSnap] = await Promise.all([
-          firestore().collection("users").doc(phone).collection("expenses").where("session", "==", activeSession).get(),
-          firestore().collection("users").doc(phone).collection("sales").where("session", "==", activeSession).get(),
-          firestore().collection("users").doc(phone).collection("payments").where("session", "==", activeSession).get(),
-          firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession).get()
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("expenses").where("session", "==", activeSession)),
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("sales").where("session", "==", activeSession)),
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("payments").where("session", "==", activeSession)),
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession))
         ]);
         
         if (!isMounted) return;
@@ -1059,7 +1072,7 @@ export default function SummaryScreen() {
         }
         setUserName(finalName);
         
-        expSnap.forEach(doc => {
+        expSnap.forEach((doc: any) => {
           const d = doc.data();
           const rawCrop = d.crop || "Others";
           const crop = getExistingKey(cropMap, rawCrop);
@@ -1069,7 +1082,7 @@ export default function SummaryScreen() {
           cropMap[crop].expense += amt;
         });
 
-        paySnap.forEach(doc => {
+        paySnap.forEach((doc: any) => {
           const d = doc.data();
           const rawCrop = d.crop || "Others";
           const crop = getExistingKey(cropMap, rawCrop);
@@ -1079,7 +1092,7 @@ export default function SummaryScreen() {
           cropMap[crop].labour += amt;
         });
 
-        salesSnap.forEach(doc => {
+        salesSnap.forEach((doc: any) => {
           const d = doc.data();
           const rawCrop = d.crop || "Others";
           const crop = getExistingKey(cropMap, rawCrop);
@@ -1097,7 +1110,7 @@ export default function SummaryScreen() {
         });
 
         // 🔥 PERFECTLY SYNCHRONIZED COMPOSITE KEY MATCHING LOGIC
-        fieldsSnap.forEach(doc => {
+        fieldsSnap.forEach((doc: any) => {
           const d = doc.data();
           const baseCrop = d.crop || "Others";
           const nickname = d.nickname || "";

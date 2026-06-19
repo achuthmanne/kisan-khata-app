@@ -6,6 +6,7 @@ import AppEmptyState from "@/components/AppEmptyState";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState, useRef } from "react";
@@ -206,7 +207,7 @@ export default function AttendanceHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
-      const userDoc = await firestore().collection("users").doc(userPhone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
       const session = userDoc.data()?.activeSession;
 
       if (!session) {
@@ -216,27 +217,27 @@ export default function AttendanceHistory() {
 
       if (isMounted.current) setActiveSession(session);
 
-      const mestriSnap = await firestore()
+      const mestriSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
-        .get();
+        );
 
       const counts: any[] = [];
       for (const doc of mestriSnap.docs) {
         const mestri = doc.data();
-        const attendanceSnap = await firestore()
+        const attendanceSnap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(userPhone)
           .collection("mestris")
           .doc(doc.id)
           .collection("attendance")
           .where("session", "==", session) 
-          .get();
+          );
 
         // 🔥 PRO FIX: Calculate actual volume of work (Morning + Evening + Full)
         let totalWorksVolume = 0;
-        attendanceSnap.docs.forEach(attDoc => {
+        attendanceSnap.docs.forEach((attDoc: any) => {
           const attData = attDoc.data();
           const m = Number(attData.morning) || 0;
           const e = Number(attData.evening) || 0;
@@ -251,7 +252,7 @@ export default function AttendanceHistory() {
 
       // 🔥 Percentage is now based on actual Work Volume
       const grandTotalVolume = counts.reduce((sum, item) => sum + item.totalWorksVolume, 0);
-      const result = counts.map(item => ({
+      const result = counts.map((item: any) => ({
         ...item,
         percent: grandTotalVolume > 0 ? Math.round((item.totalWorksVolume / grandTotalVolume) * 100) : 0
       }));

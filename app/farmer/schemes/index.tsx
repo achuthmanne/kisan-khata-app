@@ -1,6 +1,8 @@
 // app/farmer/schemes/index.tsx
 
 import { Ionicons } from "@expo/vector-icons";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
@@ -81,10 +83,10 @@ export default function SchemesScreen() {
       if (!forceRefresh) setLoading(true);
       setError(false);
 
-      const snapshot = await firestore()
+      const snapshot = await executeOfflineSafeRead(firestore()
         .collection("schemes")
         .where("isActive", "==", true)
-        .get();
+        );
 
       if (!isMounted) return;
 
@@ -95,7 +97,7 @@ export default function SchemesScreen() {
         return;
       }
 
-      const fetchedSchemes = snapshot.docs.map(doc => ({
+      const fetchedSchemes = snapshot.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data()
       })).sort((a: any, b: any) => {

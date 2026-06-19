@@ -83,8 +83,8 @@ export default function RootLayout() {
   return (
     <LanguageProvider>
       <MenuProvider>
-        <NetworkOverlay />
         <Stack screenOptions={{ headerShown: false }} />
+        <NetworkOverlay />
       </MenuProvider>
     </LanguageProvider>
   );

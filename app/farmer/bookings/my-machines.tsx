@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -58,7 +59,7 @@ export default function MyMachines() {
               setLoading(false);
               return;
             }
-            const list = snap.docs.map(doc => ({
+            const list = snap.docs.map((doc: any) => ({
               id: doc.id,
               ...doc.data()
             }));
@@ -89,7 +90,7 @@ export default function MyMachines() {
     try {
       if (!selectedId) return;
 
-      await firestore().collection("machines").doc(selectedId).delete();
+      await executeOfflineSafeWrite(firestore().collection("machines").doc(selectedId).delete());
 
       setDeleteModal(false);
       setSelectedId(""); 

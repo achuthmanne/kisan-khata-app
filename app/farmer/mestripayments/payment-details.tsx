@@ -1,6 +1,8 @@
 // app/farmer/payment-details.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons } from "@expo/vector-icons";
@@ -48,10 +50,10 @@ export default function PaymentDetails() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
 
-      const userDoc = await firestore()
+      const userDoc = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
-        .get();
+        );
 
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) {
@@ -59,38 +61,38 @@ export default function PaymentDetails() {
         return;
       }
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
         .doc(id as string)
         .collection("attendance")
         .where("session", "==", activeSession) 
-        .get();
+        );
 
       // Fetch payments to handle old records that don't have isPaid: true
-      const paymentsSnap = await firestore()
+      const paymentsSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("payments")
         .where("mestriId", "==", id)
         .where("session", "==", activeSession)
-        .get();
+        );
 
       let paidIds: string[] = [];
-      paymentsSnap.docs.forEach(p => {
+      paymentsSnap.docs.forEach((p: any) => {
         const data = p.data();
         if (data.selectedAttendanceIds && Array.isArray(data.selectedAttendanceIds)) {
           paidIds.push(...data.selectedAttendanceIds);
         }
       });
 
-      const list = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
       const unpaidList = list.filter((item: any) => !paidIds.includes(item.id));
 
       const cropGroup: any = {};
 
-      unpaidList.forEach(item => {
+      unpaidList.forEach((item: any) => {
         const crop = item.crop || "Other";
         const work = item.work || "Other";
 
@@ -231,7 +233,7 @@ export default function PaymentDetails() {
                 </TouchableOpacity>
 
                 {/* 🔹 WORKS */}
-                {isCropOpen && Object.keys(works).map(work => {
+                {isCropOpen && Object.keys(works).map((work: any) => {
 
                   const key = item + "_" + work;
                   const isWorkOpen = openWorks[key];

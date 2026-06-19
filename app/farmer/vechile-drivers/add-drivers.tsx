@@ -2,6 +2,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
@@ -201,7 +202,7 @@ export default function AddDriver() {
     const fetchSession = async () => {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
-      const doc = await firestore().collection("users").doc(userPhone).get();
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
       if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
     };
     fetchSession();

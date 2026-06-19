@@ -1,6 +1,8 @@
 // app/farmer/sales/add-sale.tsx
 
 import { Ionicons } from "@expo/vector-icons";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
@@ -78,23 +80,23 @@ export default function AddSale() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const fetchedSession = userDoc.data()?.activeSession;
       if (!fetchedSession) return; 
       
       setActiveSession(fetchedSession);
 
-      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession).get();
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession));
       const landsMap: any = {};
-      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+      landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone).collection("fields")
         .where("session", "==", fetchedSession) 
-        .get();
+        );
 
       const set = new Set<string>();
-      snap.forEach(doc => {
+      snap.forEach((doc: any) => {
         const data = doc.data();
         if (data.crop) {
           const nick = landsMap[data.landId] || data.nickname;
@@ -184,7 +186,7 @@ export default function AddSale() {
 
     setLoading(true);
     try {
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) { setLoading(false); return; }
 

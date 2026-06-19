@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import { View, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, FlatList, Keyboard, StatusBar, SafeAreaView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -118,17 +120,17 @@ export default function AddReminderScreen() {
       }
 
       // 2. BACKGROUND FETCH FROM FIRESTORE
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) return;
 
-      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession).get();
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
       const landsMap: any = {};
-      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+      landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession).get();
+      const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession));
       const set = new Set<string>();
-      snap.forEach(doc => {
+      snap.forEach((doc: any) => {
         const data = doc.data();
         if (data.crop) {
           const nick = landsMap[data.landId] || data.nickname;
@@ -258,7 +260,7 @@ export default function AddReminderScreen() {
         createdAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      const docRef = await firestore().collection("users").doc(phone).collection("reminders").add(reminderData);
+      const docRef = await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("reminders").add(reminderData));
 
       if (date && time) {
         const notifId = await scheduleLocalNotification(task, date, time, docRef.id);

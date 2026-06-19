@@ -1,6 +1,8 @@
 // app/farmer/mestripayments/payment-summary.tsx
 
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -69,28 +71,28 @@ export default function PaymentSummary() {
     try {
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone) return;
-        const userDoc = await firestore()
+        const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(userPhone)
-          .get();
+          );
 
         const activeSession = userDoc.data()?.activeSession;
         if (!activeSession) return;
 
         const selectedIds = JSON.parse(ids as string);
-        const snap = await firestore()
+        const snap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(userPhone)
           .collection("mestris")
           .doc(id as string)
           .collection("attendance")
           .where("session", "==", activeSession) 
-          .get();
+          );
 
         const list = snap.docs
-          .map(d => ({ id: d.id, ...(d.data() as any) }))
+          .map((d: any) => ({ id: d.id, ...(d.data() as any) }))
           .filter(item => selectedIds.includes(item.id))
-          .sort((a, b) => {
+          .sort((a: any, b: any) => {
             const parseDate = (dStr: string) => {
               if (!dStr) return 0;
               const parts = dStr.split("/");

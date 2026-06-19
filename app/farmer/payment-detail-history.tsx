@@ -6,6 +6,7 @@ import AppEmptyState from "@/components/AppEmptyState";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState, useRef } from "react";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
@@ -75,7 +76,7 @@ export default function PaymentDetailHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
-      const userDoc = await firestore().collection("users").doc(userPhone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
       const session = userDoc.data()?.activeSession;
 
       if (!session) {
@@ -85,15 +86,15 @@ export default function PaymentDetailHistory() {
 
       if (isMounted.current) setActiveSession(session);
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("payments")
         .where("mestriId", "==", mestriId)
         .where("session", "==", session)
-        .get();
+        );
 
-      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      const list = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
       
       if (!list.length) {
         if (isMounted.current) {
@@ -106,20 +107,20 @@ export default function PaymentDetailHistory() {
         return;
       }
 
-      const attendanceSnap = await firestore()
+      const attendanceSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
         .doc(mestriId as string)
         .collection("attendance")
         .where("session", "==", session) 
-        .get();
+        );
 
       const totalDays = attendanceSnap.size;
       let totalPayments = 0;
       let paidDays = 0;
 
-      list.forEach((item) => {
+      list.forEach((item: any) => {
         totalPayments += 1;
         paidDays += item.details?.totalDays || 0;
       });
@@ -129,7 +130,7 @@ export default function PaymentDetailHistory() {
       else if (paidDays < totalDays) newStatus = { label: "Pending", color: "#F59E0B" };
       else newStatus = { label: "Cleared", color: "#22C55E" };
 
-      const promises = list.map(async (item) => {
+      const promises = list.map(async (item: any) => {
         const ids = item.selectedAttendanceIds || [];
         if (ids.length === 0) return null;
 
@@ -173,7 +174,7 @@ export default function PaymentDetailHistory() {
       results.forEach((r: any) => { finalMap[r.id] = r.dates; });
 
       const group: any = {};
-      list.forEach((item) => {
+      list.forEach((item: any) => {
         const crop = item.crop || "Others";
         const work = item.work || "Other";
         if (!group[crop]) group[crop] = {};
@@ -257,7 +258,7 @@ export default function PaymentDetailHistory() {
             paymentId: firestore.FieldValue.delete()
           });
         });
-        await batch.commit();
+        await executeOfflineSafeWrite(batch.commit());
       }
 
       if (isMounted.current) {

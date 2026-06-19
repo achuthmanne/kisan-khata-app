@@ -1,6 +1,8 @@
 // app/farmer/owner-work/add-owner-work.tsx (or wherever your file is)
 
 import AgriLoader from "@/components/AgriLoader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -95,25 +97,25 @@ export default function AddOwnerWork() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) return; 
       if (isMounted.current) setActiveSession(activeSession);
 
-      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession).get();
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
       const landsMap: any = {};
-      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+      landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(phone)
         .collection("fields")
         .where("session", "==", activeSession) 
-        .get();
+        );
 
       const set = new Set<string>();
       const map: Record<string, number> = {};
-      snap.forEach(doc => {
+      snap.forEach((doc: any) => {
         const data = doc.data();
         if (data.crop) {
           const nick = landsMap[data.landId] || data.nickname;
@@ -300,22 +302,22 @@ const workOptions = [
     try {
       setSaving(true);
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      const userDoc = await firestore().collection("users").doc(phone!).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!));
       const activeSession = userDoc.data()?.activeSession;
       const oId = Array.isArray(ownerId) ? ownerId[0] : ownerId;
 
       if (!activeSession) { setSaving(false); return; }
 
-      const existingSnap = await firestore()
+      const existingSnap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone!)
         .collection("owners").doc(oId)
         .collection("entries")
         .where("session", "==", activeSession)
         .where("date", "==", date) 
-        .get();
+        );
 
       let isDuplicate = false;
-      existingSnap.forEach(doc => {
+      existingSnap.forEach((doc: any) => {
         const d = doc.data();
         if (d.crop === crop.trim() && d.work === work.trim()) {
           if (workType === "acres" && d.acres === acres.trim()) isDuplicate = true;
@@ -344,11 +346,11 @@ const workOptions = [
       setSaving(true);
 
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      const userDoc = await firestore().collection("users").doc(phone!).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!));
       const activeSession = userDoc.data()?.activeSession;
       const oId = Array.isArray(ownerId) ? ownerId[0] : ownerId;
 
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users").doc(phone!)
         .collection("owners").doc(oId)
         .collection("entries")
@@ -371,7 +373,7 @@ const workOptions = [
           paymentStatus: "pending", 
           session: activeSession,
           createdAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
 
       setTimeout(() => {
         if (isMounted.current) {

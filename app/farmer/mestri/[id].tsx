@@ -1,6 +1,8 @@
 // app/farmer/mestri/[id].tsx
 
 import { Ionicons } from "@expo/vector-icons";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import firestore from "@react-native-firebase/firestore";
@@ -91,7 +93,7 @@ export default function MestriAttendance() {
       try {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (!phone) return;
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         setActiveSession(doc.data()?.activeSession || "");
       } catch (e) {
         console.log("Load session error", e);
@@ -105,14 +107,14 @@ export default function MestriAttendance() {
       try {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (!phone) return;
-        const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession).get();
+        const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
         const landsMap: any = {};
-        landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+        landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-        const snap = await firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession).get();
+        const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession));
         const set = new Set<string>();
         const map: Record<string, number> = {};
-        snap.forEach(doc => {
+        snap.forEach((doc: any) => {
           const data = doc.data();
           if (data.crop) {
             const nick = landsMap[data.landId] || data.nickname;
@@ -243,7 +245,7 @@ export default function MestriAttendance() {
         return;
       }
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
@@ -251,7 +253,7 @@ export default function MestriAttendance() {
         .collection("attendance")
         .where("uniqueKey", "==", uniqueKey)
         .where("session", "==", activeSession)
-        .get();
+        );
 
       if (!snap.empty) {
         setLoading(false);
@@ -260,7 +262,7 @@ export default function MestriAttendance() {
         return;
       }
 
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
@@ -277,14 +279,14 @@ export default function MestriAttendance() {
           full,
           acresWorked: parseFloat(acresWorked) || 0,
           createdAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
 
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
         .doc(id as string)
-        .set({ attendanceSessions: { [activeSession]: true } }, { merge: true });
+        .set({ attendanceSessions: { [activeSession]: true } }, { merge: true }));
         
       setLoading(false);
       setShowSuccess(true);
@@ -316,7 +318,7 @@ export default function MestriAttendance() {
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone || !id) return;
 
-        const doc = await firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string));
         const data = doc.data();
         if (data) {
           setMestriName(data.name || "");

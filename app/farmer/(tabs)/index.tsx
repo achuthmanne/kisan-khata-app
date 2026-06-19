@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeFetch, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import messaging from "@react-native-firebase/messaging";
 import { useFocusEffect } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -336,20 +337,20 @@ export default function Dashboard() {
             if (!isMounted) return;
             
             try {
-              const userDoc = await firestore().collection("users").doc(phone).get();
+              const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
               const userState = userDoc.data()?.state;
               
-              const hiddenSnap = await firestore().collection("users").doc(phone).collection("hiddenNotifications").get();
-              const hiddenIds = hiddenSnap.docs.map(d => d.id);
+              const hiddenSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("hiddenNotifications"));
+              const hiddenIds = hiddenSnap.docs.map((d: any) => d.id);
 
-              const seenSnap = await firestore().collection("users").doc(phone).collection("seenNotifications").get();
-              const seenIds = seenSnap.docs.map(d => d.id);
+              const seenSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("seenNotifications"));
+              const seenIds = seenSnap.docs.map((d: any) => d.id);
 
               let count = 0;
               const now = new Date();
               const normalize = (s:any) => (s || "").trim().toLowerCase();
               
-              snap.forEach(doc => {
+              snap.forEach((doc: any) => {
                 const data = doc.data();
                 if (hiddenIds.includes(doc.id)) return;
                 
@@ -394,7 +395,7 @@ export default function Dashboard() {
       const token = await messaging().getToken();
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        await firestore().collection("users").doc(phone).set({ fcmToken: token }, { merge: true });
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).set({ fcmToken: token }, { merge: true }));
       }
     }
     saveToken();
@@ -402,7 +403,7 @@ export default function Dashboard() {
     const unsubscribe = messaging().onTokenRefresh(async token => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        await firestore().collection("users").doc(phone).set({ fcmToken: token }, { merge: true });
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).set({ fcmToken: token }, { merge: true }));
       }
     });
 
@@ -561,7 +562,7 @@ export default function Dashboard() {
       }
       
       await fetchAllSessions(phone);
-      const doc = await firestore().collection("users").doc(phone).get();
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const data = doc.data();
 
       // Set Name
@@ -586,11 +587,11 @@ export default function Dashboard() {
 
       const current = getCurrentSession();
       if (!isAppStarted) {
-        await firestore().collection("users").doc(phone).set({ activeSession: current, lastAutoUpgrade: current }, { merge: true });
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).set({ activeSession: current, lastAutoUpgrade: current }, { merge: true }));
         setActiveSession(current);
         isAppStarted = true;
       } else if (!data?.activeSession || data?.lastAutoUpgrade !== current) {
-        await firestore().collection("users").doc(phone).set({ activeSession: current, lastAutoUpgrade: current }, { merge: true });
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).set({ activeSession: current, lastAutoUpgrade: current }, { merge: true }));
         setActiveSession(current);
       } else {
         setActiveSession(data.activeSession);
@@ -627,7 +628,7 @@ export default function Dashboard() {
     if (!text) return "లొకేషన్";
     if (cityMap[text]) return cityMap[text]; 
     try {
-      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=te&dt=t&q=${encodeURIComponent(text)}`);
+      const res = await executeOfflineSafeFetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=te&dt=t&q=${encodeURIComponent(text)}`);
       const data = await res.json();
       return data[0][0][0];
     } catch { return text; }
@@ -655,9 +656,9 @@ export default function Dashboard() {
   const oldSessions = allSessions.filter(s => parseInt(s.split("-")[0]) < parseInt(oldestSession.split("-")[0]));
 
   const fetchAllSessions = async (phone:string) => {
-    const snap = await firestore().collection("users").doc(phone).collection("fields").get();
+    const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields"));
     const sessionsSet = new Set<string>();
-    snap.forEach(doc => {
+    snap.forEach((doc: any) => {
       const data = doc.data();
       if (data.session) sessionsSet.add(data.session);
     });
@@ -687,16 +688,18 @@ export default function Dashboard() {
 
   /* ---------------- WEATHER & LOCATION ---------------- */
   const getLocationWeather = async () => {
-    if (!isOnline) {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
-      }
-      return;
-    }
-
     try {
+      const netState = await NetInfo.fetch();
+      const isOffline = netState.isConnected === false || netState.isInternetReachable === false;
+      if (isOffline) {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
+        }
+        return;
+      }
+
       const cached = await AsyncStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -717,6 +720,10 @@ export default function Dashboard() {
       }
 
       if (!latitude || !longitude) {
+        if (isOffline) {
+          // If offline and no cache, just throw to use defaults instead of hanging on GPS
+          throw new Error("Offline and no GPS cache");
+        }
         let { status } = await Location.requestForegroundPermissionsAsync();
         
         if (status !== 'granted') {
@@ -734,7 +741,7 @@ export default function Dashboard() {
         await AsyncStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify({ latitude, longitude, timestamp: Date.now() }));
       }
 
-      const res = await fetch(`https://getweather-pdetykgfaq-uc.a.run.app?lat=${latitude}&lon=${longitude}`);
+      const res = await executeOfflineSafeFetch(`https://getweather-pdetykgfaq-uc.a.run.app?lat=${latitude}&lon=${longitude}`);
       if (!res.ok) throw new Error("Weather API failed");
       const data = await res.json();
 
@@ -792,27 +799,25 @@ export default function Dashboard() {
   };
 
   const fetchPrices = async () => {
-    if (!isOnline) {
-      const cached = await AsyncStorage.getItem(PRICE_CACHE_KEY);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed.data)) {
-          setPrices(processPrices(parsed.data).slice(0,3)); 
-        }
-        setPriceLoading(false);
-      }
-      return;
-    }
     try {
+      const netState = await NetInfo.fetch();
+      const isOffline = netState.isConnected === false || netState.isInternetReachable === false;
+      
       const cached = await AsyncStorage.getItem(PRICE_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Date.now() - parsed.timestamp < PRICE_CACHE_TIME && Array.isArray(parsed.data)) {
+        if (isOffline || (Date.now() - parsed.timestamp < PRICE_CACHE_TIME && Array.isArray(parsed.data))) {
           setPrices(processPrices(parsed.data).slice(0,3)); setPriceLoading(false); return;
         }
       }
+      
+      if (isOffline) {
+        setPriceLoading(false);
+        return;
+      }
+      
       setPriceLoading(true);
-      const res = await fetch("https://us-central1-agrisnap-9b487.cloudfunctions.net/getAdvancedPrices");
+      const res = await executeOfflineSafeFetch("https://us-central1-agrisnap-9b487.cloudfunctions.net/getAdvancedPrices");
       if (!res.ok) throw new Error("Price API failed");
       const data = await res.json();
 
@@ -979,16 +984,6 @@ export default function Dashboard() {
       <Animated.View>
         <View>
           <LinearGradient colors={["#1B5E20","#1B5E20"]} style={styles.header}>
-          {!isOnline && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: "rgba(239, 68, 68, 0.12)", borderColor: "rgba(239, 68, 68, 0.4)", borderWidth: 1, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, marginBottom: 12, gap: 8, alignSelf: "flex-start" }}>
-              <View>
-                <AppText style={{ color: "#EF4444", fontSize: 13, fontWeight: "600", letterSpacing: 0.5 }} language={language}>
-                  {language === "te" ? "ఇంటర్నెట్ లేదు | పాత డేటా కనిపిస్తోంది" : "Offline | Using cached data"}
-                </AppText>
-              </View>
-            </View>
-          )}
-
           {/* HEADER CAROUSEL */}
           <View style={styles.headerCarousel}>
             <FlatList
@@ -1053,11 +1048,6 @@ export default function Dashboard() {
                           <Ionicons name="analytics-outline" size={16} color="white" />
                           <View>
                             <AppText style={styles.marketTitle} language={language}>{language==="te" ? "పంట ధరలు" : "Crop Prices"}</AppText>
-                            {!priceLoading && prices.length > 0 && (
-                              <AppText style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2, fontFamily: "Mandali" }}>
-                                {language === "te" ? "చివరి అప్‌డేట్: " : "Last Updated: "} {prices[0].arrival_date?.slice(0,10) || "N/A"}
-                              </AppText>
-                            )}
                           </View>
                         </View>
                         <View style={styles.marketSeeMore}>
@@ -1227,7 +1217,7 @@ export default function Dashboard() {
           {sessions.map((s)=>(
             <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor: activeSession === s ? "#DCFCE7" : "#F3F4F6", marginBottom:10 }} onPress={async ()=>{
                 const phone = await AsyncStorage.getItem("USER_PHONE");
-                await firestore().collection("users").doc(phone!).update({ activeSession: s });
+                await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
                 setActiveSession(s);
                 setSessionModal(false);
               }}>
@@ -1257,7 +1247,7 @@ export default function Dashboard() {
             {oldSessions.map((s)=>(
               <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor:"#F3F4F6", marginBottom:10 }} onPress={async ()=>{
                   const phone = await AsyncStorage.getItem("USER_PHONE");
-                  await firestore().collection("users").doc(phone!).update({ activeSession: s });
+                  await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
                   setActiveSession(s);
                   setOldSessionModal(false);
                 }}>

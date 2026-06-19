@@ -1,4 +1,6 @@
-import AppEmptyState from "@/components/AppEmptyState"; 
+import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+ 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -91,7 +93,7 @@ export default function OwnersList() {
 
           if (isMounted.current) setLoading(true);
 
-          const userDoc = await firestore().collection("users").doc(phone).get();
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
@@ -105,15 +107,15 @@ export default function OwnersList() {
           if (isMounted.current) setActiveSession(session);
 
           try {
-            const pastSnap = await firestore()
+            const pastSnap = await executeOfflineSafeRead(firestore()
               .collection("users")
               .doc(phone)
               .collection("owners")
               .where("session", "!=", session)
-              .get();
+              );
             
             if (!pastSnap.empty) {
-              const pastList = pastSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+              const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
               const uniquePast: any[] = [];
               const phones = new Set();
               for (let o of pastList) {
@@ -143,7 +145,7 @@ export default function OwnersList() {
                 }
 
                 const list: any[] = [];
-                snap.forEach(doc => {
+                snap.forEach((doc: any) => {
                   const d = doc.data();
                   if (!d) return;
                   list.push({ id: doc.id, ...d });
@@ -197,13 +199,13 @@ export default function OwnersList() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone || !activeSession) return false;
 
-      const entriesSnap = await firestore()
+      const entriesSnap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone)
         .collection("owners").doc(ownerId)
         .collection("entries")
         .where("session", "==", activeSession)
         .limit(1)
-        .get();
+        );
 
       return !entriesSnap.empty; 
     } catch (error) {
@@ -273,7 +275,7 @@ export default function OwnersList() {
         }
       });
       
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
       setShowImportModal(false);
       setSelectedPastOwners([]);
     } catch (e) {
@@ -292,12 +294,12 @@ export default function OwnersList() {
     setShowDeleteModal(false);
 
     try {
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(phone)
         .collection("owners")
         .doc(deleteItem.id)
-        .delete();
+        .delete());
     } catch (e) {
       console.log("Delete Error:", e);
     }

@@ -1,6 +1,8 @@
 // app/farmer/sales/index.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons } from "@expo/vector-icons";
@@ -101,10 +103,10 @@ export default function SalesScreen() {
           return;
         }
 
-        const userDoc = await firestore()
+        const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
-          .get();
+          );
 
         const activeSession = userDoc.data()?.activeSession;
 
@@ -134,7 +136,7 @@ export default function SalesScreen() {
               const cropQtyMap: any = {};
               const cropIncomeMap: any = {};
 
-              snap.forEach(doc => {
+              snap.forEach((doc: any) => {
                 const d: any = doc.data();
 
                 const qty = Number(d.quantity) || 0;
@@ -183,12 +185,12 @@ export default function SalesScreen() {
       setLoading(true);
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        await firestore()
+        await executeOfflineSafeWrite(firestore()
           .collection("users")
           .doc(phone)
           .collection("sales")
           .doc(selectedItem.id)
-          .delete();
+          .delete());
       }
     } catch (e) {
       console.log("Delete error", e);

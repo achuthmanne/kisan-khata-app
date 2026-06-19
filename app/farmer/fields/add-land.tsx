@@ -3,6 +3,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useSpeechRecognitionEvent } from "expo-speech-recognition";
@@ -97,7 +98,7 @@ export default function AddLand() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         if (isMounted) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -156,7 +157,7 @@ export default function AddLand() {
         createdAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore().collection("users").doc(phone).collection("lands").add(landData);
+      await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("lands").add(landData));
       router.back();
 
     } catch (e: any) {

@@ -3,6 +3,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import * as Contacts from 'expo-contacts';
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -204,7 +205,7 @@ export default function AddWork() {
     const fetchSession = async () => {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
-      const doc = await firestore().collection("users").doc(userPhone).get();
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
       if (isMounted.current) {
         setActiveSession(doc.data()?.activeSession || "");
       }

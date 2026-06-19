@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import { View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Keyboard, StatusBar, SafeAreaView, Image, Modal, KeyboardAvoidingView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -104,7 +106,7 @@ export default function AddLockerScreen() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await firestore().collection("users").doc(phone).get();
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         if (isMountedLocal) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -135,17 +137,17 @@ export default function AddLockerScreen() {
         setUserCrops(JSON.parse(cachedCrops));
       }
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const fetchedSession = userDoc.data()?.activeSession;
       if (!fetchedSession) return;
 
-      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession).get();
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession));
       const landsMap: any = {};
-      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+      landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await firestore().collection("users").doc(phone).collection("fields").where("session", "==", fetchedSession).get();
+      const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", fetchedSession));
       const set = new Set<string>();
-      snap.forEach(doc => {
+      snap.forEach((doc: any) => {
         const data = doc.data();
         if (data.crop) {
           const nick = landsMap[data.landId] || data.nickname;
@@ -237,6 +239,7 @@ export default function AddLockerScreen() {
         urls.push(url);
       } catch (e) {
         console.log("Upload failed", e);
+        urls.push(images[i]);
       }
     }
     return urls;
@@ -262,7 +265,7 @@ export default function AddLockerScreen() {
 
       const uploadedUrls = await uploadImages(phone);
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession || null;
 
       const lockerData = {
@@ -277,7 +280,7 @@ export default function AddLockerScreen() {
         createdAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await firestore().collection("users").doc(phone).collection("locker").add(lockerData);
+      await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("locker").add(lockerData));
       await AsyncStorage.setItem("LOCKER_NEW_TAB", category as string);
       router.back();
     } catch (e) {

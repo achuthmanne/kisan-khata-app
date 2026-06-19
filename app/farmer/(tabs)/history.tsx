@@ -4,6 +4,7 @@ import AppEmptyState from "@/components/AppEmptyState";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
@@ -188,7 +189,7 @@ export default function PaymentHistory() {
       if (!userPhone) throw new Error("NO_USER");
 
       const db = firestore();
-      const userDoc = await db.collection("users").doc(userPhone).get();
+      const userDoc = await executeOfflineSafeRead(db.collection("users").doc(userPhone));
       const session = userDoc.data()?.activeSession;
 
       if (!session) {
@@ -206,7 +207,7 @@ export default function PaymentHistory() {
         .where("session", "==", session) 
         .get();
 
-      const payments = paymentSnap.docs.map(d => d.data());
+      const payments = paymentSnap.docs.map((d: any) => d.data());
 
       /* 🔥 2. GROUP BY MESTRI */
       const map: any = {};

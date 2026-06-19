@@ -1,4 +1,6 @@
 import AppHeader from "@/components/AppHeader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; // 🔥 మన గ్లోబల్ కాంపోనెంట్
 import { Ionicons } from "@expo/vector-icons";
@@ -53,19 +55,19 @@ export default function Notifications() {
         const phone = await AsyncStorage.getItem("USER_PHONE");
 
         if (!phone) return; // 🔥 important
-        const hiddenSnap = await firestore()
+        const hiddenSnap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
           .collection("hiddenNotifications")
-          .get();
+          );
 
-        const userDoc = await firestore()
+        const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
-          .get();
+          );
 
         const userState = userDoc.data()?.state;
-        const hiddenIds = hiddenSnap.docs.map(d => d.id);
+        const hiddenIds = hiddenSnap.docs.map((d: any) => d.id);
         const normalize = (s:any) => (s || "").trim().toLowerCase();
 
         for (const doc of snap.docs) {
@@ -121,31 +123,31 @@ export default function Notifications() {
     const phone = await AsyncStorage.getItem("USER_PHONE");
     if (!phone) return;
 
-    const userDoc = await firestore()
+    const userDoc = await executeOfflineSafeRead(firestore()
       .collection("users")
       .doc(phone)
-      .get();
+      );
 
     const userData = userDoc.data();
 
-    await firestore().collection("feedback").add({
+    await executeOfflineSafeWrite(firestore().collection("feedback").add({
       rating: ratingMap[itemId],
       feedback: ratingMap[itemId] < 5 ? (feedbackMap[itemId] || "") : "",
       userName: userData?.name || "Farmer",
       phone: phone || "",
       notificationId: itemId,
       createdAt: firestore.FieldValue.serverTimestamp()
-    });
+    }));
 
     // 🔥 HIDE NOTIFICATION
-    await firestore()
+    await executeOfflineSafeWrite(firestore()
       .collection("users")
       .doc(phone)
       .collection("hiddenNotifications")
       .doc(itemId)
       .set({
         hiddenAt: firestore.FieldValue.serverTimestamp()
-      });
+      }));
 
     setSubmittedMap(prev => ({
       ...prev,
@@ -263,12 +265,12 @@ export default function Notifications() {
                   // 🔥 NEW LOGIC: మెయిన్ డాక్యుమెంట్ మార్చకుండా, యూజర్ సబ్-కలెక్షన్ లో "seen" రికార్డ్ యాడ్ చేస్తున్నాం
                   const phone = await AsyncStorage.getItem("USER_PHONE");
                   if (phone && !item.seenLocally) {
-                    await firestore()
+                    await executeOfflineSafeWrite(firestore()
                       .collection("users")
                       .doc(phone)
                       .collection("seenNotifications") // కొత్త కలెక్షన్: యూజర్ చూసిన నోటిఫికేషన్ల జాబితా
                       .doc(item.id)
-                      .set({ seenAt: firestore.FieldValue.serverTimestamp() });
+                      .set({ seenAt: firestore.FieldValue.serverTimestamp() }));
                     
                     // కరెంట్ లిస్ట్ లో వెంటనే అప్‌డేట్ అవ్వడానికి (UI కోసం)
                     setData(prev => prev.map(n => n.id === item.id ? { ...n, seenLocally: true } : n));

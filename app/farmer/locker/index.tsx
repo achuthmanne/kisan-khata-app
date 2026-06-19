@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import { View, StyleSheet, TouchableOpacity, FlatList, RefreshControl, StatusBar, SafeAreaView, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -94,7 +96,7 @@ export default function LockerScreen() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) { setLoading(false); return; }
 
-      const userDoc = await firestore().collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession;
 
       // Listen to snapshot for instant updates when adding/deleting
@@ -113,7 +115,7 @@ export default function LockerScreen() {
               return;
             }
 
-            let data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            let data = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
             if (activeSession) {
               data = data.filter((item: any) => !item.session || item.session === activeSession);
             }
@@ -144,7 +146,7 @@ export default function LockerScreen() {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        await firestore().collection("users").doc(phone).collection("locker").doc(id).delete();
+        await executeOfflineSafeWrite(firestore().collection("users").doc(phone).collection("locker").doc(id).delete());
       }
     } catch (e) {
       console.log("Error deleting item", e);

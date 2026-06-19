@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import storage from "@react-native-firebase/storage";
 import * as FileSystem from "expo-file-system";
 import { Image } from "expo-image";
@@ -82,7 +83,7 @@ export default function PaymentSuccess() {
 
     try {
       const net = await NetInfo.fetch();
-      if (!net.isConnected) { setStatus("failed"); return; }
+      const isOffline = !net.isConnected || !net.isInternetReachable;
 
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) { setStatus("failed"); return; }
@@ -105,12 +106,19 @@ export default function PaymentSuccess() {
               uploadUri = localUri;
             }
 
+            // If offline or storage fails, we just keep the local URI. 
+            // In a full production app, you'd queue this for later upload.
+            if (isOffline) {
+              return { url: uploadUri, type: proof.type, name: proof.name || "", isLocal: true };
+            }
+
             await reference.putFile(uploadUri);
             const url = await reference.getDownloadURL();
             return { url, type: proof.type, name: proof.name || "" };
           } catch (storageErr) {
             console.log("Storage upload error:", storageErr);
-            return null; 
+            // Fallback to local URI so we don't lose the record
+            return { url: proof.uri, type: proof.type, name: proof.name || "", isLocal: true };
           }
         });
 
@@ -120,7 +128,7 @@ export default function PaymentSuccess() {
 
       // 2. SAVE FIRESTORE DOC
       const db = firestore();
-      const userDoc = await db.collection("users").doc(phone).get();
+      const userDoc = await executeOfflineSafeRead(db.collection("users").doc(phone));
       const activeSession = userDoc.data()?.activeSession || "default";
 
       const paymentData: any = {
@@ -170,7 +178,7 @@ export default function PaymentSuccess() {
         batch.update(attRef, { isPaid: true, paymentId: paymentRef.id });
       });
 
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
 
       setStatus("success");
 

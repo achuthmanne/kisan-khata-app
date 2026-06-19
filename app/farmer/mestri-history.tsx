@@ -6,6 +6,7 @@ import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -78,7 +79,7 @@ export default function MestriHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
-      const userDoc = await firestore().collection("users").doc(userPhone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
       const session = userDoc.data()?.activeSession;
 
       if (!session) {
@@ -89,23 +90,23 @@ export default function MestriHistory() {
       if (isMounted.current) setActiveSession(session);
 
       // 1️⃣ పేమెంట్ అయిన రికార్డ్స్ (Locked)
-      const paymentsSnap = await firestore()
+      const paymentsSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("payments")
         .where("mestriId", "==", id as string)
         .where("session", "==", session)
-        .get();
+        );
 
       let paidSet = new Set<string>();
-      paymentsSnap.forEach(doc => {
+      paymentsSnap.forEach((doc: any) => {
          const selectedIds = doc.data().selectedAttendanceIds || [];
          selectedIds.forEach((attId: string) => paidSet.add(attId));
       });
       if (isMounted.current) setPaidIds(Array.from(paidSet));
 
       // 2️⃣ మామూలు హాజరు లిస్ట్
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
@@ -114,16 +115,16 @@ export default function MestriHistory() {
         .where("session", "==", session)
         .where("createdAt", "!=", null)
         .orderBy("createdAt", "desc")
-        .get();
+        );
         
-      const list = snap.docs.map(d => ({
+      const list = snap.docs.map((d: any) => ({
         id: d.id,
         ...(d.data() as any)
       }));
 
       // 🔥 GROUP BY CROP
       const group: any = {};
-      list.forEach(item => {
+      list.forEach((item: any) => {
         const crop = item.crop || "Others";
         if (!group[crop]) group[crop] = [];
         group[crop].push(item);
@@ -162,14 +163,14 @@ export default function MestriHistory() {
     if (!userPhone) return;
 
     try {
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
         .doc(id as string)
         .collection("attendance")
         .doc(deleteId)
-        .delete();
+        .delete());
 
       if (isMounted.current) setModalVisible(false);
       loadData(); // మళ్ళీ సింక్ కోసం

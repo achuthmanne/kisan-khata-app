@@ -1,4 +1,6 @@
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -69,7 +71,7 @@ export default function VehiclesScreen() {
           return;
         }
 
-        const userDoc = await firestore().collection("users").doc(phone).get();
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
@@ -80,15 +82,15 @@ export default function VehiclesScreen() {
         if (isMounted.current) setActiveSession(activeSession);
 
         try {
-          const pastSnap = await firestore()
+          const pastSnap = await executeOfflineSafeRead(firestore()
             .collection("users")
             .doc(phone)
             .collection("vehicles")
             .where("session", "!=", activeSession)
-            .get();
+            );
           
           if (!pastSnap.empty) {
-            const pastList = pastSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+            const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
             const uniquePast: any[] = [];
             const numbers = new Set();
             for (let v of pastList) {
@@ -118,7 +120,7 @@ export default function VehiclesScreen() {
           const list: any[] = [];
           const group: any = {};
 
-          snap.forEach(doc => {
+          snap.forEach((doc: any) => {
             const d: any = doc.data();
             if (!d) return; 
 
@@ -220,7 +222,7 @@ export default function VehiclesScreen() {
         }
       });
       
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
       setShowImportModal(false);
       setSelectedPastVehicles([]);
     } catch (e) {

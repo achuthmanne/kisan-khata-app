@@ -1,5 +1,7 @@
 //vechile farmer
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -102,10 +104,10 @@ export default function VehicleDetails() {
 
           setLoading(true);
 
-          const userDoc = await firestore()
+          const userDoc = await executeOfflineSafeRead(firestore()
             .collection("users")
             .doc(phone)
-            .get();
+            );
 
           const session = userDoc.data()?.activeSession;
 
@@ -120,14 +122,14 @@ export default function VehicleDetails() {
           if (isMounted.current) setActiveSession(session); 
 
           try {
-            const pastVehiclesSnap = await firestore()
+            const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
               .collection("users")
               .doc(phone)
               .collection("vehicles")
               .where("session", "!=", session)
-              .get();
+              );
               
-            const fetchPromises = pastVehiclesSnap.docs.map(vDoc => 
+            const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
               vDoc.ref.collection("farmers").get()
             );
             
@@ -135,8 +137,8 @@ export default function VehicleDetails() {
             const uniquePast: any[] = [];
             const phones = new Set();
             
-            snaps.forEach(snap => {
-              snap.docs.forEach(doc => {
+            snaps.forEach((snap: any) => {
+              snap.docs.forEach((doc: any) => {
                 const f = { id: doc.id, ...(doc.data() as any) };
                 const key = f.phone ? f.phone.trim() : f.farmerName?.trim().toLowerCase();
                 if (key && !phones.has(key)) {
@@ -167,7 +169,7 @@ export default function VehicleDetails() {
                 }
 
                 const list: any[] = [];
-                snap.forEach(doc => {
+                snap.forEach((doc: any) => {
                   const d = doc.data();
                   if (!d) return;
                   list.push({ id: doc.id, ...d });
@@ -232,7 +234,7 @@ export default function VehicleDetails() {
       const batch = firestore().batch();
       const farmerRef = firestore().collection("users").doc(phone).collection("vehicles").doc(id as string).collection("farmers");
       
-      selectedPastFarmers.forEach(fid => {
+      selectedPastFarmers.forEach((fid: any) => {
         const f = pastFarmers.find(x => x.id === fid);
         if (f) {
           const newRef = farmerRef.doc();
@@ -246,7 +248,7 @@ export default function VehicleDetails() {
         }
       });
       
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
       setShowImportModal(false);
       setSelectedPastFarmers([]);
     } catch (e) {
@@ -268,14 +270,14 @@ export default function VehicleDetails() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone || !activeSession || !id) return false;
 
-      const workSnap = await firestore()
+      const workSnap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone)
         .collection("vehicles").doc(id as string)
         .collection("works").doc(farmerId)
         .collection("entries")
         .where("session", "==", activeSession)
         .limit(1)
-        .get();
+        );
 
       return !workSnap.empty;
     } catch (error) {
@@ -329,14 +331,14 @@ export default function VehicleDetails() {
     setShowDeleteModal(false);
 
     try {
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(phone)
         .collection("vehicles")
         .doc(id as string)
         .collection("farmers")
         .doc(deleteItem.id)
-        .delete();
+        .delete());
     } catch (e) {
       console.log(e);
     }

@@ -1,5 +1,7 @@
 //vechile drivers work history
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -97,7 +99,7 @@ export default function DriverHistory() {
         }
 
         // 🔥 1. FETCH ACTIVE SESSION
-        const userDoc = await firestore().collection("users").doc(userPhone).get();
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
@@ -122,7 +124,7 @@ export default function DriverHistory() {
             }
 
             const list: WorkItem[] = [];
-            snap.forEach(doc => list.push({ id: doc.id, ...(doc.data() as any) }));
+            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
 
             // 🔥 Index ఎర్రర్ రాకుండా సార్టింగ్
             list.sort((a, b) => {
@@ -153,7 +155,7 @@ export default function DriverHistory() {
     if (!userPhone || !deleteId || !vId || !dId) return;
 
     try {
-        await firestore()
+        await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("vehicles")
@@ -162,7 +164,7 @@ export default function DriverHistory() {
         .doc(dId)
         .collection("entries")
         .doc(deleteId)
-        .delete();
+        .delete());
     } catch (e) {
         console.log("Delete error", e);
     }
@@ -177,7 +179,7 @@ export default function DriverHistory() {
     if (!userPhone || !statusId || !vId || !dId) return;
 
     try {
-        await firestore()
+        await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("vehicles")
@@ -188,7 +190,7 @@ export default function DriverHistory() {
         .doc(statusId)
         .update({
             paymentStatus: newStatus
-        });
+        }));
     } catch (e) {
         console.log("Update error", e);
     }
@@ -230,7 +232,7 @@ export default function DriverHistory() {
         }
       }
 
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("vehicles")
@@ -245,7 +247,7 @@ export default function DriverHistory() {
             splitCash: paymentMode === "both" ? splitCash : null,
             splitUpi: paymentMode === "both" ? splitUpi : null,
             proofs: uploadedProofs.length > 0 ? uploadedProofs : null,
-        });
+        }));
     } catch (e) {
         console.log("Update error", e);
     } finally {

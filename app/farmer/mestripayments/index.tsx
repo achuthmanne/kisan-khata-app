@@ -1,6 +1,8 @@
 // app/farmer/payments.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -104,10 +106,10 @@ export default function PaymentsScreen() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
 
-      const userDoc = await firestore()
+      const userDoc = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
-        .get();
+        );
 
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) {
@@ -115,14 +117,14 @@ export default function PaymentsScreen() {
         return;
       }
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
         .where(`attendanceSessions.${activeSession}`, "==", true) 
-        .get();
+        );
 
-      const result = snap.docs.map(doc => ({
+      const result = snap.docs.map((doc: any) => ({
         id: doc.id,
         ...doc.data()
       }));

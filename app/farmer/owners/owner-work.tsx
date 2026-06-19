@@ -1,4 +1,6 @@
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -103,7 +105,7 @@ export default function OwnerWork() {
           if (!userPhone || !oId) return;
 
           // 🔥 FETCH ACTIVE SESSION
-          const userDoc = await firestore().collection("users").doc(userPhone).get();
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
           const activeSession = userDoc.data()?.activeSession;
 
           if (!activeSession) {
@@ -130,7 +132,7 @@ export default function OwnerWork() {
               }
 
               const list: WorkItem[] = [];
-              snap.forEach(doc => list.push({ id: doc.id, ...(doc.data() as any) }));
+              snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
 
               // 🔥 Client Side Sorting (Latest first)
               list.sort((a, b) => {
@@ -168,14 +170,14 @@ export default function OwnerWork() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone || !deleteId || !oId) return;
 
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("owners")
         .doc(oId)
         .collection("entries")
         .doc(deleteId)
-        .delete();
+        .delete());
 
     } catch (e) {
       console.log("Error deleting entry:", e);
@@ -235,7 +237,7 @@ export default function OwnerWork() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone || !statusId || !oId) return;
 
-      const userDoc = await firestore().collection("users").doc(userPhone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
       const activeSession = userDoc.data()?.activeSession;
 
       // Upload proofs
@@ -259,6 +261,7 @@ export default function OwnerWork() {
           uploadedProofs.push({ type: proof.type, uri: downloadUrl });
         } catch (uploadError) {
           console.log("Upload Error:", uploadError);
+          uploadedProofs.push({ type: proof.type, uri: proof.uri });
         }
       }
 
@@ -308,7 +311,7 @@ export default function OwnerWork() {
         });
       }
 
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
 
     } catch (e) {
       console.log("Error locking and saving expense:", e);

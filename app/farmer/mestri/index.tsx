@@ -1,6 +1,8 @@
 // app/farmer/attendance.tsx
 
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -113,7 +115,7 @@ export default function AttendanceScreen() {
           return;
         }
 
-        const userDoc = await firestore().collection("users").doc(userPhone).get();
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
         const session = userDoc.data()?.activeSession;
 
         if (!session) {
@@ -125,15 +127,15 @@ export default function AttendanceScreen() {
         setActiveSession(session);
 
         try {
-          const pastSnap = await firestore()
+          const pastSnap = await executeOfflineSafeRead(firestore()
             .collection("users")
             .doc(userPhone)
             .collection("mestris")
             .where("session", "!=", session)
-            .get();
+            );
           
           if (!pastSnap.empty) {
-            const pastList = pastSnap.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) }));
+            const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
             const uniquePast: any[] = [];
             const phones = new Set();
             for (let m of pastList) {
@@ -159,7 +161,7 @@ export default function AttendanceScreen() {
               setLoading(false);
               return;
             }
-            const list = snapshot.docs.map(doc => ({
+            const list = snapshot.docs.map((doc: any) => ({
               id: doc.id,
               ...doc.data()
             }));
@@ -191,24 +193,24 @@ export default function AttendanceScreen() {
       if (!phone || !activeSession) return false;
 
       // 1. Check Attendance
-      const attSnap = await firestore()
+      const attSnap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone)
         .collection("mestris").doc(mestriId)
         .collection("attendance")
         .where("session", "==", activeSession)
         .limit(1) 
-        .get();
+        );
 
       if (!attSnap.empty) return true;
 
       // 2. Check Payments
-      const paySnap = await firestore()
+      const paySnap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone)
         .collection("payments")
         .where("mestriId", "==", mestriId)
         .where("session", "==", activeSession)
         .limit(1)
-        .get();
+        );
 
       if (!paySnap.empty) return true;
 
@@ -274,7 +276,7 @@ export default function AttendanceScreen() {
         }
       });
       
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
       setShowImportModal(false);
       setSelectedPastMestris([]);
     } catch (e) {

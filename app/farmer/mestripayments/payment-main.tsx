@@ -1,6 +1,8 @@
 // app/farmer/payment-work-history.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons } from "@expo/vector-icons";
@@ -48,46 +50,46 @@ export default function PaymentWorkHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
 
-      const userDoc = await firestore()
+      const userDoc = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
-        .get();
+        );
 
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) return;
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
         .doc(id as string)
         .collection("attendance")
         .where("session", "==", activeSession) 
-        .get();
+        );
 
-      const paymentSnap = await firestore()
+      const paymentSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("payments")
         .where("mestriId", "==", id)
         .where("crop", "==", crop)
         .where("work", "==", work)
-        .get();
+        );
 
       let paidIds: string[] = [];
 
-      paymentSnap.docs.forEach(doc => {
+      paymentSnap.docs.forEach((doc: any) => {
         const paymentData = doc.data();
         paidIds.push(...(paymentData.selectedAttendanceIds || []));
       });
 
-      const allList = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const allList = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
       const list = allList.filter(item =>
         item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
         item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
         !paidIds.includes(item.id) 
       )
-      .sort((a, b) => {
+      .sort((a: any, b: any) => {
           const parseDate = (dStr: string) => {
             if (!dStr) return 0;
             const parts = dStr.split("/");

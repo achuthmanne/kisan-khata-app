@@ -3,6 +3,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
@@ -98,10 +99,10 @@ export default function EditMestri() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
 
-      const doc = await firestore()
+      const doc = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(userPhone)
-        .get();
+        );
 
       setActiveSession(doc.data()?.activeSession || "");
     };
@@ -127,12 +128,12 @@ export default function EditMestri() {
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone || !id) return;
 
-        const doc = await firestore()
+        const doc = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(userPhone)
           .collection("mestris")
           .doc(id as string)
-          .get();
+          );
 
         const data = doc.data();
 
@@ -198,7 +199,7 @@ export default function EditMestri() {
         return;
       }
       
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users")
         .doc(userPhone)
         .collection("mestris")
@@ -208,7 +209,7 @@ export default function EditMestri() {
           phone: cleanPhone,
           village: village.trim(),
           session: activeSession 
-        });
+        }));
 
       setLoading(false);
       router.back();

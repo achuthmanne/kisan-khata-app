@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import firestore from "@react-native-firebase/firestore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import AgriLoader from "@/components/AgriLoader"; 
@@ -79,7 +80,7 @@ export default function SchemeDetailsScreen() {
         return;
       }
 
-      const docSnap = await firestore().collection("schemes").doc(id as string).get();
+      const docSnap = await executeOfflineSafeRead(firestore().collection("schemes").doc(id as string));
 
       if (isMounted) {
         if (docSnap.exists()) {

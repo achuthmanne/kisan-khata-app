@@ -1,5 +1,7 @@
 //vechile drivers monthly work history
 import AppEmptyState from "@/components/AppEmptyState";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -164,11 +166,11 @@ export default function MonthlyDriverHistory() {
 
         let activeSession: string | undefined;
         try {
-            const userDoc = await firestore().collection("users").doc(userPhone).get({ source: "cache" });
+            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).get({ source: "cache" }));
             activeSession = userDoc.data()?.activeSession;
         } catch (e) {
             // fallback to server if cache fails
-            const userDoc = await firestore().collection("users").doc(userPhone).get();
+            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
             activeSession = userDoc.data()?.activeSession;
         }
 
@@ -190,7 +192,7 @@ export default function MonthlyDriverHistory() {
           .onSnapshot(snap => {
             if (!snap) return;
             const list: CycleItem[] = [];
-            snap.forEach(doc => list.push({ id: doc.id, ...(doc.data() as any) }));
+            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
             list.sort((a, b) => {
               const timeA = a.startDateRaw ? new Date(a.startDateRaw).getTime() : 0;
               const timeB = b.startDateRaw ? new Date(b.startDateRaw).getTime() : 0;
@@ -222,7 +224,7 @@ export default function MonthlyDriverHistory() {
           .onSnapshot(snap => {
             if (!snap) return;
             const list: WorkItem[] = [];
-            snap.forEach(doc => list.push({ id: doc.id, ...(doc.data() as any) }));
+            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
             if (isMounted.current) {
                 setEntries(list);
                 setEntriesLoaded(true);
@@ -272,13 +274,13 @@ export default function MonthlyDriverHistory() {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
 
-    const userDoc = await firestore().collection("users").doc(userPhone).get();
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
     const activeSession = userDoc.data()?.activeSession;
 
     setShowOnboarding(false);
 
     try {
-        await firestore()
+        await executeOfflineSafeWrite(firestore()
           .collection("users").doc(userPhone)
           .collection("vehicles").doc(vId)
           .collection("drivers").doc(dId)
@@ -292,7 +294,7 @@ export default function MonthlyDriverHistory() {
             isCleared: false,
             session: activeSession,
             createdAt: firestore.FieldValue.serverTimestamp()
-          });
+          }));
     } catch (e) {
         console.error("Error creating first cycle:", e);
     }
@@ -350,7 +352,7 @@ export default function MonthlyDriverHistory() {
         return;
     }
 
-    const userDoc = await firestore().collection("users").doc(userPhone).get();
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
     const activeSession = userDoc.data()?.activeSession;
 
     const batch = firestore().batch();
@@ -409,7 +411,7 @@ export default function MonthlyDriverHistory() {
       setNewMonthError("");
 
       try {
-        await batch.commit();
+        await executeOfflineSafeWrite(batch.commit());
       } catch (e) {
         console.error("Error creating new month:", e);
       }
@@ -421,7 +423,7 @@ export default function MonthlyDriverHistory() {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
 
-    await firestore()
+    await executeOfflineSafeWrite(firestore()
       .collection("users").doc(userPhone)
       .collection("vehicles").doc(vId)
       .collection("drivers").doc(dId)
@@ -432,7 +434,7 @@ export default function MonthlyDriverHistory() {
         splitCash: firestore.FieldValue.delete(),
         splitUpi: firestore.FieldValue.delete(),
         proofs: firestore.FieldValue.delete(),
-      });
+      }));
       
     setClearId(null);
   };
@@ -442,7 +444,7 @@ export default function MonthlyDriverHistory() {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
 
-    const userDoc = await firestore().collection("users").doc(userPhone).get();
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
     const activeSession = userDoc.data()?.activeSession;
     if (!activeSession) return;
 
@@ -486,7 +488,7 @@ export default function MonthlyDriverHistory() {
     setLockModalVisible(true);
 
     try {
-      await batch.commit();
+      await executeOfflineSafeWrite(batch.commit());
     } catch (e) {
       console.error("Error with early settlement:", e);
     }
@@ -537,7 +539,7 @@ export default function MonthlyDriverHistory() {
       }
 
       // 2. Update Document
-      await firestore()
+      await executeOfflineSafeWrite(firestore()
         .collection("users").doc(userPhone)
         .collection("vehicles").doc(vId)
         .collection("drivers").doc(dId)
@@ -549,7 +551,7 @@ export default function MonthlyDriverHistory() {
           splitCash: paymentMode === "both" ? splitCash : null,
           splitUpi: paymentMode === "both" ? splitUpi : null,
           proofs: uploadedProofs.length > 0 ? uploadedProofs : null,
-        });
+        }));
 
       setLockModalVisible(false);
     } catch (e) {
@@ -568,7 +570,7 @@ export default function MonthlyDriverHistory() {
         const vIdStr = Array.isArray(vehicleId) ? vehicleId[0] : vehicleId;
         const dIdStr = Array.isArray(driverId) ? driverId[0] : driverId;
         
-        await firestore()
+        await executeOfflineSafeWrite(firestore()
           .collection("users")
           .doc(phone)
           .collection("vehicles")
@@ -577,7 +579,7 @@ export default function MonthlyDriverHistory() {
           .doc(dIdStr)
           .collection("entries")
           .doc(deleteEntryId)
-          .delete();
+          .delete());
       }
       setDeleteEntryId(null);
     } catch (e) {
@@ -620,7 +622,7 @@ export default function MonthlyDriverHistory() {
         }
 
         setDeleteCycleId(null);
-        await batch.commit();
+        await executeOfflineSafeWrite(batch.commit());
 
     } catch (e) {
         console.error("Error deleting cycle:", e);

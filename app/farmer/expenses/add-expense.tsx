@@ -1,6 +1,8 @@
 // app/farmer/add-expenses.tsx
 
 import { Ionicons } from "@expo/vector-icons";
+import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
@@ -95,7 +97,7 @@ const categoryOptions = [
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const doc = await firestore().collection("users").doc(phone).get();
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
       if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
     };
     loadSession();
@@ -108,19 +110,19 @@ const categoryOptions = [
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const landsSnap = await firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession).get();
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
       const landsMap: any = {};
-      landsSnap.forEach(doc => { landsMap[doc.id] = doc.data().nickname; });
+      landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await firestore()
+      const snap = await executeOfflineSafeRead(firestore()
         .collection("users")
         .doc(phone)
         .collection("fields")
         .where("session", "==", activeSession)
-        .get();
+        );
 
       const set = new Set<string>();
-      snap.forEach(doc => {
+      snap.forEach((doc: any) => {
         const d = doc.data();
         if (d.crop) {
           const nick = landsMap[d.landId] || d.nickname;

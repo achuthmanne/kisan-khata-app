@@ -530,7 +530,7 @@ export default function Dashboard() {
   const onRefresh = async () => {
     setRefreshing(true);
     await getLocationWeather();
-    await fetchPrices();
+    await fetchPrices(true);
     await loadUser(); // 🔥 Sync user profile details during refresh
     await new Promise(resolve => setTimeout(resolve,800));
     setRefreshing(false);
@@ -798,7 +798,7 @@ export default function Dashboard() {
     });
   };
 
-  const fetchPrices = async () => {
+  const fetchPrices = async (isRefresh = false) => {
     try {
       const netState = await NetInfo.fetch();
       const isOffline = netState.isConnected === false || netState.isInternetReachable === false;
@@ -806,7 +806,7 @@ export default function Dashboard() {
       const cached = await AsyncStorage.getItem(PRICE_CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (isOffline || (Date.now() - parsed.timestamp < PRICE_CACHE_TIME && Array.isArray(parsed.data))) {
+        if (isOffline || (!isRefresh && Date.now() - parsed.timestamp < PRICE_CACHE_TIME && Array.isArray(parsed.data))) {
           setPrices(processPrices(parsed.data).slice(0,3)); setPriceLoading(false); return;
         }
       }
@@ -816,7 +816,7 @@ export default function Dashboard() {
         return;
       }
       
-      setPriceLoading(true);
+      if (!isRefresh) setPriceLoading(true);
       const res = await executeOfflineSafeFetch("https://us-central1-agrisnap-9b487.cloudfunctions.net/getAdvancedPrices");
       if (!res.ok) throw new Error("Price API failed");
       const data = await res.json();
@@ -979,7 +979,15 @@ export default function Dashboard() {
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{ paddingTop: 95 }}
-      refreshControl={ <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2E7D32"]} tintColor="#2E7D32" /> }
+      refreshControl={ 
+        <RefreshControl 
+          refreshing={refreshing} 
+          onRefresh={onRefresh} 
+          colors={["#2E7D32"]} 
+          tintColor="#2E7D32" 
+          progressViewOffset={95} 
+        /> 
+      }
     >
       <Animated.View>
         <View>
@@ -1009,33 +1017,31 @@ export default function Dashboard() {
                 if(item.type==="weather"){
                   return(
                     <View style={{ width: width - 40, alignSelf:"center" }}>
-                      <TouchableOpacity style={styles.headerGlassCard} onPress={()=>router.push("/farmer/weather")} activeOpacity={0.9}>
-                        <View style={{ flex: 1, justifyContent: "space-between", height: 88 }}>
-                          {/* TOP ROW: Height ~22px */}
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, paddingRight: 10 }}>
-                              <Ionicons name="location-outline" size={16} color="white" style={{ marginTop: -4 }} />
-                              <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
-                            </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                              <AppText style={styles.openText} language={language}>{t.forecast}</AppText>
-                              <AnimatedReanimated.View style={swipeAnimatedStyle}>
-                                <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
-                              </AnimatedReanimated.View>
-                            </View>
+                      <TouchableOpacity style={[styles.headerGlassCard, { flexDirection: "column", justifyContent: "space-between" }]} onPress={()=>router.push("/farmer/weather")} activeOpacity={0.9}>
+                        {/* TOP ROW */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: -5 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, paddingRight: 10 }}>
+                            <Ionicons name="location-outline" size={16} color="white" style={{ marginTop: 1 }} />
+                            <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
                           </View>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <AppText style={styles.openText} language={language}>{t.forecast}</AppText>
+                            <AnimatedReanimated.View style={swipeAnimatedStyle}>
+                              <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
+                            </AnimatedReanimated.View>
+                          </View>
+                        </View>
 
-                          {/* BOTTOM ROW: Height Exactly 60px */}
-                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 }}>
-                            <View style={{ height: 60, justifyContent: 'space-between' }}>
-                              <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 18 }} language={language}>{date} | {time}</AppText>
-                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Animated.Image source={getWeatherIcon()} style={{ width: 34, height: 34, marginRight: 6 }} />
-                                <AppText style={{ color:"white", fontSize: 16, lineHeight: 34, includeFontPadding: false }} language={language}>{weather}</AppText>
-                              </View>
+                        {/* BOTTOM ROW */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 }}>
+                          <View style={{ height: 60, justifyContent: 'space-between' }}>
+                            <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 18 }} language={language}>{date} | {time}</AppText>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              <Animated.Image source={getWeatherIcon()} style={{ width: 34, height: 34, marginRight: 6 }} />
+                              <AppText style={{ color:"white", fontSize: 16, lineHeight: 34, includeFontPadding: false }} language={language}>{weather}</AppText>
                             </View>
-                            <AppText style={{ color:"white", fontSize: 58, fontWeight: "bold", lineHeight: 60, includeFontPadding: false, marginRight: 0 }} language={language}>{temp ?? "--"}°C</AppText>
                           </View>
+                          <AppText style={{ color:"white", fontSize: 58, fontWeight: "bold", lineHeight: 60, includeFontPadding: false, marginRight: 0 }} language={language}>{temp ?? "--"}°C</AppText>
                         </View>
                       </TouchableOpacity>
                     </View>
@@ -1045,7 +1051,7 @@ export default function Dashboard() {
                     <TouchableOpacity style={[styles.headerGlassCard,{flexDirection:"column"}]} onPress={()=>router.push("/farmer/market")} activeOpacity={0.9}>
                       <View style={styles.marketHeaderRow}>
                         <View style={styles.marketTitleRow}>
-                          <Ionicons name="analytics-outline" size={16} color="white" />
+                          <Ionicons name="analytics-outline" size={16} color="white" style={{ marginTop: 1 }} />
                           <View>
                             <AppText style={styles.marketTitle} language={language}>{language==="te" ? "పంట ధరలు" : "Crop Prices"}</AppText>
                           </View>
@@ -1284,7 +1290,7 @@ const styles = StyleSheet.create({
   openText:{ color:"white", fontSize:12, opacity:0.9 },
   weatherCard:{ marginTop:30, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, padding:18, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
   locationRow:{ flexDirection:"row", alignItems:"center", paddingRight: 5, flexShrink: 1 },
-  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, lineHeight: 28, paddingBottom: 4, marginTop: -6 },
+  city:{ flexShrink: 1, color:"white", fontSize:16, fontWeight:"600", marginLeft:6, paddingTop: 2, paddingBottom: 4 },
   date:{ color:"rgba(255,255,255,0.8)", fontSize:14, marginTop:5 },
   greetRow:{ flexDirection:"row", alignItems:"center", gap:6 },
   rightTopSection:{ position:"absolute", right:8, alignItems:"flex-end" },
@@ -1307,7 +1313,7 @@ const styles = StyleSheet.create({
   marketTitleRow:{ flexDirection:"row", alignItems:"center", gap:6 },
   priceLoadingBox:{ flexDirection:"row", alignItems:"center", justifyContent:"center", gap:6, marginTop:10 },
   priceLoadingText:{ color:"white", fontSize:13, opacity:0.9 },
-  marketTitle:{ color:"white", fontSize:16, fontWeight:"600" },
+  marketTitle:{ color:"white", fontSize:16, fontWeight:"600", paddingTop: 2, paddingBottom: 4 },
   marketSeeMore:{ flexDirection:"row", alignItems:"center", gap:4 },
   marketRight:{ flexDirection:"row", alignItems:"center", justifyContent:"flex-end", minWidth:80, paddingLeft: 10 },
   crop:{ color:"white", fontSize:15, fontWeight:"700", flexShrink: 1 },

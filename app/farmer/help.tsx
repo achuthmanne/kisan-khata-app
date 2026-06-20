@@ -69,8 +69,8 @@ export default function HelpSupport() {
       id: "2",
       q: language === "te" ? "ఇంటర్నెట్ లేకపోయినా యాప్ పనిచేస్తుందా?" : "Does the app work without the internet?",
       a: language === "te" 
-        ? "లేదు. మీ డేటా 100% సురక్షితంగా మా క్లౌడ్ (Cloud) లో సేవ్ అవ్వడానికి మరియు పాత లెక్కలు ఎప్పుడైనా చూసుకోవడానికి తప్పనిసరిగా ఇంటర్నెట్ కనెక్షన్ అవసరం." 
-        : "No. An active internet connection is strictly required to securely save your data in our cloud and to access your previous records anytime."
+        ? "అవును, పనిచేస్తుంది! ఇంటర్నెట్ లేనప్పుడు కూడా మీరు లెక్కలు నమోదు చేసుకోవచ్చు. అవి మీ ఫోన్ లో భద్రంగా ఉంటాయి. నెట్ ఆన్ చేయగానే ఆటోమాటిక్ గా క్లౌడ్ (Cloud) లోకి సింక్ అవుతాయి." 
+        : "Yes, it works! You can enter your records even without the internet. They are saved securely on your phone and automatically synced to the cloud when you connect to the internet."
     },
     {
   id: "3",

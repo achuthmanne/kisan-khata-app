@@ -44,53 +44,53 @@ export default function PrivacyPolicy() {
   const policies = [
     {
       id: "1",
-      iconName: "document-text-outline",
+      iconName: "book-outline",
       iconColor: "#0284C7", // Blue
       bgColor: "#E0F2FE",
-      title: language === "te" ? "మేము సేకరించే సమాచారం" : "Information We Collect",
+      title: language === "te" ? "వ్యవసాయ లెక్కలు & డేటా" : "Farm Records & Data",
       desc: language === "te" 
-        ? "ఖాతా తెరవడానికి మీ పేరు మరియు మొబైల్ నంబర్ మాత్రమే సేకరిస్తాము. అలాగే మీరు యాప్ లో నమోదు చేసే వ్యవసాయ డేటా (హాజరు, ఖర్చులు) సేకరించబడుతుంది." 
-        : "We collect basic details like your Name and Mobile Number for account creation, along with the agricultural records (attendance, expenses) you enter in the app."
+        ? "మీరు నమోదు చేసే యజమానులు, మేస్త్రీల హాజరు మరియు ఖర్చుల డేటా మీ ఖాతాలో మాత్రమే భద్రంగా క్లౌడ్ (Firebase) లో సేవ్ చేయబడుతుంది. మీ సమాచారం ఎప్పటికీ సురక్షితం." 
+        : "The attendance and expense data of owners and mestris you enter is securely saved in the cloud (Firebase) under your account. Your data is always safe."
     },
     {
       id: "2",
-      iconName: "cloud-done-outline", // 🔥 Changed icon to Cloud
+      iconName: "finger-print-outline",
       iconColor: "#D97706", // Orange
       bgColor: "#FEF3C7",
-      title: language === "te" ? "క్లౌడ్ స్టోరేజ్ & ఇంటర్నెట్" : "Cloud Storage & Internet", // 🔥 Updated Title
+      title: language === "te" ? "లాకర్ & బయోమెట్రిక్ భద్రత" : "Locker & Biometric Security",
       desc: language === "te"
-        ? "మీరు నమోదు చేసిన డేటా మీ రిపోర్ట్స్ కోసం మాత్రమే ఉపయోగించబడుతుంది. మీ సమాచారం క్లౌడ్ లో సురక్షితంగా సేవ్ అవ్వడానికి ఎల్లప్పుడూ యాక్టివ్ ఇంటర్నెట్ (Active Internet) కనెక్షన్ అవసరం."
-        : "Your data is strictly used to generate your reports. An active internet connection is always required to securely save and access your agricultural records in our cloud."
+        ? "యాప్ లాకర్ కోసం వాడే మీ వేలిముద్ర (Fingerprint) లేదా ఫేస్ ఐడీ (Face ID) కేవలం మీ ఫోన్ లో మాత్రమే ప్రాసెస్ అవుతుంది. దాన్ని మేము ఎట్టి పరిస్థితుల్లోనూ మా సర్వర్లకు పంపము."
+        : "The Fingerprint or Face ID used for the App Locker is processed purely locally on your device. We never transmit or store your biometric data on our servers."
     },
     {
       id: "3",
-      iconName: "shield-checkmark-outline",
-      iconColor: "#16A34A", // Green
-      bgColor: "#DCFCE7",
-      title: language === "te" ? "100% డేటా భద్రత" : "100% Data Security",
-      desc: language === "te"
-        ? "మీ వ్యవసాయ లెక్కలు మరియు వ్యక్తిగత సమాచారం పూర్తిగా సురక్షితం. మీ డేటాను ఎట్టి పరిస్థితుల్లోనూ మూడవ పక్షాలకు (Third-parties) అమ్మడం లేదా ఇవ్వడం జరగదు."
-        : "Your agricultural and personal data is highly encrypted and secure. We strictly do not sell or share your data with any third-party organizations."
-    },
-    {
-      id: "4",
       iconName: "location-outline",
       iconColor: "#E11D48", // Red
       bgColor: "#FFE4E6",
       title: language === "te" ? "లొకేషన్ & వాతావరణం" : "Location & Weather",
       desc: language === "te"
-        ? "మీ ప్రాంతం యొక్క ఖచ్చితమైన వాతావరణం మరియు మార్కెట్ ధరలు చూపించడానికి మాత్రమే మేము మీ పరికరం (Device) యొక్క లొకేషన్ అనుమతిని అడుగుతాము."
-        : "We request your device's location permission solely to provide you with accurate, real-time localized weather updates and nearby market prices."
+        ? "మీ ప్రాంతం యొక్క ఖచ్చితమైన వాతావరణం మరియు మార్కెట్ ధరలు చూపించడానికి మాత్రమే లొకేషన్ తీసుకుంటాము. మీ లొకేషన్ ని మేము బ్యాక్ గ్రౌండ్ లో ట్రాక్ చేయము."
+        : "Location permission is requested solely to provide accurate local weather and market prices. We do not track your location in the background."
+    },
+    {
+      id: "4",
+      iconName: "trash-bin-outline",
+      iconColor: "#16A34A", // Green
+      bgColor: "#DCFCE7",
+      title: language === "te" ? "మీ డేటా, మీ హక్కు" : "Your Data, Your Rights",
+      desc: language === "te"
+        ? "మీ ఖాతాను మరియు మీ పూర్తి డేటాను ఎప్పుడైనా పూర్తిగా డిలీట్ చేసుకునే స్వేచ్ఛ మీకు ఉంది. మీరు డిలీట్ చేస్తే మా సర్వర్లలో మీ డేటా శాశ్వతంగా తొలగించబడుతుంది."
+        : "You have the complete right to request the deletion of your account and all associated data at any time. Upon deletion, your data is permanently removed from our servers."
     },
     {
       id: "5",
-      iconName: "trash-bin-outline",
+      iconName: "shield-checkmark-outline",
       iconColor: "#9333EA", // Purple
       bgColor: "#F3E8FF",
-      title: language === "te" ? "మీ హక్కులు" : "Your Rights",
+      title: language === "te" ? "100% నమ్మకం & భద్రత" : "100% Trust & Safety",
       desc: language === "te"
-        ? "మీ ఖాతాను మరియు మీ పూర్తి డేటాను ఎప్పుడైనా పూర్తిగా డిలీట్ చేసుకునే స్వేచ్ఛ మీకు ఉంది. యాప్ అన్‌ఇన్‌స్టాల్ చేసినా మీ డేటా మా క్లౌడ్ లో సురక్షితంగా ఉంటుంది."
-        : "You have the complete right to request the deletion of your account and data at any time. Your data remains safely backed up in the cloud even if you uninstall the app."
+        ? "మీ వ్యవసాయ లెక్కలు మరియు వ్యక్తిగత సమాచారం పూర్తిగా సురక్షితం. మీ డేటాను ఎట్టి పరిస్థితుల్లోనూ మూడవ పక్షాలకు (Third-parties) విక్రయించడం లేదా పంచుకోవడం జరగదు."
+        : "Your agricultural and personal data is highly secure. We strictly do not sell or share your data with any third-party organizations under any circumstances."
     }
   ];
 

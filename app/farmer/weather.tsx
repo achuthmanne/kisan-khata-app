@@ -384,6 +384,17 @@ export default function WeatherScreen() {
                 <AppText style={[styles.adviceText, { color: adviceConf.textColor }]} language={language}>
                   {currentWeather?.advice}
                 </AppText>
+
+                <View style={{ marginTop: 12, paddingTop: 12, paddingBottom: 4, borderTopWidth: 1, borderTopColor: `${adviceConf.color}30` }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <Ionicons name="information-circle-outline" size={14} color={adviceConf.textColor} style={{ marginTop: 2, marginRight: 6, opacity: 0.8 }} />
+                    <AppText style={{ flex: 1, fontSize: 13, color: adviceConf.textColor, opacity: 0.85, lineHeight: 24, paddingBottom: 4, marginTop: -2 }} language={language}>
+                      {language === "te" 
+                        ? "గమనిక: ఇవి కేవలం వాతావరణ అంచనాల ఆధారంగా ఇస్తున్న సూచనలు. ప్రస్తుత సమయాన్ని, మీ పొలం పరిస్థితిని బట్టి మీరు సొంతగా నిర్ణయం తీసుకోండి." 
+                        : "Note: These are suggestions based on weather estimates. Please use your own judgment based on the current time and your farm's condition."}
+                    </AppText>
+                  </View>
+                </View>
               </View>
             );
           })()}

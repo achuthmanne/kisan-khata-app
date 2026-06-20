@@ -63,6 +63,7 @@ type WorkItem = {
   work?: string;
   acresWorked?: string;
   hasBreak?: boolean;
+  breaksRaw?: {startTimeRaw: string, endTimeRaw: string}[];
   startTimeRaw?: string;
   endTimeRaw?: string;
   breakStartTimeRaw?: string;
@@ -931,9 +932,17 @@ export default function MonthlyDriverHistory() {
                                   const eTime = e.endTimeRaw ? new Date(e.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                   dayMsg += `• పని: ${sTime} - ${eTime} (${e.totalHoursStr})\n`;
                                   if (e.hasBreak) {
-                                    const bs = e.breakStartTimeRaw ? new Date(e.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
-                                    const be = e.breakEndTimeRaw ? new Date(e.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
-                                    dayMsg += `☕ బ్రేక్: ${bs} - ${be}\n`;
+                                    if (e.breaksRaw && e.breaksRaw.length > 0) {
+                                      e.breaksRaw.forEach((br: any, bIdx: number) => {
+                                        const bs = br.startTimeRaw ? new Date(br.startTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+                                        const be = br.endTimeRaw ? new Date(br.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+                                        dayMsg += `☕ బ్రేక్ ${bIdx + 1}: ${bs} - ${be}\n`;
+                                      });
+                                    } else {
+                                      const bs = e.breakStartTimeRaw ? new Date(e.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+                                      const be = e.breakEndTimeRaw ? new Date(e.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+                                      dayMsg += `☕ బ్రేక్: ${bs} - ${be}\n`;
+                                    }
                                   }
                                 } else if (e.workMode === "acres") {
                                   dayMsg += `విస్తీర్ణం: ${e.acresWorked} ఎకరాలు\n`;
@@ -996,33 +1005,31 @@ export default function MonthlyDriverHistory() {
                         </TouchableOpacity>
                       )}
 
-                      {/* BULK LEAVE BUTTON */}
-                      {hasMissing && (
-                           <TouchableOpacity
-                             style={{
-                               flexDirection: "row",
-                               alignItems: "center",
-                               justifyContent: "center",
-                               backgroundColor: "#FEF2F2",
-                               paddingVertical: 10,
-                               borderRadius: 8,
-                               marginTop: 15,
-                               borderWidth: 1,
-                               borderColor: "#FECACA"
-                             }}
-                             onPress={() => {
-                               router.push({
-                                 pathname: "/farmer/vechile-drivers/add-batch-absent",
-                                 params: { vehicleId: vId, driverId: dId, cycleId: cycle.id, balance: balance }
-                               });
-                             }}
-                           >
-                             <Ionicons name="calendar-outline" size={20} color="#DC2626" />
-                             <AppText style={{ color: "#DC2626", fontWeight: "600", marginLeft: 8 }}>
-                               {language === "te" ? "ఒకేసారి ఎక్కువ సెలవులు నమోదు" : "Add Bulk Leaves"}
-                             </AppText>
-                           </TouchableOpacity>
-                      )}
+                      {/* BULK LEAVE BUTTON (ALWAYS VISIBLE) */}
+                      <TouchableOpacity
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: "#FEF2F2",
+                          paddingVertical: 10,
+                          borderRadius: 8,
+                          marginTop: 15,
+                          borderWidth: 1,
+                          borderColor: "#FECACA"
+                        }}
+                        onPress={() => {
+                          router.push({
+                            pathname: "/farmer/vechile-drivers/add-batch-absent",
+                            params: { vehicleId: vId, driverId: dId, cycleId: cycle.id, balance: balance }
+                          });
+                        }}
+                      >
+                        <Ionicons name="calendar-outline" size={20} color="#DC2626" />
+                        <AppText style={{ color: "#DC2626", fontWeight: "600", marginLeft: 8 }}>
+                          {language === "te" ? "ఒకేసారి ఎక్కువ సెలవులు నమోదు" : "Add Bulk Leaves"}
+                        </AppText>
+                      </TouchableOpacity>
 
                       {/* DELETE OR CLEAR STATUS */}
                       {(() => {
@@ -1229,14 +1236,14 @@ export default function MonthlyDriverHistory() {
                                           <Ionicons name="trash-outline" size={16} color="#DC2626" />
                                        </TouchableOpacity>
                                     )}
-                                    {e.advanceAmount && Number(e.advanceAmount) > 0 && (
+                                    {Number(e.advanceAmount) > 0 && (
                                         <View style={{ backgroundColor: "#F0FDF4", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 6 }}>
                                           <AppText style={{ color: "#16A34A", fontWeight: "600", fontSize: 15 }}>
                                             {language === "te" ? "అడ్వాన్స్: " : "Adv: "}+₹{Number(e.advanceAmount).toLocaleString('en-IN')}
                                           </AppText>
                                         </View>
                                     )}
-                                    {e.cuttingAmount && Number(e.cuttingAmount) > 0 && (
+                                    {Number(e.cuttingAmount) > 0 && (
                                         <View style={{ backgroundColor: "#FEF2F2", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
                                           <AppText style={{ color: "#DC2626", fontWeight: "600", fontSize: 15 }}>
                                             {language === "te" ? "కోత: " : "Cut: "}-₹{Number(e.cuttingAmount).toLocaleString('en-IN')}
@@ -1277,14 +1284,30 @@ export default function MonthlyDriverHistory() {
                                         </View>
                                         
                                         {e.hasBreak && (
-                                          <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                                            <Ionicons name="cafe-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
-                                            <AppText style={{ fontFamily: "Mandali", fontSize: 13, color: "#EF4444" }}>
-                                              {language === "te" ? "బ్రేక్ సమయం (-): " : "Break Time (-): "}
-                                              <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
-                                                {e.breakStartTimeRaw ? new Date(e.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {e.breakEndTimeRaw ? new Date(e.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
-                                              </AppText>
-                                            </AppText>
+                                          <View style={{ flexDirection: "column" }}>
+                                            {e.breaksRaw && e.breaksRaw.length > 0 ? (
+                                              e.breaksRaw.map((br: any, bIdx: number) => (
+                                                <View key={bIdx} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 2 }}>
+                                                  <Ionicons name="cafe-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                                                  <AppText style={{ fontFamily: "Mandali", fontSize: 13, color: "#EF4444" }}>
+                                                    {language === "te" ? `బ్రేక్ ${bIdx + 1} (-): ` : `Break ${bIdx + 1} (-): `}
+                                                    <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
+                                                      {br.startTimeRaw ? new Date(br.startTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {br.endTimeRaw ? new Date(br.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                                                    </AppText>
+                                                  </AppText>
+                                                </View>
+                                              ))
+                                            ) : (
+                                              <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 2 }}>
+                                                <Ionicons name="cafe-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                                                <AppText style={{ fontFamily: "Mandali", fontSize: 13, color: "#EF4444" }}>
+                                                  {language === "te" ? "బ్రేక్ సమయం (-): " : "Break Time (-): "}
+                                                  <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
+                                                    {e.breakStartTimeRaw ? new Date(e.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {e.breakEndTimeRaw ? new Date(e.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                                                  </AppText>
+                                                </AppText>
+                                              </View>
+                                            )}
                                           </View>
                                         )}
 

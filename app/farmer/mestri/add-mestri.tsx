@@ -414,24 +414,19 @@ export default function AddMestri() {
             />
           </View>
           
-          <TouchableOpacity
-            onPress={() => {
-              if (isLocked) setShowLockInfo(true);
-              else handleVoiceInput("name");
-            }} 
-            style={styles.micBtn}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            {isLocked ? (
+          {isLocked ? (
+            <TouchableOpacity onPress={() => setShowLockInfo(true)} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="information-circle-outline" size={24} color="#F59E0B" />
-            ) : (
-              <Ionicons
-                name={isListening && activeInput === "name" ? "mic" : "mic-outline"}
-                size={24}
-                color={isListening && activeInput === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")}
-              />
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          ) : name && name.trim().length > 0 ? (
+            <TouchableOpacity onPress={() => setName("")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => handleVoiceInput("name")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name={isListening && activeInput === "name" ? "mic" : "mic-outline"} size={24} color={isListening && activeInput === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")} />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
         {errors.name && <AppText style={styles.errorText} language={language}>{errors.name}</AppText>}
 
@@ -517,17 +512,15 @@ export default function AddMestri() {
             />
           </View>
 
-          <TouchableOpacity
-            onPress={() => handleVoiceInput("village")}
-            style={styles.micBtn}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={isListening && activeInput === "village" ? "mic" : "mic-outline"}
-              size={24}
-              color={isListening && activeInput === "village" ? "#EF4444" : (activeInput === "village" ? "#16A34A" : "#6B7280")}
-            />
-          </TouchableOpacity>
+          {village && village.trim().length > 0 ? (
+            <TouchableOpacity onPress={() => setVillage("")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={() => handleVoiceInput("village")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Ionicons name={isListening && activeInput === "village" ? "mic" : "mic-outline"} size={24} color={isListening && activeInput === "village" ? "#EF4444" : (activeInput === "village" ? "#16A34A" : "#6B7280")} />
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
         {errors.village && <AppText style={styles.errorText} language={language}>{errors.village}</AppText>}
 
@@ -596,16 +589,15 @@ export default function AddMestri() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                onPress={() => handleVoiceInput("contactSearch")}
-                style={{ marginLeft: 5, padding: 6, borderRadius: 10, backgroundColor: "#E5E7EB" }}
-              >
-                <MaterialCommunityIcons
-                  name={isListening && activeInput === "contactSearch" ? "microphone" : "microphone-outline"}
-                  size={20}
-                  color={isListening && activeInput === "contactSearch" ? "#EF4444" : "#2E7D32"}
-                />
-              </TouchableOpacity>
+              {contactSearch && contactSearch.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setContactSearch("")} style={{ marginLeft: 5, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => handleVoiceInput("contactSearch")} style={{ marginLeft: 5, padding: 6, borderRadius: 10, backgroundColor: "#E5E7EB" }}>
+                  <MaterialCommunityIcons name={isListening && activeInput === "contactSearch" ? "microphone" : "microphone-outline"} size={20} color={isListening && activeInput === "contactSearch" ? "#EF4444" : "#2E7D32"} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <FlatList 

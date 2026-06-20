@@ -589,9 +589,15 @@ export default function MestriAttendance() {
                   <Ionicons name="add" size={20} color="#fff" />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={handleVoiceSearch} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
-                <Ionicons name={isListening ? "mic" : "mic-outline"} size={20} color={isListening ? "#EF4444" : "#16A34A"} />
-              </TouchableOpacity>
+              {searchText && searchText.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setSearchText("")} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={handleVoiceSearch} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name={isListening ? "mic" : "mic-outline"} size={20} color={isListening ? "#EF4444" : "#16A34A"} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <FlatList

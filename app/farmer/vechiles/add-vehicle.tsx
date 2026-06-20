@@ -556,7 +556,7 @@ export default function AddVehicle() {
                 onChangeText={(text) => setSearchText(text)}
                 style={[styles.searchInput, { fontFamily: "Mandali", flex: 1, color: "#1F2937" }]}
               />
-              {searchText.trim().length > 0 ? (
+              {searchText.trim().length > 0 && (
                 <TouchableOpacity
                   onPress={() => {
                     setType(searchText);
@@ -569,6 +569,11 @@ export default function AddVehicle() {
                   <AppText style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
                     {language === "te" ? "వాడు" : "Use"}
                   </AppText>
+                </TouchableOpacity>
+              )}
+              {searchText.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setSearchText("")} style={{ padding: 6, marginLeft: 4 }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity onPress={() => handleVoiceInput("modal")} style={{ padding: 6 }}>

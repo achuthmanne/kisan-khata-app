@@ -487,9 +487,15 @@ export default function AddMachine() {
                   onBlur={() => setActiveInput(null)}
                 />
               </View>
-              <TouchableOpacity onPress={() => startVoice("name")} style={styles.micBtn}>
-                <MaterialCommunityIcons name={isListening && voiceTarget === "name" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")} />
-              </TouchableOpacity>
+              {ownerName && ownerName.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setOwnerName("")} style={styles.micBtn}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => startVoice("name")} style={styles.micBtn}>
+                  <MaterialCommunityIcons name={isListening && voiceTarget === "name" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
             {errors.ownerName && <AppText style={styles.errorText} language={language}>{errors.ownerName}</AppText>}
 
@@ -517,9 +523,15 @@ export default function AddMachine() {
                   onBlur={() => setActiveInput(null)}
                 />
               </View>
-              <TouchableOpacity onPress={() => startVoice("phone")} style={styles.micBtn}>
-                <MaterialCommunityIcons name={isListening && voiceTarget === "phone" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "phone" ? "#EF4444" : (activeInput === "phone" ? "#16A34A" : "#6B7280")} />
-              </TouchableOpacity>
+              {phone && phone.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setPhone("")} style={styles.micBtn}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => startVoice("phone")} style={styles.micBtn}>
+                  <MaterialCommunityIcons name={isListening && voiceTarget === "phone" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "phone" ? "#EF4444" : (activeInput === "phone" ? "#16A34A" : "#6B7280")} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
             {errors.phone && <AppText style={styles.errorText} language={language}>{errors.phone}</AppText>}
 
@@ -768,9 +780,15 @@ export default function AddMachine() {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity onPress={() => startVoice("operations")} style={styles.voiceBtnSearch}>
-                <MaterialCommunityIcons name={isListening && voiceTarget === "operations" ? "microphone" : "microphone-outline"} size={20} color={isListening && voiceTarget === "operations" ? "#EF4444" : "#16A34A"} />
-              </TouchableOpacity>
+              {searchText && searchText.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setSearchText("")} style={styles.voiceBtnSearch}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => startVoice("operations")} style={styles.voiceBtnSearch}>
+                  <MaterialCommunityIcons name={isListening && voiceTarget === "operations" ? "microphone" : "microphone-outline"} size={20} color={isListening && voiceTarget === "operations" ? "#EF4444" : "#16A34A"} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <FlatList

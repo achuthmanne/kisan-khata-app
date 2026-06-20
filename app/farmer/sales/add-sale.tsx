@@ -463,9 +463,15 @@ export default function AddSale() {
                 placeholder={language === "te" ? "పంట పేరు టైప్ చేయండి..." : "Search crop..."}
                 style={[styles.searchInput, { fontFamily: 'Mandali' }]}
               />
-              <TouchableOpacity onPress={() => startVoice("crop")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
-                <Ionicons name={voiceTarget === "crop" && isListening ? "mic" : "mic-outline"} size={24} color={voiceTarget === "crop" && isListening ? "#EF4444" : "#16A34A"} />
-              </TouchableOpacity>
+              {searchText && searchText.toString().trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setSearchText('')} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => startVoice("crop")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name={voiceTarget === "crop" && isListening ? "mic" : "mic-outline"} size={24} color={voiceTarget === "crop" && isListening ? "#EF4444" : "#16A34A"} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <FlatList

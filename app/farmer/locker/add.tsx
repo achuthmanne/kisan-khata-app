@@ -451,9 +451,15 @@ export default function AddLockerScreen() {
                 autoCorrect={false}
               />
             </View>
-            <TouchableOpacity onPress={() => startVoice("brand")} style={{ padding: 6, borderRadius: 10 }}>
-              <Ionicons name={isListening && voiceTarget === "brand" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "brand" ? "#EF4444" : (activeInput === "brand" ? "#16A34A" : "#6B7280")} />
-            </TouchableOpacity>
+            {brandName && brandName.trim().length > 0 ? (
+              <TouchableOpacity onPress={() => setBrandName("")} style={{ padding: 6, borderRadius: 10 }}>
+                <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => startVoice("brand")} style={{ padding: 6, borderRadius: 10 }}>
+                <Ionicons name={isListening && voiceTarget === "brand" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "brand" ? "#EF4444" : (activeInput === "brand" ? "#16A34A" : "#6B7280")} />
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
           {errors.brandName && <AppText style={styles.errorText} language={language}>{errors.brandName}</AppText>}
 
@@ -496,9 +502,15 @@ export default function AddLockerScreen() {
                 multiline
               />
             </View>
-            <TouchableOpacity onPress={() => startVoice("notes")} style={{ padding: 6, borderRadius: 10, marginTop: -4 }}>
-              <Ionicons name={isListening && voiceTarget === "notes" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "notes" ? "#EF4444" : (activeInput === "notes" ? "#16A34A" : "#6B7280")} />
-            </TouchableOpacity>
+            {notes && notes.trim().length > 0 ? (
+              <TouchableOpacity onPress={() => setNotes("")} style={{ padding: 6, borderRadius: 10, marginTop: -4 }}>
+                <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => startVoice("notes")} style={{ padding: 6, borderRadius: 10, marginTop: -4 }}>
+                <Ionicons name={isListening && voiceTarget === "notes" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "notes" ? "#EF4444" : (activeInput === "notes" ? "#16A34A" : "#6B7280")} />
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
 
           {/* SAVE BUTTON */}
@@ -616,9 +628,15 @@ export default function AddLockerScreen() {
                 cursorColor={'#16A34A'}
                 style={[styles.searchInput, { fontFamily: 'Mandali' }]}
               />
-              <TouchableOpacity onPress={() => startVoice()} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
-                <Ionicons name={isListening ? "mic" : "mic-outline"} size={24} color={isListening ? "#EF4444" : "#16A34A"} />
-              </TouchableOpacity>
+              {cropSearch && cropSearch.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setCropSearch("")} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => startVoice()} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                  <Ionicons name={isListening ? "mic" : "mic-outline"} size={24} color={isListening ? "#EF4444" : "#16A34A"} />
+                </TouchableOpacity>
+              )}
             </View>
 
             <FlatList

@@ -463,12 +463,18 @@ export default function ProfileScreen() {
                   />
                 </View>
                 {isEditing ? (
-                  <TouchableOpacity onPress={() => handleVoiceInput("name")} style={styles.micBtn}>
-                    <MaterialCommunityIcons 
-                      name={isListening && activeInput === "name" ? "microphone" : "microphone-outline"} 
-                      size={24} color={isListening && activeInput === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")} 
-                    />
-                  </TouchableOpacity>
+                  name.length > 0 ? (
+                    <TouchableOpacity onPress={() => setName("")} style={styles.micBtn}>
+                      <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => handleVoiceInput("name")} style={styles.micBtn}>
+                      <MaterialCommunityIcons 
+                        name={isListening && activeInput === "name" ? "microphone" : "microphone-outline"} 
+                        size={24} color={isListening && activeInput === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")} 
+                      />
+                    </TouchableOpacity>
+                  )
                 ) : (
                   <Ionicons name="lock-closed" size={16} color="#CBD5E1" style={{ marginRight: 4 }} />
                 )}

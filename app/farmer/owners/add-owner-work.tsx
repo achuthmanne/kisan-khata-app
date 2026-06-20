@@ -722,9 +722,15 @@ const workOptions = [
               {!notes && activeInput !== "notes" && (<AppText style={{ color: "#9CA3AF", lineHeight: 22, fontFamily: "Mandali" }}>{language === "te" ? "మరిన్ని వివరాలు ఇక్కడ రాయండి..." : "Write additional details..."}</AppText>)}
               <TextInput ref={notesInputRef} value={notes} onChangeText={setNotes} multiline placeholder={isListening && voiceTarget === "notes" ? (language === "te" ? "వింటున్నాను..." : "Listening...") : ""} placeholderTextColor="#EF4444" style={[styles.input, { lineHeight: 22, minHeight: 80, textAlignVertical: "top", padding: 0, display: notes || activeInput === "notes" ? "flex" : "none" }]} cursorColor="#16A34A" selectionColor="#16A34A40" onFocus={() => setActiveInput("notes")} onBlur={() => setActiveInput(null)} />
             </View>
-            <TouchableOpacity onPress={() => handleVoiceInput("notes")} style={styles.micBtn}>
-              <Ionicons name={isListening && voiceTarget === "notes" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "notes" ? "#EF4444" : (activeInput === "notes" ? "#16A34A" : "#6B7280")} />
-            </TouchableOpacity>
+            {notes && notes.trim().length > 0 ? (
+              <TouchableOpacity onPress={() => setNotes("")} style={styles.micBtn}>
+                <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => handleVoiceInput("notes")} style={styles.micBtn}>
+                <Ionicons name={isListening && voiceTarget === "notes" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "notes" ? "#EF4444" : (activeInput === "notes" ? "#16A34A" : "#6B7280")} />
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         </View>
 

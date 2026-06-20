@@ -655,13 +655,19 @@ export default function AddDriverWork() {
                   onBlur={() => setActiveInput(null)}
                 />
               </View>
-              <TouchableOpacity onPress={() => handleVoiceInput("customerName")} style={styles.micBtn}>
-                <Ionicons
-                  name={isListening && voiceTarget === "customerName" ? "mic" : "mic-outline"}
-                  size={24}
-                  color={isListening && voiceTarget === "customerName" ? "#EF4444" : (activeInput === "customerName" ? "#16A34A" : "#6B7280")}
-                />
-              </TouchableOpacity>
+              {customerName && customerName.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setCustomerName("")} style={styles.micBtn}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => handleVoiceInput("customerName")} style={styles.micBtn}>
+                  <Ionicons
+                    name={isListening && voiceTarget === "customerName" ? "mic" : "mic-outline"}
+                    size={24}
+                    color={isListening && voiceTarget === "customerName" ? "#EF4444" : (activeInput === "customerName" ? "#16A34A" : "#6B7280")}
+                  />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
             {errors.customerName && <AppText style={styles.errorText} language={language}>{errors.customerName}</AppText>}
 

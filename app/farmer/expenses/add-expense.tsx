@@ -481,9 +481,15 @@ const categoryOptions = [
                               <Ionicons name="add" size={20} color="#fff" />
                             </TouchableOpacity>
                           )}
-                          <TouchableOpacity onPress={startVoice} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
-                            <Ionicons name={isListening ? "mic" : "mic-outline"} size={24} color={isListening ? "#EF4444" : "#157c3e"} />
-                          </TouchableOpacity>
+                          {searchText && searchText.toString().trim().length > 0 ? (
+                            <TouchableOpacity onPress={() => setSearchText('')} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                              <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity onPress={startVoice} style={{ marginLeft: 8, padding: 6, borderRadius: 10, backgroundColor: "#eaedf2" }}>
+                              <Ionicons name={isListening ? "mic" : "mic-outline"} size={24} color={isListening ? "#EF4444" : "#157c3e"} />
+                            </TouchableOpacity>
+                          )}
                       </View>
 
                       {/* 📜 LIST AREA */}

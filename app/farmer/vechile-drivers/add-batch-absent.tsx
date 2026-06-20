@@ -214,33 +214,39 @@ export default function AddBatchAbsent() {
                 placeholderTextColor="#9CA3AF"
                 multiline
               />
-              <TouchableOpacity
-                style={{ padding: 4 }}
-                activeOpacity={0.7}
-                onPress={async () => {
-                  if (isListening) {
-                    ExpoSpeechRecognitionModule.stop();
-                    setIsListening(false);
-                  } else {
-                    const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-                    if (!perm.granted) {
-                      Alert.alert("Permission", "Microphone permission is needed.");
-                      return;
+              {reason.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setReason("")} style={{ padding: 4 }} activeOpacity={0.7}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={{ padding: 4 }}
+                  activeOpacity={0.7}
+                  onPress={async () => {
+                    if (isListening) {
+                      ExpoSpeechRecognitionModule.stop();
+                      setIsListening(false);
+                    } else {
+                      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+                      if (!perm.granted) {
+                        Alert.alert("Permission", "Microphone permission is needed.");
+                        return;
+                      }
+                      setIsListening(true);
+                      ExpoSpeechRecognitionModule.start({
+                        lang: language === "te" ? "te-IN" : "en-IN",
+                        interimResults: true
+                      });
                     }
-                    setIsListening(true);
-                    ExpoSpeechRecognitionModule.start({
-                      lang: language === "te" ? "te-IN" : "en-IN",
-                      interimResults: true
-                    });
-                  }
-                }}
-              >
-                <Ionicons
-                  name={isListening ? "mic" : "mic-outline"}
-                  size={24}
-                  color={isListening ? "#EF4444" : "#6B7280"}
-                />
-              </TouchableOpacity>
+                  }}
+                >
+                  <Ionicons
+                    name={isListening ? "mic" : "mic-outline"}
+                    size={24}
+                    color={isListening ? "#EF4444" : "#6B7280"}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           </View>
 
@@ -317,7 +323,7 @@ export default function AddBatchAbsent() {
         onCancel={() => setShowToPicker(false)}
       />
 
-      {saving && <AgriLoader />}
+      {saving && <AgriLoader visible={true} />}
 
       <Modal visible={showConfirmModal} transparent animationType="fade">
         <View style={styles.modalOverlayStandard}>

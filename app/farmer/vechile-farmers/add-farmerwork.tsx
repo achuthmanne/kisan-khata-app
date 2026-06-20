@@ -874,9 +874,15 @@ export default function AddFarmerWork() {
                 cursorColor="#16A34A" selectionColor="#16A34A40" onFocus={() => setActiveInput("notes")} onBlur={() => setActiveInput(null)}
               />
             </View>
-            <TouchableOpacity onPress={() => handleVoiceInput("notes")} style={styles.micBtn}>
-              <Ionicons name={isListening && voiceTarget === "notes" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "notes" ? "#EF4444" : (activeInput === "notes" ? "#16A34A" : "#6B7280")} />
-            </TouchableOpacity>
+            {notes && notes.trim().length > 0 ? (
+              <TouchableOpacity onPress={() => setNotes("")} style={styles.micBtn}>
+                <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={() => handleVoiceInput("notes")} style={styles.micBtn}>
+                <Ionicons name={isListening && voiceTarget === "notes" ? "mic" : "mic-outline"} size={24} color={isListening && voiceTarget === "notes" ? "#EF4444" : (activeInput === "notes" ? "#16A34A" : "#6B7280")} />
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         </View>
 

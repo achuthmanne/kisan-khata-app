@@ -602,9 +602,15 @@ export default function FindMachines() {
             </View>
             <View style={[styles.searchBar, { flexDirection: "row", alignItems: "center" }]}>
               <TextInput value={searchText} onChangeText={setSearchText} placeholder={language === "te" ? "వెతకండి..." : "Search..."} placeholderTextColor="#9CA3AF" cursorColor="green" selectionColor="#16A34A40" style={{ flex: 1, height: 50, fontFamily: "Mandali", color: "#1F2937" }} />
-              <TouchableOpacity onPress={startVoice} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#e5e7eb" }}>
-                <MaterialCommunityIcons name={isListening ? "microphone" : "microphone-outline"} size={20} color={isListening ? "#EF4444" : "#2E7D32"} />
-              </TouchableOpacity>
+              {searchText && searchText.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setSearchText("")} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#e5e7eb" }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={startVoice} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#e5e7eb" }}>
+                  <MaterialCommunityIcons name={isListening ? "microphone" : "microphone-outline"} size={20} color={isListening ? "#EF4444" : "#2E7D32"} />
+                </TouchableOpacity>
+              )}
             </View>
             <FlatList data={equipmentOptions.filter(item => (language === "te" ? item.te : item.en).toLowerCase().includes(searchText.toLowerCase()))} keyExtractor={(item, i) => i.toString()} renderItem={({ item }) => (
               <TouchableOpacity style={styles.categoryItem} onPress={() => { setSelectedEq(language === "te" ? item.te : item.en); setModalType(null); setSearchText(""); }}>

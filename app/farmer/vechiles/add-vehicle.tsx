@@ -265,8 +265,8 @@ export default function AddVehicle() {
     
     try {
       const col = firestore().collection("users").doc(phone).collection("vehicles");
-      if (vehicleId) await col.doc(vehicleId as string).update(data);
-      else await col.add(data);
+      if (vehicleId) await executeOfflineSafeWrite(col.doc(vehicleId as string).update(data));
+      else await executeOfflineSafeWrite(col.add(data));
       
       if (isMounted.current) router.back();
     } catch (e) {

@@ -415,10 +415,10 @@ export default function FieldsScreen() {
       const baseCropName = item.crop;
 
       const checkCollection = async (collRef: any) => {
-        const snap1 = await collRef.where("crop", "==", fullCropName).limit(1).get();
+        const snap1 = await executeOfflineSafeRead(collRef.where("crop", "==", fullCropName).limit(1).get());
         if (!snap1.empty) return true;
         if (fullCropName !== baseCropName) {
-           const snap2 = await collRef.where("crop", "==", baseCropName).limit(1).get();
+           const snap2 = await executeOfflineSafeRead(collRef.where("crop", "==", baseCropName).limit(1).get());
            if (!snap2.empty) return true;
         }
         return false;

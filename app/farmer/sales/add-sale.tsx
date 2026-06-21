@@ -204,12 +204,12 @@ export default function AddSale() {
       const ref = firestore().collection("users").doc(phone).collection("sales");
 
       if (!editId && !bypassDuplicate) {
-        const duplicateCheck = await ref
+        const duplicateCheck = await executeOfflineSafeRead(ref
           .where("crop", "==", data.crop)
           .where("quantity", "==", data.quantity)
           .where("rate", "==", data.rate)
           .where("session", "==", activeSession)
-          .get();
+          .get());
 
         if (!duplicateCheck.empty) {
           setLoading(false);
@@ -218,8 +218,8 @@ export default function AddSale() {
         }
       }
 
-      if (editId) await ref.doc(editId as string).update(data);
-      else await ref.add(data);
+      if (editId) await executeOfflineSafeWrite(ref.doc(editId as string).update(data));
+      else await executeOfflineSafeWrite(ref.add(data));
 
       router.back();
     } catch (e) { console.log(e); }

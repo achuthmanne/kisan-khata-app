@@ -223,12 +223,12 @@ const categoryOptions = [
           const ref = firestore().collection("users").doc(phone).collection("expenses");
 
           if (!editId && !bypassDuplicate) {
-            const duplicateCheck = await ref
+            const duplicateCheck = await executeOfflineSafeRead(ref
               .where("crop", "==", data.crop)
               .where("category", "==", data.category)
               .where("amount", "==", data.amount)
               .where("session", "==", activeSession)
-              .get();
+              .get());
 
             if (!duplicateCheck.empty) {
               if (isMounted.current) {
@@ -239,7 +239,11 @@ const categoryOptions = [
             }
           }
 
-          editId ? await ref.doc(editId as string).update(data) : await ref.add(data);
+          if (editId) {
+            await executeOfflineSafeWrite(ref.doc(editId as string).update(data));
+          } else {
+            await executeOfflineSafeWrite(ref.add(data));
+          }
 
           if (isMounted.current) router.back();
       } catch (e) {

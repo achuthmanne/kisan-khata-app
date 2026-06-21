@@ -266,10 +266,10 @@ export default function AddDriver() {
         .collection("drivers");
 
       if (!editId && !bypassDuplicate) {
-        const duplicateCheck = await ref
+        const duplicateCheck = await executeOfflineSafeRead(ref
           .where("phone", "==", cleanPhone)
           .where("session", "==", activeSession)
-          .get();
+          .get());
 
         if (!duplicateCheck.empty) {
           if (isMounted.current) {
@@ -282,15 +282,15 @@ export default function AddDriver() {
 
       // 🔥 PRO FIX: Updated to driverName
       if (editId) {
-        await ref.doc(editId).update({
+        await executeOfflineSafeWrite(ref.doc(editId).update({
           driverName: cleanName, 
           phone: cleanPhone,
           village: cleanVillage,
           paymentType,
           monthlySalary: paymentType === "monthly" ? Number(monthlySalary) : 0
-        });
+        }));
       } else {
-        await ref.add({
+        await executeOfflineSafeWrite(ref.add({
           driverName: cleanName,
           phone: cleanPhone,
           village: cleanVillage,
@@ -298,7 +298,7 @@ export default function AddDriver() {
           monthlySalary: paymentType === "monthly" ? Number(monthlySalary) : 0,
           session: activeSession, 
           createdAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
       }
 
       setTimeout(() => {

@@ -417,10 +417,10 @@ export default function AddMachine() {
       const ref = firestore().collection("machines");
 
       if (!isEditing && !bypassDuplicate) {
-        const duplicateCheck = await ref
+        const duplicateCheck = await executeOfflineSafeRead(ref
           .where("phone", "==", phone.trim())
           .where("equipment", "==", equipment)
-          .get();
+          .get());
 
         if (!duplicateCheck.empty) {
           setLoading(false);
@@ -430,13 +430,13 @@ export default function AddMachine() {
       }
 
       if (isEditing) {
-        await ref.doc(machineId as string).update(machineData);
+        await executeOfflineSafeWrite(ref.doc(machineId as string).update(machineData));
       } else {
-        await ref.add({
+        await executeOfflineSafeWrite(ref.add({
           ...machineData,
           userId: userPhone,
           createdAt: firestore.FieldValue.serverTimestamp(),
-        });
+        }));
       }
 
       setLoading(false);

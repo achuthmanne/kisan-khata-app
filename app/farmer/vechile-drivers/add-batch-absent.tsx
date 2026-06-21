@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
+import { executeOfflineSafeWrite, executeOfflineSafeRead } from "@/utils/offlineHelper";
 
 export default function AddBatchAbsent() {
   const router = useRouter();
@@ -86,7 +87,7 @@ export default function AddBatchAbsent() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("No phone number");
       
-      const userDoc = await firestore().collection("users").doc(userPhone).get();
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).get());
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) throw new Error("No active session");
 

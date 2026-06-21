@@ -236,7 +236,7 @@ export default function PaymentDetailHistory() {
         .collection("payments")
         .doc(deleteId);
 
-      const doc = await docRef.get();
+      const doc = await executeOfflineSafeRead(docRef.get());
       const data = doc.data();
 
       if (data?.session !== activeSession) return;
@@ -285,7 +285,7 @@ export default function PaymentDetailHistory() {
         setModalVisible(false);
       }
 
-      await docRef.delete();
+      await executeOfflineSafeWrite(docRef.delete());
       loadData(); 
 
     } catch (e) {

@@ -268,7 +268,7 @@ export default function AddReminderScreen() {
       if (date && time && docRef) {
         const notifId = await scheduleLocalNotification(task, date, time, (docRef as any).id);
         if (notifId) {
-          await (docRef as any).update({ notificationId: notifId });
+          await executeOfflineSafeWrite((docRef as any).update({ notificationId: notifId }));
         }
       }
 

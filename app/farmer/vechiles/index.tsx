@@ -243,11 +243,11 @@ export default function VehiclesScreen() {
         .collection("vehicles").doc(vehicleId);
 
       // 1. రైతులు ఎవరైనా ఉన్నారా?
-      const farmersSnap = await vehicleRef.collection("farmers").limit(1).get();
+      const farmersSnap = await executeOfflineSafeRead(vehicleRef.collection("farmers").limit(1).get());
       if (!farmersSnap.empty) return true;
 
       // 2. డ్రైవర్లు ఎవరైనా ఉన్నారా?
-      const driversSnap = await vehicleRef.collection("drivers").limit(1).get();
+      const driversSnap = await executeOfflineSafeRead(vehicleRef.collection("drivers").limit(1).get());
       if (!driversSnap.empty) return true;
 
       return false; // ఎవరూ లేకపోతే False
@@ -562,7 +562,7 @@ export default function VehiclesScreen() {
                     setShowDeleteModal(false);
 
                     // 🔥 FIRESTORE DELETE
-                    await docRef.delete();
+                    await executeOfflineSafeWrite(docRef.delete());
                   } catch (e) {
                     console.log(e);
                   }

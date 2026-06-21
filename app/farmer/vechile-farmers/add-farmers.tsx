@@ -267,10 +267,10 @@ export default function AddWork() {
         .collection("farmers");
 
       if (!editId && !bypassDuplicate) {
-        const duplicateCheck = await ref
+        const duplicateCheck = await executeOfflineSafeRead(ref
           .where("phone", "==", cleanPhone)
           .where("session", "==", activeSession)
-          .get();
+          .get());
 
         if (!duplicateCheck.empty) {
           if (isMounted.current) {
@@ -282,19 +282,19 @@ export default function AddWork() {
       }
 
       if (editId) {
-        await ref.doc(editId).update({
+        await executeOfflineSafeWrite(ref.doc(editId).update({
           farmerName: cleanName,
           phone: cleanPhone,
           village: cleanVillage
-        });
+        }));
       } else {
-        await ref.add({
+        await executeOfflineSafeWrite(ref.add({
           farmerName: cleanName,
           phone: cleanPhone,
           village: cleanVillage,
           session: activeSession, 
           createdAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
       }
 
       setTimeout(() => {

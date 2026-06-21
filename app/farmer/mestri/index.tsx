@@ -303,7 +303,7 @@ export default function AttendanceScreen() {
         .collection("mestris")
         .doc(deleteItem.id);
 
-      await mestriRef.delete(); 
+      await executeOfflineSafeWrite(mestriRef.delete()); 
 
       setShowDeleteModal(false);
       setDeleteItem(null);

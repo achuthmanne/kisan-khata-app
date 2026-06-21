@@ -256,10 +256,10 @@ export default function AddMestri() {
         .collection("mestris");
 
       if (!editId && !bypassDuplicate) {
-        const duplicateCheck = await ref
+        const duplicateCheck = await executeOfflineSafeRead(ref
           .where("phone", "==", cleanPhone)
           .where("session", "==", activeSession)
-          .get();
+          .get());
 
         if (!duplicateCheck.empty) {
           if (isMounted.current) {
@@ -271,19 +271,19 @@ export default function AddMestri() {
       }
 
       if (editId) {
-        await ref.doc(editId).update({
+        await executeOfflineSafeWrite(ref.doc(editId).update({
           name: name.trim(),
           phone: cleanPhone,
           village: village.trim()
-        });
+        }));
       } else {
-        await ref.add({
+        await executeOfflineSafeWrite(ref.add({
           name: name.trim(),
           phone: cleanPhone,
           village: village.trim(),
           session: activeSession, 
           createdAt: firestore.FieldValue.serverTimestamp()
-        });
+        }));
       }
 
       setTimeout(() => {

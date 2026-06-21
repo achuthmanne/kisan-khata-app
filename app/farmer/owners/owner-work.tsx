@@ -270,7 +270,7 @@ export default function OwnerWork() {
         .collection("owners").doc(oId)
         .collection("entries").doc(statusId);
 
-      const entrySnap = await entryRef.get();
+      const entrySnap = await executeOfflineSafeRead(entryRef.get());
       if (!entrySnap.exists) return;
 
       const entryData = entrySnap.data();

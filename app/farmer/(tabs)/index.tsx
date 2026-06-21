@@ -31,7 +31,7 @@ import {
 } from "react-native";
 // 🔥 PRO FIX: Use expo-image for faster caching and remote image handling
 import { Image } from "expo-image";
-import AnimatedReanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
+import AnimatedReanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, FadeInDown } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
 const { width } = Dimensions.get("window");
@@ -954,10 +954,10 @@ export default function Dashboard() {
             />
 
             <View>
-              <Animated.View style={[styles.greetRow, { opacity:fadeAnim, transform:[{translateY:fadeAnim.interpolate({inputRange:[0,1],outputRange:[-12,0]})}] }]}>
+              <AnimatedReanimated.View entering={FadeInDown.delay(200).duration(800).springify().damping(14)} style={styles.greetRow}>
                 <Ionicons name={getGreetingIcon()} size={18} color="#C8E6C9" />
                 <AppText style={styles.greet} language={language}>{getGreeting()}</AppText>
-              </Animated.View>
+              </AnimatedReanimated.View>
               <AppText style={[styles.name, language === "en" && { fontWeight: "600", marginTop: -8 }, language === "te" && { fontFamily: "Mandali", marginTop: -8}]} language={language} numberOfLines={1} ellipsizeMode="tail">
                 {name || "Farmer"}
               </AppText>

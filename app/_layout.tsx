@@ -45,8 +45,14 @@ export default function RootLayout() {
           router.replace(`/farmer/reminders/alarm-ring?task=${encodeURIComponent(task as string)}&crop=${encodeURIComponent(crop as string)}&reminderId=${reminderId}&notifId=${id}`);
         }, 100);
       }
-      // 🔥 1. Splash hide
+      // 🔥 1. Splash hide & Configure Nav Bar
       if (fontsLoaded) {
+        if (Platform.OS === 'android') {
+          import('expo-navigation-bar').then(NavigationBar => {
+            NavigationBar.setBackgroundColorAsync("#FFFFFF");
+            NavigationBar.setButtonStyleAsync("dark");
+          }).catch(() => {});
+        }
         await SplashScreen.hideAsync();
       }
 

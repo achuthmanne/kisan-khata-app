@@ -85,7 +85,7 @@ export default function SchemesScreen() {
 
       const snapshot = await executeOfflineSafeRead(firestore()
         .collection("schemes")
-        .where("isActive", "==", true)
+        .where("isActive", "==", true), true
         );
 
       if (!isMounted) return;

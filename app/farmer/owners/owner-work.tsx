@@ -105,7 +105,7 @@ export default function OwnerWork() {
           if (!userPhone || !oId) return;
 
           // 🔥 FETCH ACTIVE SESSION
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
           const activeSession = userDoc.data()?.activeSession;
 
           if (!activeSession) {
@@ -237,7 +237,7 @@ export default function OwnerWork() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone || !statusId || !oId) return;
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
       const activeSession = userDoc.data()?.activeSession;
 
       // Upload proofs
@@ -270,7 +270,7 @@ export default function OwnerWork() {
         .collection("owners").doc(oId)
         .collection("entries").doc(statusId);
 
-      const entrySnap = await executeOfflineSafeRead(entryRef.get());
+      const entrySnap = await executeOfflineSafeRead(entryRef, true);
       if (!entrySnap.exists) return;
 
       const entryData = entrySnap.data();

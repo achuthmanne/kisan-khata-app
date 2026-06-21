@@ -99,7 +99,7 @@ export default function FieldsScreen() {
             return;
           }
 
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
           const activeSession = userDoc.data()?.activeSession;
 
           if (!activeSession) {
@@ -204,10 +204,10 @@ export default function FieldsScreen() {
         // Only run migration if there are literally no lands in DB but fields exist
         try {
           const phone = await AsyncStorage.getItem("USER_PHONE");
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone as string));
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone as string), true);
           const activeSession = userDoc.data()?.activeSession;
           
-          const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone as string).collection("lands").where("session", "==", activeSession));
+          const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone as string).collection("lands").where("session", "==", activeSession), true);
           if (landsSnap.empty) {
              console.log("RUNNING SILENT MIGRATION TO LANDS...");
              const migStats = new Map();
@@ -405,7 +405,7 @@ export default function FieldsScreen() {
   const checkCropUsage = async (item: any) => {
     try {
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!), true);
       const activeSession = userDoc.data()?.activeSession;
 
       const land = landsData.find(l => l.id === item.landId) || landsData.find(l => l.nickname === item.nickname);
@@ -415,10 +415,10 @@ export default function FieldsScreen() {
       const baseCropName = item.crop;
 
       const checkCollection = async (collRef: any) => {
-        const snap1 = await executeOfflineSafeRead(collRef.where("crop", "==", fullCropName).limit(1).get());
+        const snap1 = await executeOfflineSafeRead(collRef.where("crop", "==", fullCropName).limit(1), true);
         if (!snap1.empty) return true;
         if (fullCropName !== baseCropName) {
-           const snap2 = await executeOfflineSafeRead(collRef.where("crop", "==", baseCropName).limit(1).get());
+           const snap2 = await executeOfflineSafeRead(collRef.where("crop", "==", baseCropName).limit(1), true);
            if (!snap2.empty) return true;
         }
         return false;

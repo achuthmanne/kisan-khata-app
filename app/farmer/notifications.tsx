@@ -58,12 +58,12 @@ export default function Notifications() {
         const hiddenSnap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
-          .collection("hiddenNotifications")
+          .collection("hiddenNotifications"), true
           );
 
         const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
-          .doc(phone)
+          .doc(phone), true
           );
 
         const userState = userDoc.data()?.state;
@@ -125,7 +125,7 @@ export default function Notifications() {
 
     const userDoc = await executeOfflineSafeRead(firestore()
       .collection("users")
-      .doc(phone)
+      .doc(phone), true
       );
 
     const userData = userDoc.data();

@@ -87,7 +87,7 @@ export default function AddBatchAbsent() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("No phone number");
       
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).get());
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) throw new Error("No active session");
 

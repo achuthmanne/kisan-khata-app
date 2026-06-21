@@ -97,12 +97,12 @@ export default function AddOwnerWork() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) return; 
       if (isMounted.current) setActiveSession(activeSession);
 
-      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession), true);
       const landsMap: any = {};
       landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
@@ -111,7 +111,7 @@ export default function AddOwnerWork() {
         .doc(phone)
         .collection("fields")
         .where("session", "==", activeSession) 
-        );
+        , true);
 
       const set = new Set<string>();
       const map: Record<string, number> = {};
@@ -302,7 +302,7 @@ const workOptions = [
     try {
       setSaving(true);
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!), true);
       const activeSession = userDoc.data()?.activeSession;
       const oId = Array.isArray(ownerId) ? ownerId[0] : ownerId;
 
@@ -314,7 +314,7 @@ const workOptions = [
         .collection("entries")
         .where("session", "==", activeSession)
         .where("date", "==", date) 
-        );
+        , true);
 
       let isDuplicate = false;
       existingSnap.forEach((doc: any) => {
@@ -346,7 +346,7 @@ const workOptions = [
       setSaving(true);
 
       const phone = await AsyncStorage.getItem("USER_PHONE");
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone!), true);
       const activeSession = userDoc.data()?.activeSession;
       const oId = Array.isArray(ownerId) ? ownerId[0] : ownerId;
 

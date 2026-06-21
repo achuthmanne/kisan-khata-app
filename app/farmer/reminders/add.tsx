@@ -120,15 +120,15 @@ export default function AddReminderScreen() {
       }
 
       // 2. BACKGROUND FETCH FROM FIRESTORE
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) return;
 
-      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession), true);
       const landsMap: any = {};
       landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession));
+      const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession), true);
       const set = new Set<string>();
       snap.forEach((doc: any) => {
         const data = doc.data();

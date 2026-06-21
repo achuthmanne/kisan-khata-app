@@ -73,7 +73,7 @@ export default function PaymentSummary() {
         if (!userPhone) return;
         const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
-          .doc(userPhone)
+          .doc(userPhone), true
           );
 
         const activeSession = userDoc.data()?.activeSession;
@@ -87,7 +87,7 @@ export default function PaymentSummary() {
           .doc(id as string)
           .collection("attendance")
           .where("session", "==", activeSession) 
-          );
+          , true);
 
         const list = snap.docs
           .map((d: any) => ({ id: d.id, ...(d.data() as any) }))

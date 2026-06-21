@@ -207,8 +207,8 @@ export default function AttendanceHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
-      const session = userDoc.data()?.activeSession;
+      // 0-second delay: Read session directly from AsyncStorage cache
+      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
 
       if (!session) {
         if (isMounted.current) { setLoading(false); setRefreshing(false); }
@@ -217,23 +217,19 @@ export default function AttendanceHistory() {
 
       if (isMounted.current) setActiveSession(session);
 
-      const mestriSnap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        );
+      // 0-second delay: Use fastCache (!isRefreshed) to instantly return local data while syncing in background
+      const mestriSnap = await executeOfflineSafeRead(
+        firestore().collection("users").doc(userPhone).collection("mestris"), 
+        !isRefreshed
+      );
 
       const counts: any[] = [];
       for (const doc of mestriSnap.docs) {
         const mestri = doc.data();
-        const attendanceSnap = await executeOfflineSafeRead(firestore()
-          .collection("users")
-          .doc(userPhone)
-          .collection("mestris")
-          .doc(doc.id)
-          .collection("attendance")
-          .where("session", "==", session) 
-          );
+        const attendanceSnap = await executeOfflineSafeRead(
+          firestore().collection("users").doc(userPhone).collection("mestris").doc(doc.id).collection("attendance").where("session", "==", session),
+          !isRefreshed
+        );
 
         // 🔥 PRO FIX: Calculate actual volume of work (Morning + Evening + Full)
         let totalWorksVolume = 0;

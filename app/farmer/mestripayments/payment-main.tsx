@@ -52,7 +52,7 @@ export default function PaymentWorkHistory() {
 
       const userDoc = await executeOfflineSafeRead(firestore()
         .collection("users")
-        .doc(userPhone)
+        .doc(userPhone), true
         );
 
       const activeSession = userDoc.data()?.activeSession;
@@ -65,7 +65,7 @@ export default function PaymentWorkHistory() {
         .doc(id as string)
         .collection("attendance")
         .where("session", "==", activeSession) 
-        );
+        , true);
 
       const paymentSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
@@ -74,7 +74,7 @@ export default function PaymentWorkHistory() {
         .where("mestriId", "==", id)
         .where("crop", "==", crop)
         .where("work", "==", work)
-        );
+        , true);
 
       let paidIds: string[] = [];
 

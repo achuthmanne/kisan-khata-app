@@ -106,7 +106,7 @@ export default function VehicleDetails() {
              return;
           }
 
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
@@ -124,11 +124,11 @@ export default function VehicleDetails() {
               .collection("users")
               .doc(phone)
               .collection("vehicles")
-              .where("session", "!=", session)
+              .where("session", "!=", session), true
               );
               
             const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
-              vDoc.ref.collection("drivers").get()
+              executeOfflineSafeRead(vDoc.ref.collection("drivers"), true)
             );
             
             const snaps = await Promise.all(fetchPromises);
@@ -277,7 +277,7 @@ export default function VehicleDetails() {
         .collection("drivers").doc(driverId)
         .collection("entries")
         .where("session", "==", activeSession)
-        .limit(1) 
+        .limit(1), true
         );
 
       return !entriesSnap.empty;

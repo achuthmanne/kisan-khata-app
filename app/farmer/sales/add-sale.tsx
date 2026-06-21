@@ -80,19 +80,19 @@ export default function AddSale() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const fetchedSession = userDoc.data()?.activeSession;
       if (!fetchedSession) return; 
       
       setActiveSession(fetchedSession);
 
-      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession));
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession), true);
       const landsMap: any = {};
       landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
       const snap = await executeOfflineSafeRead(firestore()
         .collection("users").doc(phone).collection("fields")
-        .where("session", "==", fetchedSession) 
+        .where("session", "==", fetchedSession), true
         );
 
       const set = new Set<string>();
@@ -186,7 +186,7 @@ export default function AddSale() {
 
     setLoading(true);
     try {
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession;
       if (!activeSession) { setLoading(false); return; }
 
@@ -208,8 +208,7 @@ export default function AddSale() {
           .where("crop", "==", data.crop)
           .where("quantity", "==", data.quantity)
           .where("rate", "==", data.rate)
-          .where("session", "==", activeSession)
-          .get());
+          .where("session", "==", activeSession), true);
 
         if (!duplicateCheck.empty) {
           setLoading(false);

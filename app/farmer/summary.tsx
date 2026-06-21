@@ -980,7 +980,7 @@ export default function SummaryScreen() {
       if (!phone) return;
       if (isMounted) setUserPhone(phone);
       
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession;
       const uState = (userDoc.data()?.state || "ap").toLowerCase() === "telangana" ? "Telangana" : "AP";
       if (isMounted) {
@@ -1047,10 +1047,10 @@ export default function SummaryScreen() {
         }
 
         const [expSnap, salesSnap, paySnap, fieldsSnap] = await Promise.all([
-          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("expenses").where("session", "==", activeSession)),
-          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("sales").where("session", "==", activeSession)),
-          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("payments").where("session", "==", activeSession)),
-          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession))
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("expenses").where("session", "==", activeSession), true),
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("sales").where("session", "==", activeSession), true),
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("payments").where("session", "==", activeSession), true),
+          executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession), true)
         ]);
         
         if (!isMounted) return;

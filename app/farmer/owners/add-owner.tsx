@@ -205,7 +205,7 @@ export default function AddOwner() {
     const fetchSession = async () => {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) return;
-      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
       if (isMounted.current) {
         setActiveSession(doc.data()?.activeSession || "");
       }
@@ -272,7 +272,7 @@ export default function AddOwner() {
         const duplicateCheck = await executeOfflineSafeRead(ref
           .where("phone", "==", cleanPhone)
           .where("session", "==", activeSession)
-          .get());
+          , true);
 
         if (!duplicateCheck.empty) {
           if (isMounted.current) {

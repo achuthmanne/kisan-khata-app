@@ -80,7 +80,7 @@ export default function SchemeDetailsScreen() {
         return;
       }
 
-      const docSnap = await executeOfflineSafeRead(firestore().collection("schemes").doc(id as string));
+      const docSnap = await executeOfflineSafeRead(firestore().collection("schemes").doc(id as string), true);
 
       if (isMounted) {
         if (docSnap.exists()) {

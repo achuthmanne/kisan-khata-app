@@ -108,7 +108,7 @@ export default function PaymentsScreen() {
 
       const userDoc = await executeOfflineSafeRead(firestore()
         .collection("users")
-        .doc(userPhone)
+        .doc(userPhone), true
         );
 
       const activeSession = userDoc.data()?.activeSession;

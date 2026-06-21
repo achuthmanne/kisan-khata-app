@@ -171,7 +171,7 @@ export default function AddVehicle() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
         if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -228,7 +228,7 @@ export default function AddVehicle() {
       return;
     }
     
-    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
     const activeSession = userDoc.data()?.activeSession;
     if (!activeSession) {
       setSaving(false);
@@ -242,7 +242,7 @@ export default function AddVehicle() {
         .doc(phone)
         .collection("vehicles")
         .where("number", "==", cleanNumber)
-        .where("session", "==", activeSession)
+        .where("session", "==", activeSession), true
         );
         
       if (!existing.empty && !vehicleId) {

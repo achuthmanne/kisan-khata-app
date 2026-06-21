@@ -166,14 +166,8 @@ export default function MonthlyDriverHistory() {
         }
 
         let activeSession: string | undefined;
-        try {
-            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).get({ source: "cache" }));
-            activeSession = userDoc.data()?.activeSession;
-        } catch (e) {
-            // fallback to server if cache fails
-            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
-            activeSession = userDoc.data()?.activeSession;
-        }
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
+        activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
           if (isMounted.current) {
@@ -275,7 +269,7 @@ export default function MonthlyDriverHistory() {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
 
-    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
     const activeSession = userDoc.data()?.activeSession;
 
     setShowOnboarding(false);
@@ -353,7 +347,7 @@ export default function MonthlyDriverHistory() {
         return;
     }
 
-    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
     const activeSession = userDoc.data()?.activeSession;
 
     const batch = firestore().batch();
@@ -445,7 +439,7 @@ export default function MonthlyDriverHistory() {
     const userPhone = await AsyncStorage.getItem("USER_PHONE");
     if (!userPhone || !vId || !dId) return;
 
-    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+    const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
     const activeSession = userDoc.data()?.activeSession;
     if (!activeSession) return;
 

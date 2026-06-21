@@ -188,9 +188,9 @@ export default function PaymentHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
+      // 0-second delay: Read session directly from AsyncStorage cache
+      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
       const db = firestore();
-      const userDoc = await executeOfflineSafeRead(db.collection("users").doc(userPhone));
-      const session = userDoc.data()?.activeSession;
 
       if (!session) {
         if (isMounted.current) { setMestris([]); setLoading(false); }
@@ -200,18 +200,19 @@ export default function PaymentHistory() {
       if (isMounted.current) setActiveSession(session);
 
       /* 🔥 1. GET PAYMENTS ONLY */
-      const paymentSnap = await db
+      const paymentSnap = await executeOfflineSafeRead(db
         .collection("users")
         .doc(userPhone)
         .collection("payments")
-        .where("session", "==", session) 
-        .get();
+        .where("session", "==", session),
+        !isRefreshed
+      );
 
       const payments = paymentSnap.docs.map((d: any) => d.data());
 
       /* 🔥 2. GROUP BY MESTRI */
       const map: any = {};
-      payments.forEach(p => {
+      payments.forEach((p: any) => {
         const id = p.mestriId;
         if (!id) return;
 
@@ -230,14 +231,15 @@ export default function PaymentHistory() {
 
       /* 🔥 3. FETCH TOTAL ATTENDANCE */
       const promises = Object.keys(map).map(async (key) => {
-        const attendanceSnap = await db
+        const attendanceSnap = await executeOfflineSafeRead(db
           .collection("users")
           .doc(userPhone)
           .collection("mestris")
           .doc(key)
           .collection("attendance")
-          .where("session", "==", session)
-          .get();
+          .where("session", "==", session),
+          !isRefreshed
+        );
 
         const total = attendanceSnap.size;
         const paid = map[key].paid;

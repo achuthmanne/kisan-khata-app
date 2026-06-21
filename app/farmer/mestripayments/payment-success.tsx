@@ -128,7 +128,7 @@ export default function PaymentSuccess() {
 
       // 2. SAVE FIRESTORE DOC
       const db = firestore();
-      const userDoc = await executeOfflineSafeRead(db.collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(db.collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession || "default";
 
       const paymentData: any = {

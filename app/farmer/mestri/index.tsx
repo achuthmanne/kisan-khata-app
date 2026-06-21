@@ -115,7 +115,7 @@ export default function AttendanceScreen() {
           return;
         }
 
-        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
         const session = userDoc.data()?.activeSession;
 
         if (!session) {
@@ -132,7 +132,7 @@ export default function AttendanceScreen() {
             .doc(userPhone)
             .collection("mestris")
             .where("session", "!=", session)
-            );
+            , true);
           
           if (!pastSnap.empty) {
             const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
@@ -199,7 +199,7 @@ export default function AttendanceScreen() {
         .collection("attendance")
         .where("session", "==", activeSession)
         .limit(1) 
-        );
+        , true);
 
       if (!attSnap.empty) return true;
 
@@ -210,7 +210,7 @@ export default function AttendanceScreen() {
         .where("mestriId", "==", mestriId)
         .where("session", "==", activeSession)
         .limit(1)
-        );
+        , true);
 
       if (!paySnap.empty) return true;
 

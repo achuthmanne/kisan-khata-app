@@ -337,13 +337,13 @@ export default function Dashboard() {
             if (!isMounted) return;
             
             try {
-              const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+              const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
               const userState = userDoc.data()?.state;
               
-              const hiddenSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("hiddenNotifications"));
+              const hiddenSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("hiddenNotifications"), true);
               const hiddenIds = hiddenSnap.docs.map((d: any) => d.id);
 
-              const seenSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("seenNotifications"));
+              const seenSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("seenNotifications"), true);
               const seenIds = seenSnap.docs.map((d: any) => d.id);
 
               let count = 0;
@@ -562,7 +562,7 @@ export default function Dashboard() {
       }
       
       await fetchAllSessions(phone);
-      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const data = doc.data();
 
       // Set Name
@@ -656,7 +656,7 @@ export default function Dashboard() {
   const oldSessions = allSessions.filter(s => parseInt(s.split("-")[0]) < parseInt(oldestSession.split("-")[0]));
 
   const fetchAllSessions = async (phone:string) => {
-    const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields"));
+    const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields"), true);
     const sessionsSet = new Set<string>();
     snap.forEach((doc: any) => {
       const data = doc.data();

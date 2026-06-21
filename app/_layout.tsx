@@ -12,6 +12,7 @@ import NetworkOverlay from "@/components/NetworkOverlay";
 import notifee, { EventType } from '@notifee/react-native';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
+import { executeOfflineSafeWrite } from "@/utils/offlineHelper";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,12 +61,11 @@ export default function RootLayout() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
 
       if (phone) {
-        await firestore()
-          .collection("users")
-          .doc(phone)
-          .update({
+        executeOfflineSafeWrite(
+          firestore().collection("users").doc(phone).update({
             lastActiveAt: firestore.FieldValue.serverTimestamp()
-          });
+          })
+        );
       }
     }
 

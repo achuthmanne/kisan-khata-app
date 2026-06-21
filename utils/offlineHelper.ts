@@ -27,7 +27,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  * Implements a bulletproof AsyncStorage secondary cache for crucial single documents (like user profiles)
  * to prevent offline loading crashes when Firestore's SDK cache misses.
  */
-export const executeOfflineSafeRead = async (query: any) => {
+export const executeOfflineSafeRead = async (query: any, fastCache: boolean = false) => {
   const netState = await NetInfo.fetch();
   
   const getFallback = async () => {
@@ -49,6 +49,27 @@ export const executeOfflineSafeRead = async (query: any) => {
     }
     return null;
   };
+
+  // 🔥 0-Second Delay Stale-While-Revalidate (Fast Cache)
+  if (fastCache) {
+    try {
+      const cacheSnap = await query.get({ source: 'cache' });
+      // If we got valid data from cache, return immediately (0 ms delay)
+      if (cacheSnap && (cacheSnap.exists || (cacheSnap.docs && cacheSnap.docs.length > 0))) {
+        // Silently sync with server in background to update Firebase SQLite cache for next time
+        if (netState.isConnected && netState.isInternetReachable !== false) {
+          query.get({ source: 'server' }).then((result: any) => {
+             if (query.path && query.path.startsWith("users/") && result && result.exists && result.data) {
+                AsyncStorage.setItem(`FALLBACK_${query.path}`, JSON.stringify(result.data())).catch(()=>{});
+             }
+          }).catch(() => {});
+        }
+        return cacheSnap;
+      }
+    } catch (e) {
+      // Cache empty or failed, fall through to regular fetch
+    }
+  }
 
   if (netState.isConnected === false || netState.isInternetReachable === false) {
     try {

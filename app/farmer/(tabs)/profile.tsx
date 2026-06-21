@@ -152,7 +152,7 @@ export default function ProfileScreen() {
         if (!userPhone) { router.replace("/login"); return; }
 
         setPhone(userPhone);
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
         const data = doc.data();
 
         if (data) {
@@ -186,7 +186,7 @@ export default function ProfileScreen() {
       const fetchTierColor = async () => {
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone) return;
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
         const activeSession = doc.data()?.activeSession;
         
         if (activeSession) {

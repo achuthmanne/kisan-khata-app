@@ -101,7 +101,7 @@ export default function FarmerHistory() {
             return;
         }
 
-        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {

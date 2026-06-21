@@ -101,7 +101,7 @@ export default function EditMestri() {
 
       const doc = await executeOfflineSafeRead(firestore()
         .collection("users")
-        .doc(userPhone)
+        .doc(userPhone), true
         );
 
       setActiveSession(doc.data()?.activeSession || "");
@@ -133,7 +133,7 @@ export default function EditMestri() {
           .doc(userPhone)
           .collection("mestris")
           .doc(id as string)
-          );
+          , true);
 
         const data = doc.data();
 

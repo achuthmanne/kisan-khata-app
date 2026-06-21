@@ -93,7 +93,7 @@ export default function OwnersList() {
 
           if (isMounted.current) setLoading(true);
 
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
@@ -111,7 +111,7 @@ export default function OwnersList() {
               .collection("users")
               .doc(phone)
               .collection("owners")
-              .where("session", "!=", session)
+              .where("session", "!=", session), true
               );
             
             if (!pastSnap.empty) {
@@ -204,7 +204,7 @@ export default function OwnersList() {
         .collection("owners").doc(ownerId)
         .collection("entries")
         .where("session", "==", activeSession)
-        .limit(1)
+        .limit(1), true
         );
 
       return !entriesSnap.empty; 

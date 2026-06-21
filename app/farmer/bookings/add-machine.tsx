@@ -87,7 +87,7 @@ export default function AddMachine() {
   const fetchMachineData = async () => {
     if (!machineId) return;
     try {
-      const doc = await executeOfflineSafeRead(firestore().collection("machines").doc(machineId as string));
+      const doc = await executeOfflineSafeRead(firestore().collection("machines").doc(machineId as string), true);
       const data = doc.data(); 
       if (data) {
         setOwnerName(data.ownerName || "");
@@ -419,8 +419,7 @@ export default function AddMachine() {
       if (!isEditing && !bypassDuplicate) {
         const duplicateCheck = await executeOfflineSafeRead(ref
           .where("phone", "==", phone.trim())
-          .where("equipment", "==", equipment)
-          .get());
+          .where("equipment", "==", equipment), true);
 
         if (!duplicateCheck.empty) {
           setLoading(false);

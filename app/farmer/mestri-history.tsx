@@ -79,7 +79,7 @@ export default function MestriHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
       const session = userDoc.data()?.activeSession;
 
       if (!session) {
@@ -96,7 +96,7 @@ export default function MestriHistory() {
         .collection("payments")
         .where("mestriId", "==", id as string)
         .where("session", "==", session)
-        );
+        , true);
 
       let paidSet = new Set<string>();
       paymentsSnap.forEach((doc: any) => {
@@ -115,7 +115,7 @@ export default function MestriHistory() {
         .where("session", "==", session)
         .where("createdAt", "!=", null)
         .orderBy("createdAt", "desc")
-        );
+        , true);
         
       const list = snap.docs.map((d: any) => ({
         id: d.id,

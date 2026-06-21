@@ -76,7 +76,7 @@ export default function PaymentDetailHistory() {
       const userPhone = await AsyncStorage.getItem("USER_PHONE");
       if (!userPhone) throw new Error("NO_USER");
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
       const session = userDoc.data()?.activeSession;
 
       if (!session) {
@@ -91,7 +91,7 @@ export default function PaymentDetailHistory() {
         .doc(userPhone)
         .collection("payments")
         .where("mestriId", "==", mestriId)
-        .where("session", "==", session)
+        .where("session", "==", session), true
         );
 
       const list = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
@@ -113,7 +113,7 @@ export default function PaymentDetailHistory() {
         .collection("mestris")
         .doc(mestriId as string)
         .collection("attendance")
-        .where("session", "==", session) 
+        .where("session", "==", session), true
         );
 
       const totalDays = attendanceSnap.size;
@@ -236,7 +236,7 @@ export default function PaymentDetailHistory() {
         .collection("payments")
         .doc(deleteId);
 
-      const doc = await executeOfflineSafeRead(docRef.get());
+      const doc = await executeOfflineSafeRead(docRef, true);
       const data = doc.data();
 
       if (data?.session !== activeSession) return;

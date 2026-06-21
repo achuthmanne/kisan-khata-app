@@ -156,37 +156,49 @@ export default function FarmerLayout() {
 
   /* ---------------- USER DATA ---------------- */
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
     const checkUserStatus = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
 
       if (phone) {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
-        const data = doc.data();
-        setName(data?.name || "");
-        setProfileImage(data?.profileImage || null);
-        setRole(data?.role || "");
+        unsubscribe = firestore().collection("users").doc(phone).onSnapshot(async (doc) => {
+          if (!doc || !doc.exists) return;
+          const data = doc.data();
+          setName(data?.name || "");
+          setProfileImage(data?.profileImage || null);
+          setRole(data?.role || "");
 
-        const hasName = !!data?.name && data.name.trim().length >= 3;
-        setIsProfileComplete(hasName);
+          const hasName = !!data?.name && data.name.trim().length >= 3;
+          setIsProfileComplete(hasName);
 
-        if (!hasName && segments[segments.length - 1] !== "profile") {
-          router.replace("/farmer/(tabs)/profile");
-        }
-
-        const activeSession = data?.activeSession;
-        if (activeSession) {
-          const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
-          if (hasUserUnlocked === 'true') {
-            const color = await AsyncStorage.getItem('TIER_COLOR');
-            if (color) setTierColor(color);
-            else setTierColor('#10B981'); // Fallback New Farmer Color
-          } else {
-            setTierColor('#E5E7EB'); 
+          if (!hasName && segments[segments.length - 1] !== "profile") {
+            router.replace("/farmer/(tabs)/profile");
           }
-        }
+
+          const activeSession = data?.activeSession;
+          if (activeSession) {
+            // Guarantee fallback is available globally with zero delay
+            await AsyncStorage.setItem("ACTIVE_SESSION", activeSession);
+
+            const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
+            if (hasUserUnlocked === 'true') {
+              const color = await AsyncStorage.getItem('TIER_COLOR');
+              if (color) setTierColor(color);
+              else setTierColor('#10B981'); // Fallback New Farmer Color
+            } else {
+              setTierColor('#E5E7EB'); 
+            }
+          }
+        }, (error) => {
+          console.log("Layout user profile fetch error:", error);
+        });
       }
     };
     checkUserStatus();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, [segments]);
 
   const getDefaultImage = () => {

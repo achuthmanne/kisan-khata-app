@@ -93,7 +93,7 @@ export default function MestriAttendance() {
       try {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (!phone) return;
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
         setActiveSession(doc.data()?.activeSession || "");
       } catch (e) {
         console.log("Load session error", e);
@@ -107,11 +107,11 @@ export default function MestriAttendance() {
       try {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (!phone) return;
-        const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
+        const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession), true);
         const landsMap: any = {};
         landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-        const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession));
+        const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", activeSession), true);
         const set = new Set<string>();
         const map: Record<string, number> = {};
         snap.forEach((doc: any) => {
@@ -253,7 +253,7 @@ export default function MestriAttendance() {
         .collection("attendance")
         .where("uniqueKey", "==", uniqueKey)
         .where("session", "==", activeSession)
-        );
+        , true);
 
       if (!snap.empty) {
         setLoading(false);
@@ -318,7 +318,7 @@ export default function MestriAttendance() {
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone || !id) return;
 
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string), true);
         const data = doc.data();
         if (data) {
           setMestriName(data.name || "");

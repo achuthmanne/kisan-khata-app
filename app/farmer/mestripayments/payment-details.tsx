@@ -52,7 +52,7 @@ export default function PaymentDetails() {
 
       const userDoc = await executeOfflineSafeRead(firestore()
         .collection("users")
-        .doc(userPhone)
+        .doc(userPhone), true
         );
 
       const activeSession = userDoc.data()?.activeSession;
@@ -68,7 +68,7 @@ export default function PaymentDetails() {
         .doc(id as string)
         .collection("attendance")
         .where("session", "==", activeSession) 
-        );
+        , true);
 
       // Fetch payments to handle old records that don't have isPaid: true
       const paymentsSnap = await executeOfflineSafeRead(firestore()
@@ -77,7 +77,7 @@ export default function PaymentDetails() {
         .collection("payments")
         .where("mestriId", "==", id)
         .where("session", "==", activeSession)
-        );
+        , true);
 
       let paidIds: string[] = [];
       paymentsSnap.docs.forEach((p: any) => {

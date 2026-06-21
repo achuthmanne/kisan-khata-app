@@ -97,7 +97,7 @@ const categoryOptions = [
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
     };
     loadSession();
@@ -110,7 +110,7 @@ const categoryOptions = [
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) return;
 
-      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession));
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", activeSession), true);
       const landsMap: any = {};
       landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
@@ -118,7 +118,7 @@ const categoryOptions = [
         .collection("users")
         .doc(phone)
         .collection("fields")
-        .where("session", "==", activeSession)
+        .where("session", "==", activeSession), true
         );
 
       const set = new Set<string>();
@@ -227,8 +227,7 @@ const categoryOptions = [
               .where("crop", "==", data.crop)
               .where("category", "==", data.category)
               .where("amount", "==", data.amount)
-              .where("session", "==", activeSession)
-              .get());
+              .where("session", "==", activeSession), true);
 
             if (!duplicateCheck.empty) {
               if (isMounted.current) {

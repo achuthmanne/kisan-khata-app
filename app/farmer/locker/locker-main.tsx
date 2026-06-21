@@ -96,7 +96,7 @@ export default function LockerScreen() {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (!phone) { setLoading(false); return; }
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession;
 
       // Listen to snapshot for instant updates when adding/deleting

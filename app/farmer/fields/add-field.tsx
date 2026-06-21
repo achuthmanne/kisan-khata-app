@@ -182,7 +182,7 @@ export default function AddField() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
         if (isMounted) setActiveSession(doc.data()?.activeSession || "");
       }
     };

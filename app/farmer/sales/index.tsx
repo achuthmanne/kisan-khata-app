@@ -105,7 +105,7 @@ export default function SalesScreen() {
 
         const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
-          .doc(phone)
+          .doc(phone), true
           );
 
         const activeSession = userDoc.data()?.activeSession;

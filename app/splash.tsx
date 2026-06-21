@@ -113,7 +113,7 @@ export default function SplashScreen() {
       }
 
       try {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
         if (doc.exists()) {
           goNext(role === "FARMER" ? "/farmer/(tabs)" : "/(tabs)");
         } else {

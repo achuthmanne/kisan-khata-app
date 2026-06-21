@@ -160,7 +160,7 @@ export default function ExpensesScreen() {
               return;
             }
             
-            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
             const session = userDoc.data()?.activeSession;
 
             if (!session) {

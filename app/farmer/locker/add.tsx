@@ -106,7 +106,7 @@ export default function AddLockerScreen() {
     const loadSession = async () => {
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
         if (isMountedLocal) setActiveSession(doc.data()?.activeSession || "");
       }
     };
@@ -137,15 +137,15 @@ export default function AddLockerScreen() {
         setUserCrops(JSON.parse(cachedCrops));
       }
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const fetchedSession = userDoc.data()?.activeSession;
       if (!fetchedSession) return;
 
-      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession));
+      const landsSnap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("lands").where("session", "==", fetchedSession), true);
       const landsMap: any = {};
       landsSnap.forEach((doc: any) => { landsMap[doc.id] = doc.data().nickname; });
 
-      const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", fetchedSession));
+      const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields").where("session", "==", fetchedSession), true);
       const set = new Set<string>();
       snap.forEach((doc: any) => {
         const data = doc.data();
@@ -265,7 +265,7 @@ export default function AddLockerScreen() {
 
       const uploadedUrls = await uploadImages(phone);
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone));
+      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const activeSession = userDoc.data()?.activeSession || null;
 
       const lockerData = {

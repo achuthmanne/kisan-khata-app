@@ -131,6 +131,11 @@ export default function CustomTabBar({ state, navigation, language }: any) {
         </TouchableOpacity>
       </View>
 
+      {/* 🔥 System Navigation Bar Area Separator - ఇది గెస్చర్స్/బటన్స్ ఏరియాని డివైడ్ చేస్తుంది, యూజర్ కి స్పేస్ ఎందుకుందో అర్థమవుతుంది */}
+      {paddingBottom > 10 && (
+        <View style={{ position: 'absolute', bottom: paddingBottom, left: 0, right: 0, height: 1, backgroundColor: '#F3F4F6' }} />
+      )}
+
     </View>
   );
 }

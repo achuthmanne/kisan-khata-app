@@ -80,11 +80,11 @@ const categoryOptions = [
       { en: "Bags / Packaging", te: "సంచులు / ప్యాకింగ్ ఖర్చులు" },
       { en: "Storage / Godown", te: "కోల్డ్ స్టోరేజ్ / గోడౌన్" },
       { en: "Hamali / Loading", te: "హమాలీ / లోడింగ్ ఖర్చులు" },
-      { en: "Land Lease / Rent", te: "భూమి కౌలు (Lease)" },
+      { en: "Land Lease / Rent", te: "భూమి కౌలు" },
       { en: "Loan Interest", te: "అప్పుల వడ్డీ" },
       { en: "Crop Insurance", te: "పంట భీమా" },
-      { en: "Market Commission", te: "మార్కెట్ కమిషన్ (Cess)" },
-      { en: "Other Expenses", te: "ఇతర ఖర్చులు (Others)" }
+      { en: "Market Commission", te: "మార్కెట్ కమిషన్" },
+      { en: "Other Expenses", te: "ఇతర ఖర్చులు" }
   ];
 
   const isLabourCategory = (text: string) => text.includes("కూలీలు") || text.includes("Labour");
@@ -158,13 +158,7 @@ const categoryOptions = [
       setCrop(val);
       setModalType(null);
       if (errors.crop) setErrors({ ...errors, crop: "" });
-      
-      setTimeout(() => {
-        if (isMounted.current) {
-          setSearchText("");
-          setModalType("cat");
-        }
-      }, 300);
+      setSearchText("");
       return;
     }
 
@@ -176,13 +170,6 @@ const categoryOptions = [
     setShowLabourInfo(isLabourCategory(val));
     setShowRentInfo(isRentCategory(val));
     setShowTractorInfo(isTractorCategory(val));
-
-    setTimeout(() => {
-      if (isMounted.current) {
-        setActiveInput("amt");
-        amtRef.current?.focus();
-      }
-    }, 300);
   };
 
   useEffect(() => {
@@ -462,7 +449,6 @@ const categoryOptions = [
                       <View style={styles.searchBar}>
                           <TextInput 
                               cursorColor="#DC2626"
-                              autoFocus
                               placeholder={language === "te" ? "ఇక్కడ టైప్ చేయండి..." : "Type here..."}
                               style={[styles.searchInput, {fontFamily: 'Mandali'}]}
                               value={searchText}

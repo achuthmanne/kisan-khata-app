@@ -20,18 +20,43 @@ export const executeOfflineSafeWrite = async <T>(writePromise: Promise<T>): Prom
   });
 };
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 /**
  * Wraps a Firestore GET operation (DocumentReference or Query) to enforce cache read if offline.
- * This prevents infinite loading or long timeouts.
+ * Implements a bulletproof AsyncStorage secondary cache for crucial single documents (like user profiles)
+ * to prevent offline loading crashes when Firestore's SDK cache misses.
  */
 export const executeOfflineSafeRead = async (query: any) => {
   const netState = await NetInfo.fetch();
   
+  const getFallback = async () => {
+    // Only apply fallback caching for specific user docs
+    if (query.path && query.path.startsWith("users/")) {
+      try {
+        const fallbackData = await AsyncStorage.getItem(`FALLBACK_${query.path}`);
+        if (fallbackData) {
+          console.log(`[Offline Fallback] Restored document from AsyncStorage: ${query.path}`);
+          return {
+            id: query.id,
+            data: () => JSON.parse(fallbackData),
+            exists: true
+          };
+        }
+      } catch (e) {
+        console.log('AsyncStorage fallback error:', e);
+      }
+    }
+    return null;
+  };
+
   if (netState.isConnected === false || netState.isInternetReachable === false) {
     try {
       return await query.get({ source: 'cache' });
     } catch (e) {
       console.log('Cache read error:', e);
+      const fallback = await getFallback();
+      if (fallback) return fallback;
       throw e;
     }
   }
@@ -41,6 +66,16 @@ export const executeOfflineSafeRead = async (query: any) => {
       query.get(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 5000))
     ]);
+    
+    // Transparently save to fallback cache when online
+    if (query.path && query.path.startsWith("users/") && result && result.exists && result.data) {
+      try {
+        await AsyncStorage.setItem(`FALLBACK_${query.path}`, JSON.stringify(result.data()));
+      } catch (e) {
+        console.log('Error caching fallback:', e);
+      }
+    }
+    
     return result;
   } catch (e: any) {
     if (e.message === 'TIMEOUT' || e.code === 'firestore/unavailable') {
@@ -48,6 +83,8 @@ export const executeOfflineSafeRead = async (query: any) => {
       try {
          return await query.get({ source: 'cache' });
       } catch (cacheError) {
+         const fallback = await getFallback();
+         if (fallback) return fallback;
          throw cacheError;
       }
     }

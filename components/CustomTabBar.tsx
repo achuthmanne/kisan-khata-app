@@ -11,9 +11,9 @@ const { width } = Dimensions.get("window");
 export default function CustomTabBar({ state, navigation, language }: any) {
   const insets = useSafeAreaInsets();
   
-  // రెస్పాన్సివ్ స్పేసింగ్
-  const paddingBottom = Platform.OS === 'ios' ? Math.max(insets.bottom, 12) : 12; 
-  const navbarHeight = 60 + paddingBottom;
+  // రెస్పాన్సివ్ స్పేసింగ్: Android navigation bar కి కూడా ఇన్సెట్స్ పర్ఫెక్ట్ గా యాడ్ చేశా బ్రో 
+  const paddingBottom = Math.max(insets.bottom, 15); // కనీసం 15 వదిలాను, buttons ఉంటే insets.bottom తీసుకుంటుంది
+  const navbarHeight = 65 + paddingBottom; // బార్ హైట్ కాస్త పెంచాను కంఫర్ట్ కోసం
   
   // 🔥 డెప్త్ పారామీటర్స్ - ట్యాబ్ నేమ్స్ ఎండ్ అయ్యే లైన్ లెవెల్ వరకు లోతు పెంచాను
   const cutWidth = 54;   // కర్వ్ వెడల్పు కొంచెం పెంచాను లోతుకి తగ్గట్టు

@@ -14,9 +14,9 @@
         "googleMapsApiKey": "AIzaSyCpd2HMnvu531V6S-6cx1jtArXmCh2KBcY"
       },
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "\u0c30\u0c48\u0c24\u0c41\u0c32\u0c15\u0c41 \u0c35\u0c3e\u0c2f\u0c3f\u0c38\u0c4d \u0c38\u0c46\u0c30\u0c4d\u0c1a\u0c4d \u0c15\u0c4b\u0c38\u0c02 \u0c2e\u0c48\u0c15\u0c4d\u0c30\u0c4b\u0c2b\u0c4b\u0c28\u0c4d \u0c05\u0c28\u0c41\u0c2e\u0c24\u0c3f \u0c05\u0c35\u0c38\u0c30\u0c02.",
-        "NSSpeechRecognitionUsageDescription": "\u0c35\u0c3e\u0c2f\u0c3f\u0c38\u0c4d \u0c15\u0c2e\u0c3e\u0c02\u0c21\u0c4d\u0c38\u0c4d \u0c26\u0c4d\u0c35\u0c3e\u0c30\u0c3e \u0c2f\u0c02\u0c24\u0c4d\u0c30\u0c3e\u0c32\u0c28\u0c41 \u0c35\u0c46\u0c24\u0c15\u0c21\u0c3e\u0c28\u0c3f\u0c15\u0c3f \u0c05\u0c28\u0c41\u0c2e\u0c24\u0c3f \u0c07\u0c35\u0c4d\u0c35\u0c02\u0c21\u0c3f.",
-        "NSContactsUsageDescription": "\u0c30\u0c48\u0c24\u0c41\u0c32\u0c41, \u0c2e\u0c47\u0c38\u0c4d\u0c24\u0c4d\u0c30\u0c40\u0c32\u0c41 \u0c32\u0c47\u0c26\u0c3e \u0c21\u0c4d\u0c30\u0c48\u0c35\u0c30\u0c4d\u0c32 \u0c2a\u0c47\u0c30\u0c4d\u0c32\u0c41 \u0c2e\u0c30\u0c3f\u0c2f\u0c41 \u0c2b\u0c4b\u0c28\u0c4d \u0c28\u0c02\u0c2c\u0c30\u0c4d\u0c32\u0c28\u0c41 \u0c2e\u0c40 \u0c15\u0c3e\u0c02\u0c1f\u0c3e\u0c15\u0c4d\u0c1f\u0c4d\u0c38\u0c4d \u0c28\u0c41\u0c02\u0c21\u0c3f \u0c38\u0c41\u0c32\u0c2d\u0c02\u0c17\u0c3e \u0c0e\u0c02\u0c1a\u0c41\u0c15\u0c4b\u0c35\u0c21\u0c3e\u0c28\u0c3f\u0c15\u0c3f \u0c08 \u0c05\u0c28\u0c41\u0c2e\u0c24\u0c3f \u0c05\u0c35\u0c38\u0c30\u0c02."
+        "NSMicrophoneUsageDescription": "రైతులకు వాయిస్ సెర్చ్ కోసం మైక్రోఫోన్ అనుమతి అవసరం.",
+        "NSSpeechRecognitionUsageDescription": "వాయిస్ కమాండ్స్ ద్వారా యంత్రాలను వెతకడానికి అనుమతి ఇవ్వండి.",
+        "NSContactsUsageDescription": "రైతులు, మేస్త్రీలు లేదా డ్రైవర్ల పేర్లు మరియు ఫోన్ నంబర్లను మీ కాంటాక్ట్స్ నుండి సులభంగా ఎంచుకోవడానికి ఈ అనుమతి అవసరం."
       }
     },
     "android": {
@@ -74,13 +74,13 @@
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "\u0c30\u0c48\u0c24\u0c41\u0c32\u0c15\u0c41 \u0c35\u0c3e\u0c2f\u0c3f\u0c38\u0c4d \u0c38\u0c46\u0c30\u0c4d\u0c1a\u0c4d \u0c15\u0c4b\u0c38\u0c02 \u0c2e\u0c48\u0c15\u0c4d\u0c30\u0c4b\u0c2b\u0c4b\u0c28\u0c4d \u0c05\u0c28\u0c41\u0c2e\u0c24\u0c3f \u0c05\u0c35\u0c38\u0c30\u0c02."
+          "microphonePermission": "రైతులకు వాయిస్ సెర్చ్ కోసం మైక్రోఫోన్ అనుమతి అవసరం."
         }
       ],
       [
         "expo-contacts",
         {
-          "contactsPermission": "\u0c2e\u0c40 \u0c30\u0c48\u0c24\u0c41\u0c32\u0c41 \u0c2e\u0c30\u0c3f\u0c2f\u0c41 \u0c21\u0c4d\u0c30\u0c48\u0c35\u0c30\u0c4d\u0c32\u0c28\u0c41 \u0c38\u0c41\u0c32\u0c2d\u0c02\u0c17\u0c3e \u0c2f\u0c3e\u0c21\u0c4d \u0c1a\u0c47\u0c2f\u0c21\u0c3e\u0c28\u0c3f\u0c15\u0c3f \u0c15\u0c3e\u0c02\u0c1f\u0c3e\u0c15\u0c4d\u0c1f\u0c4d\u0c38\u0c4d \u0c2a\u0c30\u0c4d\u0c2e\u0c3f\u0c37\u0c28\u0c4d \u0c05\u0c35\u0c38\u0c30\u0c02."
+          "contactsPermission": "మీ రైతులు మరియు డ్రైవర్లను సులభంగా యాడ్ చేయడానికి కాంటాక్ట్స్ పర్మిషన్ అవసరం."
         }
       ],
       [
@@ -90,7 +90,8 @@
           "color": "#1B5E20"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "./withFirebaseAuthFix.js"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -102,10 +103,6 @@
         "projectId": "3a4c40e8-8a05-4e80-8f28-97d2c7414ac3"
       }
     },
-    "owner": "achuthmanne",
-    "androidNavigationBar": {
-      "barStyle": "dark-content",
-      "backgroundColor": "#FFFFFF"
-    }
+    "owner": "achuthmanne"
   }
 }

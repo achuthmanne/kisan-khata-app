@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import auth, { FirebaseAuthTypes } from "@react-native-firebase/auth";
 import firestore from "@react-native-firebase/firestore";
-import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -180,7 +180,7 @@ export default function LoginScreen() {
 
   const handleSuccessfulAuth = async (userPhone: string) => {
     try {
-      const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
+      const doc = await firestore().collection("users").doc(userPhone).get();
       const data = doc.data();
       const userExists = !!data;
       
@@ -188,20 +188,20 @@ export default function LoginScreen() {
 
       if (!userExists) {
         // Create new user silently
-        await executeOfflineSafeWrite(firestore().collection("users").doc(userPhone).set({
+        await firestore().collection("users").doc(userPhone).set({
           phone: userPhone,
           role: roleToSave,
           language: language,
           createdAt: firestore.FieldValue.serverTimestamp(),
           updatedAt: firestore.FieldValue.serverTimestamp()
-        }));
+        });
       } else {
         // Just update language and ensure role is farmer
-        await executeOfflineSafeWrite(firestore().collection("users").doc(userPhone).update({
+        await firestore().collection("users").doc(userPhone).update({
           role: roleToSave,
           language: language,
           updatedAt: firestore.FieldValue.serverTimestamp()
-        }));
+        });
       }
 
       // Save Local State

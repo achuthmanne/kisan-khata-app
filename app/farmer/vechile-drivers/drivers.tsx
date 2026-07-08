@@ -123,35 +123,8 @@ export default function VehicleDetails() {
           
           if (isMountedLocal) setActiveSession(session);
 
-          try {
-            const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
-              .collection("users")
-              .doc(phone)
-              .collection("vehicles")
-              .where("session", "!=", session), true
-              );
-              
-            const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
-              executeOfflineSafeRead(vDoc.ref.collection("drivers"), true)
-            );
-            
-            const snaps = await Promise.all(fetchPromises);
-            const uniquePast: any[] = [];
-            const phones = new Set();
-            
-            snaps.forEach((snap: any) => {
-              snap.docs.forEach((doc: any) => {
-                const d = { id: doc.id, ...(doc.data() as any) };
-                const key = d.phone ? d.phone.trim() : d.driverName?.trim().toLowerCase();
-                if (key && !phones.has(key)) {
-                  phones.add(key);
-                  uniquePast.push(d);
-                }
-              });
-            });
-            
-            if (isMountedLocal) setPastDrivers(uniquePast);
-          } catch(err) { console.log("Past fetch error", err); }
+          // 🔥 PAST DRIVERS FETCH REMOVED FROM HERE
+          // They will now be fetched ONLY when the user clicks 'Import Past Drivers'
 
           initVehicleDriversListener(vId as string, phone, session);
           if (isMountedLocal) setLoading(false);
@@ -165,10 +138,57 @@ export default function VehicleDetails() {
 
       return () => {
         isMountedLocal = false;
-        unsubVehicleDrivers(vId as string);
+        // Optional: unsubVehicleDrivers(vId as string);
       };
     }, [vId])
   );
+
+  // 🔥 NEW FUNCTION: Fetch past drivers ONLY on demand
+  const fetchPastDrivers = async () => {
+    try {
+      setImporting(true);
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone || !activeSession) {
+        setImporting(false);
+        return;
+      }
+
+      const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
+        .collection("users")
+        .doc(phone)
+        .collection("vehicles")
+        .where("session", "!=", activeSession), false
+      );
+        
+      const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
+        executeOfflineSafeRead(vDoc.ref.collection("drivers"), false)
+      );
+      
+      const snaps = await Promise.all(fetchPromises);
+      const uniquePast: any[] = [];
+      const phones = new Set();
+      
+      snaps.forEach((snap: any) => {
+        snap.docs.forEach((doc: any) => {
+          const d = { id: doc.id, ...(doc.data() as any) };
+          const key = d.phone ? d.phone.trim() : d.driverName?.trim().toLowerCase();
+          if (key && !phones.has(key)) {
+            phones.add(key);
+            uniquePast.push(d);
+          }
+        });
+      });
+      
+      if (isMounted.current) {
+        setPastDrivers(uniquePast);
+        setShowImportModal(true);
+      }
+    } catch(err) { 
+      console.log("Past fetch error", err); 
+    } finally {
+      if (isMounted.current) setImporting(false);
+    }
+  };
 
   /* ---------------- FILTER ---------------- */
   const filtered = data.filter(item =>
@@ -414,7 +434,7 @@ export default function VehicleDetails() {
           ]}
           ListEmptyComponent={
             <View>
-              {(search.trim().length === 0 && pastDrivers.length > 0) && (
+              {(search.trim().length === 0) && (
                 <View style={styles.importSuggestionCard}>
                   <View style={styles.importIconBg}>
                     <Ionicons name="time-outline" size={28} color="#D97706" />
@@ -427,14 +447,17 @@ export default function VehicleDetails() {
                       ? "మీరు గతంలో పని చేసిన డ్రైవర్లను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
                       : "Do you want to reuse the drivers you worked with in previous seasons?"}
                   </AppText>
-                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => {
+                    if (pastDrivers.length === 0) fetchPastDrivers();
+                    else setShowImportModal(true);
+                  }}>
                     <AppText style={styles.importBtnText} language={language}>
                       {language === "te" ? "పాత డ్రైవర్లను ఎంచుకోండి" : "Select Past Drivers"}
                     </AppText>
                   </TouchableOpacity>
                 </View>
               )}
-              <View style={{ marginTop: search.trim().length === 0 && pastDrivers.length > 0 ? 10 : 40 }}>
+              <View style={{ marginTop: search.trim().length === 0 ? 10 : 40 }}>
                 <AppEmptyState
                   iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
                   title={

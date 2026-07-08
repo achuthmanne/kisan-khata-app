@@ -42,7 +42,7 @@ const translations = {
     morning:"శుభోదయం", afternoon:"శుభ మధ్యాహ్నం", evening:"శుభ సాయంత్రం", night:"శుభ రాత్రి",
     quick:"ముఖ్యమైన సేవలు", all:"అన్ని సేవలు", attendance:"కూలీల హాజరు", payments:"కూలీల చెల్లింపులు",
     sales:"పంట అమ్మకాలు", expenses:"పెట్టుబడి లెక్కలు", crops:"వ్యవసాయ నివేదిక", schemes:"ప్రభుత్వ పథకాలు",
-    market:"మార్కెట్ ధరలు", forecast:"వాతావరణం చూడండి", weather: "వాతావరణం",
+    market:"పంట ధరలు", forecast:"వాతావరణం చూడండి", weather: "వాతావరణం",
     machine: "యంత్రాల లెక్కలు", calculator:"క్యాలిక్యులేటర్", booking: "అగ్రి కనెక్ట్",
     fields: "నా పొలాలు", owners: "నా వాహనాలు", reminders: "పనుల అలారం", locker: "అగ్రి లాకర్"
   },
@@ -50,7 +50,7 @@ const translations = {
     morning:"Good Morning", afternoon:"Good Afternoon", evening:"Good Evening", night:"Good Night",
     quick:"Smart Suggestions", all:"All Services", calculator:"Smart Calculators", attendance:"Workers Attendance",
     payments:"Workers Payment", forecast:"See Forecast", sales:"Crop Sales", expenses:"Farm Expenses",
-    crops:"Farm Report", schemes:"Govt Schemes", market:"Market Prices", weather: "Weather",
+    crops:"Farm Report", schemes:"Govt Schemes", market:"Crop Prices", weather: "Weather",
     machine: "Machinery Accounts", booking: "Agri Connect", fields: "My Fields", owners: "My Vehicles", reminders: "Task Alarm", locker: "Agri Locker"
   }
 };

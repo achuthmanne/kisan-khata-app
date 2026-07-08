@@ -125,35 +125,8 @@ export default function VehicleDetails() {
           
           if (isMountedLocal) setActiveSession(session); 
 
-          try {
-            const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
-              .collection("users")
-              .doc(phone)
-              .collection("vehicles")
-              .where("session", "!=", session), true
-              );
-              
-            const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
-              executeOfflineSafeRead(vDoc.ref.collection("farmers"), true)
-            );
-            
-            const snaps = await Promise.all(fetchPromises);
-            const uniquePast: any[] = [];
-            const phones = new Set();
-            
-            snaps.forEach((snap: any) => {
-              snap.docs.forEach((doc: any) => {
-                const f = { id: doc.id, ...(doc.data() as any) };
-                const key = f.phone ? f.phone.trim() : f.farmerName?.trim().toLowerCase();
-                if (key && !phones.has(key)) {
-                  phones.add(key);
-                  uniquePast.push(f);
-                }
-              });
-            });
-            
-            if (isMountedLocal) setPastFarmers(uniquePast);
-          } catch(err) { console.log("Past fetch error", err); }
+          // 🔥 PAST FARMERS FETCH REMOVED FROM HERE
+          // They will now be fetched ONLY when the user clicks 'Import Past Farmers'
 
           initVehicleFarmersListener(id as string, phone, session);
           if (isMountedLocal) setLoading(false);
@@ -167,10 +140,58 @@ export default function VehicleDetails() {
 
       return () => {
         isMountedLocal = false;
-        unsubVehicleFarmers(id as string);
+        // Optional: unsubVehicleFarmers(id as string); 
+        // We let Zustand keep it alive for snappy back navigation
       };
     }, [id])
   );
+
+  // 🔥 NEW FUNCTION: Fetch past farmers ONLY on demand
+  const fetchPastFarmers = async () => {
+    try {
+      setImporting(true);
+      const phone = await AsyncStorage.getItem("USER_PHONE");
+      if (!phone || !activeSession) {
+        setImporting(false);
+        return;
+      }
+
+      const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
+        .collection("users")
+        .doc(phone)
+        .collection("vehicles")
+        .where("session", "!=", activeSession), false // 🔥 Use cache first!
+      );
+        
+      const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
+        executeOfflineSafeRead(vDoc.ref.collection("farmers"), false)
+      );
+      
+      const snaps = await Promise.all(fetchPromises);
+      const uniquePast: any[] = [];
+      const phones = new Set();
+      
+      snaps.forEach((snap: any) => {
+        snap.docs.forEach((doc: any) => {
+          const f = { id: doc.id, ...(doc.data() as any) };
+          const key = f.phone ? f.phone.trim() : f.farmerName?.trim().toLowerCase();
+          if (key && !phones.has(key)) {
+            phones.add(key);
+            uniquePast.push(f);
+          }
+        });
+      });
+      
+      if (isMounted.current) {
+        setPastFarmers(uniquePast);
+        setShowImportModal(true);
+      }
+    } catch(err) { 
+      console.log("Past fetch error", err); 
+    } finally {
+      if (isMounted.current) setImporting(false);
+    }
+  };
 
   /* ---------------- FILTER ---------------- */
   const filtered = data.filter(item =>
@@ -409,7 +430,7 @@ export default function VehicleDetails() {
           ]}
           ListEmptyComponent={
             <View>
-              {(search.trim().length === 0 && pastFarmers.length > 0) && (
+              {(search.trim().length === 0) && (
                 <View style={styles.importSuggestionCard}>
                   <View style={styles.importIconBg}>
                     <Ionicons name="time-outline" size={28} color="#D97706" />
@@ -422,14 +443,17 @@ export default function VehicleDetails() {
                       ? "మీరు గతంలో పని చేసిన రైతులను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
                       : "Do you want to reuse the farmers you worked with in previous seasons?"}
                   </AppText>
-                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => {
+                    if (pastFarmers.length === 0) fetchPastFarmers();
+                    else setShowImportModal(true);
+                  }}>
                     <AppText style={styles.importBtnText} language={language}>
                       {language === "te" ? "పాత రైతులను ఎంచుకోండి" : "Select Past Farmers"}
                     </AppText>
                   </TouchableOpacity>
                 </View>
               )}
-              <View style={{ marginTop: search.trim().length === 0 && pastFarmers.length > 0 ? 10 : 40 }}>
+              <View style={{ marginTop: search.trim().length === 0 ? 10 : 40 }}>
                 <AppEmptyState
                   iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
                   title={

@@ -26,12 +26,12 @@ const { width } = Dimensions.get("window");
 /* ---------------- TRANSLATIONS ---------------- */
 const translations = {
   te: {
-    title: "మార్కెట్ ధరలు",
-    subtitle: "తాజా మార్కెట్ యార్డ్ ధరలు",
+    title: "పంట ధరలు",
+    subtitle: "తాజా పంట ధరలు",
     search: "పంట పేరుతో వెతకండి...",
     ap: "ఆంధ్రప్రదేశ్",
     ts: "తెలంగాణ",
-    noData: "మార్కెట్ సమాచారం దొరకలేదు",
+    noData: "సమాచారం దొరకలేదు",
     retry: "మళ్ళీ ప్రయత్నించండి",
     noResults: "మీరు వెతికిన పంట దొరకలేదు",
     min: "కనిష్ట",
@@ -39,8 +39,8 @@ const translations = {
     lastUpdated: "చివరి అప్‌డేట్: " // 🔥 NEW
   },
   en: {
-    title: "Market Prices",
-    subtitle: "Latest Market Yard Rates",
+    title: "Crop Prices",
+    subtitle: "Latest Crop Prices",
     search: "Search by crop name...",
     ap: "Andhra Pradesh",
     ts: "Telangana",

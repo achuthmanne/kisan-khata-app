@@ -2,6 +2,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
@@ -53,21 +54,22 @@ export default function SchemesScreen() {
   const [language, setLanguage] = useState<"te" | "en">("te");
   const t = translations[language];
 
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [schemes, setSchemes] = useState<any[]>([]);
+  const schemes = useStore(state => state.schemes);
+  const isInitializing = useStore(state => state.isInitializing);
+  
+  const loading = isInitializing && schemes.length === 0;
+
   const [activeTab, setActiveTab] = useState<"AP" | "TS">("AP");
 
-  /* ---------------- LOAD LANG & DATA ---------------- */
   useEffect(() => {
-    let isMounted = true; // 🔥 Memory leak fix
+    let isMounted = true; 
 
     const init = async () => {
       const lang = await AsyncStorage.getItem("APP_LANG");
       if (lang && isMounted) setLanguage(lang as "te" | "en");
-      fetchSchemes(false, isMounted);
     };
 
     init();
@@ -77,50 +79,11 @@ export default function SchemesScreen() {
     };
   }, []);
 
-  /* ---------------- FETCH SCHEMES ---------------- */
-  const fetchSchemes = async (forceRefresh = false, isMounted = true) => {
-    try {
-      if (!forceRefresh) setLoading(true);
-      setError(false);
-
-      const snapshot = await executeOfflineSafeRead(firestore()
-        .collection("schemes")
-        .where("isActive", "==", true), true
-        );
-
-      if (!isMounted) return;
-
-      if (snapshot.empty) {
-        setSchemes([]);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      const fetchedSchemes = snapshot.docs.map((doc: any) => ({
-        id: doc.id,
-        ...doc.data()
-      })).sort((a: any, b: any) => {
-        const timeA = a.createdAt?.toMillis?.() || 0;
-        const timeB = b.createdAt?.toMillis?.() || 0;
-        return timeB - timeA;
-      });
-
-      setSchemes(fetchedSchemes);
-    } catch (err) {
-      console.log("Schemes API Error:", err);
-      if (isMounted) setError(true);
-    } finally {
-      if (isMounted) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  };
-
   const onRefresh = () => {
     setRefreshing(true);
-    fetchSchemes(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
   };
 
   /* ---------------- FILTERING ---------------- */
@@ -235,7 +198,7 @@ export default function SchemesScreen() {
           <AppEmptyState
             iconName="cloud-offline-outline"
             title={t.errorText}
-            onRetry={() => fetchSchemes(true)}
+            onRetry={() => {}}
             language={language}
           />
         </View>

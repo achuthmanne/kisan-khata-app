@@ -3,7 +3,7 @@ import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import firestore from "@react-native-firebase/firestore";
+import { useStore } from "@/store/useStore";
 import { useEffect, useState } from "react";
 import {
   SafeAreaView,
@@ -23,22 +23,11 @@ export default function BookingEntry() {
     AsyncStorage.getItem("APP_LANG").then(l => { if (l) setLanguage(l as any); });
   }, []);
 
-  useEffect(() => {
-    let unsubscribe: any;
-    const load = async () => {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) return;
+  const machinesGlobal = useStore(state => state.machines);
 
-      unsubscribe = firestore()
-        .collection("machines")
-        .where("userId", "==", phone)
-        .onSnapshot((snap) => {
-          setMachineCount(snap.size); 
-        });
-    };
-    load();
-    return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
+  useEffect(() => {
+    setMachineCount(machinesGlobal.length);
+  }, [machinesGlobal]);
 
   return (
     <SafeAreaView style={styles.safe}>

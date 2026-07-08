@@ -31,6 +31,7 @@ import {
 import { WebView } from "react-native-webview";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
+import { useStore } from "@/store/useStore";
 
 type CycleItem = {
   id: string;
@@ -85,14 +86,22 @@ export default function MonthlyDriverHistory() {
   const dPaymentType = Array.isArray(paymentType) ? paymentType[0] : paymentType;
   const dMonthlySalary = Number(Array.isArray(monthlySalary) ? monthlySalary[0] : monthlySalary) || 0;
 
-  const [cyclesLoaded, setCyclesLoaded] = useState(false);
-  const [entriesLoaded, setEntriesLoaded] = useState(false);
-  const loading = !cyclesLoaded || !entriesLoaded;
+  const driverCyclesMap = useStore(state => state.driverCycles);
+  const cycles = driverCyclesMap[`${vId as string}_${dId as string}`] || [];
+  const initDriverCyclesListener = useStore(state => state.initDriverCyclesListener);
+  const unsubDriverCycles = useStore(state => state.unsubDriverCycles);
+
+  const driverWorksMap = useStore(state => state.driverWorks);
+  const entries = driverWorksMap[`${vId as string}_${dId as string}`] || [];
+  const initDriverWorksListener = useStore(state => state.initDriverWorksListener);
+  const unsubDriverWorks = useStore(state => state.unsubDriverWorks);
+
+  const [cyclesLoaded, setCyclesLoaded] = useState(true); // Now we sync with store
+  const [entriesLoaded, setEntriesLoaded] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true); // Using this for Shimmer
+  const loading = initialLoading;
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [expanded, setExpanded] = useState<string | null>(null);
-
-  const [cycles, setCycles] = useState<CycleItem[]>([]);
-  const [entries, setEntries] = useState<WorkItem[]>([]);
 
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -149,19 +158,15 @@ export default function MonthlyDriverHistory() {
 
   useFocusEffect(
     useCallback(() => {
-      let unsubCycles: any;
-      let unsubEntries: any;
+      let isMountedLocal = true;
 
       const load = async () => {
         const lang = await AsyncStorage.getItem("APP_LANG");
-        if (lang && isMounted.current) setLanguage(lang as any);
+        if (lang && isMountedLocal) setLanguage(lang as any);
 
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone || !vId || !dId) {
-            if (isMounted.current) {
-                setCyclesLoaded(true);
-                setEntriesLoaded(true);
-            }
+            if (isMountedLocal) setInitialLoading(false);
             return;
         }
 
@@ -170,80 +175,36 @@ export default function MonthlyDriverHistory() {
         activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
-          if (isMounted.current) {
-              setCyclesLoaded(true);
-              setEntriesLoaded(true);
-          }
+          if (isMountedLocal) setInitialLoading(false);
           return;
         }
 
-        // FETCH CYCLES
-        unsubCycles = firestore()
-          .collection("users").doc(userPhone)
-          .collection("vehicles").doc(vId)
-          .collection("drivers").doc(dId)
-          .collection("cycles")
-          .where("session", "==", activeSession)
-          .onSnapshot(snap => {
-            if (!snap) return;
-            const list: CycleItem[] = [];
-            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
-            list.sort((a, b) => {
-              const timeA = a.startDateRaw ? new Date(a.startDateRaw).getTime() : 0;
-              const timeB = b.startDateRaw ? new Date(b.startDateRaw).getTime() : 0;
-              return timeB - timeA; // newest first
-            });
-            
-            if (isMounted.current) {
-                setCycles(list);
-                setCyclesLoaded(true);
-                if (list.length > 0) {
-                   setShowOnboarding(false);
-                   // expand active cycle by default
-                   const active = list.find(c => c.isActive);
-                   if (active && !expanded) setExpanded(active.id);
-                }
-            }
-          }, (err) => {
-             console.log("Cycles Error:", err);
-             if (isMounted.current) setCyclesLoaded(true);
-          });
-
-        // FETCH ENTRIES
-        unsubEntries = firestore()
-          .collection("users").doc(userPhone)
-          .collection("vehicles").doc(vId)
-          .collection("drivers").doc(dId)
-          .collection("entries")
-          .where("session", "==", activeSession)
-          .onSnapshot(snap => {
-            if (!snap) return;
-            const list: WorkItem[] = [];
-            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
-            if (isMounted.current) {
-                setEntries(list);
-                setEntriesLoaded(true);
-            }
-          }, (err) => {
-             console.log("Entries Error:", err);
-             if (isMounted.current) setEntriesLoaded(true);
-          });
+        // FETCH USING ZUSTAND
+        initDriverCyclesListener(vId as string, dId as string, userPhone, activeSession);
+        initDriverWorksListener(vId as string, dId as string, userPhone, activeSession);
+        
+        if (isMountedLocal) setInitialLoading(false);
       };
 
       load();
       return () => {
-        if (unsubCycles) unsubCycles();
-        if (unsubEntries) unsubEntries();
+        isMountedLocal = false;
+        unsubDriverCycles(`${vId as string}_${dId as string}`);
+        unsubDriverWorks(`${vId as string}_${dId as string}`);
       };
     }, [vId, dId])
   );
 
   // Show onboarding if finished loading and no cycles
   useEffect(() => {
-    if (!loading && cycles.length === 0) {
+    if (!initialLoading && cycles.length === 0) {
         setShowOnboarding(true);
+    } else if (cycles.length > 0) {
+        setShowOnboarding(false);
+        const active = cycles.find(c => c.isActive);
+        if (active && !expanded) setExpanded(active.id);
     }
-  }, [loading, cycles.length]);
+  }, [initialLoading, cycles]);
 
   /* ---------------- HELPERS ---------------- */
 
@@ -978,7 +939,7 @@ export default function MonthlyDriverHistory() {
                                 }
                                 if (cycle.proofs && cycle.proofs.length > 0) {
                                     msg += `\n• *ఆధారాలు (Proofs):*\n`;
-                                    cycle.proofs.forEach((p, idx) => {
+                                    cycle.proofs.forEach((p: any, idx: number) => {
                                         msg += `${idx + 1}. ${p.url}\n`;
                                     });
                                 }
@@ -1111,7 +1072,7 @@ export default function MonthlyDriverHistory() {
                                        {language === "te" ? "ఆధారాలు:" : "Proofs:"}
                                      </AppText>
                                      <View style={{ flexDirection: "row", gap: 10 }}>
-                                       {cycle.proofs.map((p, idx) => (
+                                       {cycle.proofs.map((p: any, idx: number) => (
                                          <TouchableOpacity 
                                             key={idx} 
                                             activeOpacity={0.8} 

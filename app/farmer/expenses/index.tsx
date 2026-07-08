@@ -1,6 +1,7 @@
 // app/farmer/expenses/index.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { useStore } from "@/store/useStore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
 
 import AppText from "@/components/AppText";
@@ -10,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   FlatList, Modal, SafeAreaView, ScrollView,
   StatusBar, StyleSheet, TouchableOpacity, View
@@ -42,16 +43,34 @@ const formatIndianCurrency = (val: number) => {
 
 export default function ExpensesScreen() {
     const router = useRouter();
-    const [data, setData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true); 
+    
+    const expenses = useStore(state => state.expenses);
+    const isInitializing = useStore(state => state.isInitializing);
+    const loading = isInitializing && expenses.length === 0;
+    const data = expenses;
+
     const [language, setLanguage] = useState<"te" | "en">("te");
     
-    const [totalExpense, setTotalExpense] = useState(0);
-    const [cropTotals, setCropTotals] = useState<any>({});
-    const [categoryTotals, setCategoryTotals] = useState<any>({});
     const [deleteVisible, setDeleteVisible] = useState(false);
-    const [activeSession, setActiveSession] = useState("");
     const [selectedItem, setSelectedItem] = useState<any>(null);
+
+    const { totalExpense, cropTotals, categoryTotals } = useMemo(() => {
+        let total = 0;
+        const cropMap: any = {};
+        const catMap: any = {};
+
+        expenses.forEach((d: any) => {
+            const amt = Number(d.amount) || 0;
+            total += amt;
+            const crop = d.crop || "Other";
+            const category = d.category || "Other";
+
+            cropMap[crop] = (cropMap[crop] || 0) + amt;
+            catMap[category] = (catMap[category] || 0) + amt;
+        });
+
+        return { totalExpense: total, cropTotals: cropMap, categoryTotals: catMap };
+    }, [expenses]);
 
     // Shared value for Animation
     const animatedAmount = useSharedValue(0);
@@ -144,91 +163,19 @@ export default function ExpensesScreen() {
       </View>
     );
 
-    useFocusEffect(
-      useCallback(() => {
-        let unsubscribe: (() => void) | undefined;
+    useEffect(() => {
         let isMounted = true;
-
-        const load = async () => {
-            setLoading(true);
-            const phone = await AsyncStorage.getItem("USER_PHONE");
+        const loadLang = async () => {
             const lang = await AsyncStorage.getItem("APP_LANG");
-            if (lang) setLanguage(lang as any);
-            
-            if (!phone) {
-              if (isMounted) setLoading(false);
-              return;
-            }
-            
-            const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-            const session = userDoc.data()?.activeSession;
-
-            if (!session) {
-              if (isMounted) setLoading(false);
-              return;
-            }
-
-            if (isMounted) setActiveSession(session);
-
-            unsubscribe = firestore()
-                .collection("users").doc(phone).collection("expenses")
-                .where("session", "==", session)
-              .onSnapshot((snap) => {
-                if (!snap || !snap.docs) {
-                  if (isMounted) setLoading(false);
-                  return;
-                }
-
-                const list: any[] = [];
-                let total = 0;
-                const cropMap: any = {};
-                const catMap: any = {};
-
-                snap.docs.forEach((doc: any) => {
-                    const d: any = doc.data();
-                    const amt = Number(d.amount) || 0;
-                    total += amt;
-                    const crop = d.crop || "Other";
-                    const category = d.category || "Other";
-
-                    cropMap[crop] = (cropMap[crop] || 0) + amt;
-                    catMap[category] = (catMap[category] || 0) + amt;
-                    list.push({ id: doc.id, ...d });
-                });
-
-                // Client-side handling for secure sorting
-                list.sort((a, b) => {
-                  const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                  const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                  return tB - tA;
-                });
-
-                if (isMounted) {
-                  setData(list);
-                  setTotalExpense(total);
-                  setCropTotals(cropMap);
-                  setCategoryTotals(catMap);
-                  setLoading(false);
-                }
-              }, (error) => {
-                console.log(error);
-                if (isMounted) setLoading(false);
-              });
+            if (lang && isMounted) setLanguage(lang as any);
         };
-        
-        load();
-        
-        return () => {
-          isMounted = false;
-          if (unsubscribe) unsubscribe();
-        };
-      }, [])
-    );
+        loadLang();
+        return () => { isMounted = false; };
+    }, []);
 
     const handleDelete = async () => {
       if (!selectedItem?.id) return;
       try {
-        setLoading(true);
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (phone) {
           await executeOfflineSafeWrite(firestore()
@@ -243,7 +190,6 @@ export default function ExpensesScreen() {
       } finally {
         setDeleteVisible(false);
         setSelectedItem(null);
-        setLoading(false);
       }
     };
 

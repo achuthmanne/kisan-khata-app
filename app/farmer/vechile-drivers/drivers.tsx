@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import React, { useCallback, useEffect, useState, useRef } from "react";
+import { useStore } from "@/store/useStore";
 import {
   ActivityIndicator,
   FlatList,
@@ -37,7 +38,11 @@ export default function VehicleDetails() {
   const vehicleType = Array.isArray(type) ? type[0] : type;
   const vId = Array.isArray(id) ? id[0] : id;
 
-  const [data, setData] = useState<any[]>([]);
+  const vehicleDriversMap = useStore(state => state.vehicleDrivers);
+  const data = vehicleDriversMap[vId as string] || [];
+  const initVehicleDriversListener = useStore(state => state.initVehicleDriversListener);
+  const unsubVehicleDrivers = useStore(state => state.unsubVehicleDrivers);
+
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [activeSession, setActiveSession] = useState("");
@@ -96,13 +101,13 @@ export default function VehicleDetails() {
   /* ---------------- LOAD DATA ---------------- */
   useFocusEffect(
     useCallback(() => {
-      let unsub: any;
+      let isMountedLocal = true;
 
       const loadData = async () => {
         try {
           const phone = await AsyncStorage.getItem("USER_PHONE");
           if (!phone || !vId) {
-             if (isMounted.current) setLoading(false);
+             if (isMountedLocal) setLoading(false);
              return;
           }
 
@@ -110,14 +115,13 @@ export default function VehicleDetails() {
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
-            if (isMounted.current) {
-              setData([]); 
+            if (isMountedLocal) {
               setLoading(false);
             }
             return;
           }
           
-          if (isMounted.current) setActiveSession(session);
+          if (isMountedLocal) setActiveSession(session);
 
           try {
             const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
@@ -146,59 +150,22 @@ export default function VehicleDetails() {
               });
             });
             
-            if (isMounted.current) setPastDrivers(uniquePast);
+            if (isMountedLocal) setPastDrivers(uniquePast);
           } catch(err) { console.log("Past fetch error", err); }
 
-          unsub = firestore()
-            .collection("users")
-            .doc(phone)
-            .collection("vehicles")
-            .doc(vId as string)
-            .collection("drivers")
-            .where("session", "==", session)
-            .onSnapshot(
-              (snap) => {
-                if (!snap || !snap.docs) {
-                  if (isMounted.current) {
-                    setData([]);
-                    setLoading(false);
-                  }
-                  return;
-                }
-
-                const list: any[] = [];
-                snap.forEach((doc: any) => {
-                  const d = doc.data();
-                  if (!d) return;
-                  list.push({ id: doc.id, ...d });
-                });
-
-                list.sort((a, b) => {
-                  const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                  const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                  return timeB - timeA;
-                });
-
-                if (isMounted.current) {
-                  setData(list);
-                  setLoading(false);
-                }
-              },
-              (error) => {
-                console.log("Firestore Error: ", error);
-                if (isMounted.current) setLoading(false);
-              }
-            );
+          initVehicleDriversListener(vId as string, phone, session);
+          if (isMountedLocal) setLoading(false);
         } catch (error) {
           console.log("Loading Error: ", error);
-          if (isMounted.current) setLoading(false);
+          if (isMountedLocal) setLoading(false);
         }
       };
 
       loadData();
 
       return () => {
-        if (unsub) unsub();
+        isMountedLocal = false;
+        unsubVehicleDrivers(vId as string);
       };
     }, [vId])
   );
@@ -330,8 +297,7 @@ export default function VehicleDetails() {
     const phone = await AsyncStorage.getItem("USER_PHONE");
     if (!phone) return;
 
-    // 🔥 INSTANT UI REMOVE
-    setData(prev => prev.filter(item => item.id !== deleteItem.id));
+    // 🔥 INSTANT UI REMOVE (Optional now since useStore handles it, but kept for UI instant feedback)
     setShowDeleteModal(false);
 
     try {

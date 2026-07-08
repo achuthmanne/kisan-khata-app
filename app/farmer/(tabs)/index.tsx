@@ -954,10 +954,10 @@ export default function Dashboard() {
             />
 
             <View>
-              <AnimatedReanimated.View entering={FadeInDown.delay(200).duration(800).springify().damping(14)} style={styles.greetRow}>
+              <View style={styles.greetRow}>
                 <Ionicons name={getGreetingIcon()} size={18} color="#C8E6C9" />
                 <AppText style={styles.greet} language={language}>{getGreeting()}</AppText>
-              </AnimatedReanimated.View>
+              </View>
               <AppText style={[styles.name, language === "en" && { fontWeight: "600", marginTop: -8 }, language === "te" && { fontFamily: "Mandali", marginTop: -8}]} language={language} numberOfLines={1} ellipsizeMode="tail">
                 {name || "Farmer"}
               </AppText>
@@ -1035,7 +1035,7 @@ export default function Dashboard() {
                         {/* BOTTOM ROW */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 }}>
                           <View style={{ height: 60, justifyContent: 'space-between' }}>
-                            <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 18 }} language={language}>{date} | {time}</AppText>
+                            <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 22, includeFontPadding: true, paddingBottom: 2 }} language={language}>{date} | {time}</AppText>
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                               <Animated.Image source={getWeatherIcon()} style={{ width: 34, height: 34, marginRight: 6 }} />
                               <AppText style={{ color:"white", fontSize: 16, lineHeight: 34, includeFontPadding: false }} language={language}>{weather}</AppText>

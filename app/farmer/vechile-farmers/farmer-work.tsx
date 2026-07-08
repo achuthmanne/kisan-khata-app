@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "@/store/useStore";
 import {
   ActivityIndicator,
   FlatList,
@@ -65,7 +66,11 @@ export default function FarmerHistory() {
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const [data, setData] = useState<WorkItem[]>([]);
+  const farmerWorksMap = useStore(state => state.farmerWorks);
+  const data = farmerWorksMap[`${vId}_${fId}`] || [];
+  const initFarmerWorksListener = useStore(state => state.initFarmerWorksListener);
+  const unsubFarmerWorks = useStore(state => state.unsubFarmerWorks);
+
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [statusId, setStatusId] = useState<string | null>(null);
@@ -89,15 +94,15 @@ export default function FarmerHistory() {
 
   useFocusEffect(
     useCallback(() => {
-      let unsub: any;
+      let isMountedLocal = true;
 
       const load = async () => {
         const lang = await AsyncStorage.getItem("APP_LANG");
-        if (lang && isMounted.current) setLanguage(lang as any);
+        if (lang && isMountedLocal) setLanguage(lang as any);
 
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone || !vId || !fId) {
-            if (isMounted.current) setLoading(false);
+            if (isMountedLocal) setLoading(false);
             return;
         }
 
@@ -105,47 +110,18 @@ export default function FarmerHistory() {
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
-          if (isMounted.current) setLoading(false);
+          if (isMountedLocal) setLoading(false);
           return;
         }
 
-        unsub = firestore()
-          .collection("users")
-          .doc(userPhone)
-          .collection("vehicles")
-          .doc(vId)
-          .collection("works")
-          .doc(fId)
-          .collection("entries")
-          .where("session", "==", activeSession) 
-          .onSnapshot(snap => {
-            if (!snap || !snap.docs) {
-              if (isMounted.current) setLoading(false);
-              return;
-            }
-
-            const list: WorkItem[] = [];
-            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
-
-            list.sort((a, b) => {
-              const timeA = a.createdAt?.toMillis() || 0;
-              const timeB = b.createdAt?.toMillis() || 0;
-              return timeB - timeA;
-            });
-
-            if (isMounted.current) {
-                setData(list);
-                setLoading(false);
-            }
-          }, (error) => {
-              console.log("Snapshot error: ", error);
-              if (isMounted.current) setLoading(false);
-          });
+        initFarmerWorksListener(vId as string, fId as string, userPhone, activeSession);
+        if (isMountedLocal) setLoading(false);
       };
 
       load();
       return () => {
-        if (unsub) unsub();
+        isMountedLocal = false;
+        unsubFarmerWorks(`${vId}_${fId}`);
       };
     }, [vId, fId])
   );

@@ -2,6 +2,7 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -35,8 +36,19 @@ export default function MestriAttendance() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
 
-  const [mestriName, setMestriName] = useState("");
-  const [village, setVillage] = useState("");
+  const mestris = useStore((state) => state.mestris);
+  
+  const currentMestri = mestris.find(m => m.id === id);
+  const [mestriName, setMestriName] = useState(currentMestri?.name || "");
+  const [village, setVillage] = useState(currentMestri?.village || "");
+  
+  useEffect(() => {
+    if (currentMestri) {
+      setMestriName(currentMestri.name || "");
+      setVillage(currentMestri.village || "");
+    }
+  }, [currentMestri]);
+
   const [crop, setCrop] = useState("");
   const [work, setWork] = useState("");
   const [language, setLanguage] = useState<"te" | "en">("te");
@@ -312,24 +324,7 @@ export default function MestriAttendance() {
     return () => { ExpoSpeechRecognitionModule.stop(); };
   }, []);
 
-  useEffect(() => {
-    const loadMestri = async () => {
-      try {
-        const userPhone = await AsyncStorage.getItem("USER_PHONE");
-        if (!userPhone || !id) return;
-
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone).collection("mestris").doc(id as string), true);
-        const data = doc.data();
-        if (data) {
-          setMestriName(data.name || "");
-          setVillage(data.village || "");
-        }
-      } catch (e) {
-        console.log("Load mestri error", e);
-      }
-    };
-    loadMestri();
-  }, []);
+  // (loadMestri logic has been replaced with global state)
 
   const options = modalType === "crop" ? userCrops.map(c => ({ en: c, te: c })) : WORKS;
   const filteredData = options.filter(item => {

@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -32,58 +33,19 @@ export default function MyMachines() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [selectedId, setSelectedId] = useState("");
 
+  const machinesGlobal = useStore(state => state.machines);
+
   useEffect(() => {
     // 1. Language Load
     AsyncStorage.getItem("APP_LANG").then((l) => {
       if (l) setLanguage(l as any);
     });
-
-    // 2. Real-time Listener Setup
-    let unsubscribe: () => void;
-
-    const setupListener = async () => {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) {
-        setLoading(false);
-        return;
-      }
-
-      // Firestore Listener
-      unsubscribe = firestore()
-        .collection("machines")
-        .where("userId", "==", phone)
-        .onSnapshot(
-          (snap) => {
-            if (!snap) {
-              setMachines([]);
-              setLoading(false);
-              return;
-            }
-            const list = snap.docs.map((doc: any) => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-
-            // Sorting (Latest first)
-            list.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-            
-            setMachines(list);
-            setLoading(false);
-          },
-          (error) => {
-            console.log("Firestore error:", error);
-            setLoading(false);
-          }
-        );
-    };
-
-    setupListener();
-
-    // 3. Cleanup
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
   }, []);
+
+  useEffect(() => {
+    setMachines(machinesGlobal);
+    setLoading(false);
+  }, [machinesGlobal]);
 
   /* ---------------- DELETE ---------------- */
   const handleDelete = async () => {

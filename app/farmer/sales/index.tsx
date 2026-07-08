@@ -1,6 +1,7 @@
 // app/farmer/sales/index.tsx
 
 import AppHeader from "@/components/AppHeader";
+import { useStore } from "@/store/useStore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
 
 import AppText from "@/components/AppText";
@@ -10,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import {
   FlatList,
   Modal,
@@ -49,16 +50,36 @@ const formatIndianCurrency = (val: number) => {
 export default function SalesScreen() {
   const router = useRouter();
 
-  const [data, setData] = useState<any[]>([]);
-  const [language, setLanguage] = useState<"te" | "en">("te");
-  const [loading, setLoading] = useState(true); 
-  const [totalIncome, setTotalIncome] = useState(0);
-  const [totalQty, setTotalQty] = useState(0);
-  const [cropQty, setCropQty] = useState<any>({});
-  const [cropIncome, setCropIncome] = useState<any>({});
+  const sales = useStore(state => state.sales);
+  const isInitializing = useStore(state => state.isInitializing);
+  const loading = isInitializing && sales.length === 0;
+  const data = sales;
 
+  const [language, setLanguage] = useState<"te" | "en">("te");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [deleteVisible, setDeleteVisible] = useState(false);
+
+  const { totalIncome, totalQty, cropQty, cropIncome } = useMemo(() => {
+    let tIncome = 0;
+    let tQty = 0;
+    const cropQtyMap: any = {};
+    const cropIncomeMap: any = {};
+
+    sales.forEach((d: any) => {
+      const qty = Number(d.quantity) || 0;
+      const total = Number(d.total) || 0;
+      const unit = d.unit || "";
+
+      tIncome += total;
+      tQty += qty;
+
+      const key = `${d.crop}_${unit}`;
+      cropQtyMap[key] = (cropQtyMap[key] || 0) + qty;
+      cropIncomeMap[d.crop] = (cropIncomeMap[d.crop] || 0) + total;
+    });
+
+    return { totalIncome: tIncome, totalQty: tQty, cropQty: cropQtyMap, cropIncome: cropIncomeMap };
+  }, [sales]);
 
   const animatedIncome = useSharedValue(0);
 
@@ -85,104 +106,16 @@ export default function SalesScreen() {
   };
 
   useEffect(() => {
+    let isMounted = true;
     AsyncStorage.getItem("APP_LANG").then((l) => {
-      if (l) setLanguage(l as any);
+      if (l && isMounted) setLanguage(l as any);
     });
+    return () => { isMounted = false; };
   }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      let unsubscribe: (() => void) | undefined;
-      let isMounted = true;
-
-      const load = async () => {
-        setLoading(true);
-        const phone = await AsyncStorage.getItem("USER_PHONE");
-        if (!phone) {
-          if (isMounted) setLoading(false);
-          return;
-        }
-
-        const userDoc = await executeOfflineSafeRead(firestore()
-          .collection("users")
-          .doc(phone), true
-          );
-
-        const activeSession = userDoc.data()?.activeSession;
-
-        if (!activeSession) {
-          if (isMounted) setLoading(false);
-          return;
-        }
-
-        unsubscribe = firestore()
-          .collection("users")
-          .doc(phone)
-          .collection("sales")
-          .where("session", "==", activeSession) 
-          .where("createdAt", "!=", null)        
-          .orderBy("createdAt", "desc")
-          .onSnapshot(
-            (snap) => {
-              if (!snap || !snap.docs) {
-                if (isMounted) setLoading(false);
-                return;
-              }
-
-              const list: any[] = [];
-              let tIncome = 0;
-              let tQty = 0;
-
-              const cropQtyMap: any = {};
-              const cropIncomeMap: any = {};
-
-              snap.forEach((doc: any) => {
-                const d: any = doc.data();
-
-                const qty = Number(d.quantity) || 0;
-                const total = Number(d.total) || 0;
-                const unit = d.unit || "";
-
-                tIncome += total;
-                tQty += qty;
-
-                const key = `${d.crop}_${unit}`;
-                cropQtyMap[key] = (cropQtyMap[key] || 0) + qty;
-                cropIncomeMap[d.crop] = (cropIncomeMap[d.crop] || 0) + total;
-
-                list.push({ id: doc.id, ...d });
-              });
-
-              if (isMounted) {
-                setData(list);
-                setTotalIncome(tIncome);
-                setTotalQty(tQty);
-                setCropQty(cropQtyMap);
-                setCropIncome(cropIncomeMap);
-                setLoading(false);
-              }
-            },
-            (error: any) => {
-              console.log(error);
-              if (isMounted) setLoading(false);
-            }
-          );
-      };
-
-      load();
-
-      return () => {
-        isMounted = false;
-        if (unsubscribe) unsubscribe();
-      };
-
-    }, [])
-  );
 
   const handleDelete = async () => {
     if (!selectedItem?.id) return;
     try {
-      setLoading(true);
       const phone = await AsyncStorage.getItem("USER_PHONE");
       if (phone) {
         await executeOfflineSafeWrite(firestore()
@@ -197,7 +130,6 @@ export default function SalesScreen() {
     } finally {
       setDeleteVisible(false);
       setSelectedItem(null);
-      setLoading(false);
     }
   };
 

@@ -15,6 +15,7 @@ import * as ImagePicker from "expo-image-picker";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "@/store/useStore";
 import {
   ActivityIndicator,
   FlatList,
@@ -62,7 +63,11 @@ export default function DriverHistory() {
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const [data, setData] = useState<WorkItem[]>([]);
+  const driverWorksMap = useStore(state => state.driverWorks);
+  const data = driverWorksMap[`${vId as string}_${dId as string}`] || [];
+  const initDriverWorksListener = useStore(state => state.initDriverWorksListener);
+  const unsubDriverWorks = useStore(state => state.unsubDriverWorks);
+
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [statusId, setStatusId] = useState<string | null>(null);
@@ -86,15 +91,15 @@ export default function DriverHistory() {
 
   useFocusEffect(
     useCallback(() => {
-      let unsub: any;
+      let isMountedLocal = true;
 
       const load = async () => {
         const lang = await AsyncStorage.getItem("APP_LANG");
-        if (lang && isMounted.current) setLanguage(lang as any);
+        if (lang && isMountedLocal) setLanguage(lang as any);
 
         const userPhone = await AsyncStorage.getItem("USER_PHONE");
         if (!userPhone || !vId || !dId) {
-            if (isMounted.current) setLoading(false);
+            if (isMountedLocal) setLoading(false);
             return;
         }
 
@@ -103,49 +108,19 @@ export default function DriverHistory() {
         const activeSession = userDoc.data()?.activeSession;
 
         if (!activeSession) {
-          if (isMounted.current) setLoading(false);
+          if (isMountedLocal) setLoading(false);
           return;
         }
 
-        // 🔥 2. SESSION BASED QUERY WITH CLIENT SORTING
-        unsub = firestore()
-          .collection("users")
-          .doc(userPhone)
-          .collection("vehicles")
-          .doc(vId)
-          .collection("drivers")
-          .doc(dId)
-          .collection("entries")
-          .where("session", "==", activeSession)
-          .onSnapshot(snap => {
-            if (!snap || !snap.docs) {
-              if (isMounted.current) setLoading(false);
-              return;
-            }
-
-            const list: WorkItem[] = [];
-            snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
-
-            // 🔥 Index ఎర్రర్ రాకుండా సార్టింగ్
-            list.sort((a, b) => {
-              const timeA = a.createdAt?.toMillis() || 0;
-              const timeB = b.createdAt?.toMillis() || 0;
-              return timeB - timeA;
-            });
-
-            if (isMounted.current) {
-                setData(list);
-                setLoading(false);
-            }
-          }, (error) => {
-            console.log("Snapshot Error:", error);
-            if (isMounted.current) setLoading(false);
-          });
+        // 🔥 2. SESSION BASED QUERY WITH ZUSTAND
+        initDriverWorksListener(vId as string, dId as string, userPhone, activeSession);
+        if (isMountedLocal) setLoading(false);
       };
 
       load();
       return () => {
-        if (unsub) unsub();
+        isMountedLocal = false;
+        unsubDriverWorks(`${vId as string}_${dId as string}`);
       };
     }, [vId, dId])
   );

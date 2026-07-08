@@ -2,6 +2,7 @@
 
 import AppEmptyState from "@/components/AppEmptyState";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
@@ -39,9 +40,13 @@ const PREM_COLORS = [
 
 export default function FieldsScreen() {
   const router = useRouter();
-  const [data, setData] = useState<any[]>([]);
-  const [landsData, setLandsData] = useState<any[]>([]);
-  const [completedData, setCompletedData] = useState<any[]>([]);
+  
+  // 🔥 Read from Global Store instantly
+  const data = useStore((state) => state.fields);
+  const landsData = useStore((state) => state.lands);
+  const completedData = useStore((state) => state.completedFields);
+  const isInitializing = useStore((state) => state.isInitializing);
+
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [totalAcres, setTotalAcres] = useState(0);
   const [ownAcres, setOwnAcres] = useState(0);
@@ -55,7 +60,6 @@ export default function FieldsScreen() {
   
   const [showAddOptionsModal, setShowAddOptionsModal] = useState(false);
   const [showReusePickerModal, setShowReusePickerModal] = useState(false);
-  const [loading, setLoading] = useState(true); 
   const [isDeleting, setIsDeleting] = useState(false); 
   const [soilStats, setSoilStats] = useState<any[]>([]); 
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -85,115 +89,8 @@ export default function FieldsScreen() {
     AsyncStorage.getItem("APP_LANG").then((l) => { if (l) setLanguage(l as any); });
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      let unsubscribe: (() => void) | undefined;
-      let isMounted = true; 
-
-      const load = async () => {
-        try {
-          setLoading(true);
-          const phone = await AsyncStorage.getItem("USER_PHONE");
-          if (!phone) {
-            if (isMounted) setLoading(false);
-            return;
-          }
-
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-          const activeSession = userDoc.data()?.activeSession;
-
-          if (!activeSession) {
-            if (isMounted) { setData([]); setLandsData([]); setLoading(false); }
-            return;
-          }
-
-          if (isMounted) {
-            const landsRef = firestore().collection("users").doc(phone).collection("lands");
-            const fieldsRef = firestore().collection("users").doc(phone).collection("fields");
-
-            // Subscribe to Lands
-            const unsubLands = landsRef
-              .where("session", "==", activeSession)
-              .onSnapshot((snap) => {
-                if (snap) {
-                  const lands = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() as any }));
-                  lands.sort((a, b) => {
-                     const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                     const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                     return tB - tA;
-                  });
-                  setLandsData(lands);
-                } else {
-                  setLandsData([]);
-                }
-              }, (err) => console.log("Lands Error:", err));
-
-            // Subscribe to Crops (Fields)
-            unsubscribe = fieldsRef
-              .where("session", "==", activeSession)
-              .onSnapshot((snap) => {
-                if (snap) {
-                  const activeList: any[] = [];
-                  const completedList: any[] = [];
-
-                  snap.docs.forEach((doc: any) => {
-                    const item = { id: doc.id, ...doc.data() as any };
-                    if (item.status === "completed") {
-                      completedList.push(item);
-                    } else {
-                      activeList.push(item);
-                    }
-                  });
-
-                  activeList.sort((a, b) => {
-                     const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                     const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                     return tB - tA;
-                  });
-                  completedList.sort((a, b) => {
-                     const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                     const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                     return tB - tA;
-                  });
-
-                  setData(activeList);
-                  setCompletedData(completedList);
-                } else {
-                  setData([]);
-                  setCompletedData([]);
-                }
-                setLoading(false);
-              }, (err) => {
-                console.log("Fields Error:", err);
-                if (isMounted) setLoading(false);
-              });
-              
-            // Store unsubLands somewhere if we want to clean it up, but for now we can just return a combined unsubscribe
-            const oldUnsub = unsubscribe;
-            unsubscribe = () => {
-               if (oldUnsub) oldUnsub();
-               if (unsubLands) unsubLands();
-            };
-          }
-        } catch (e: any) {
-          console.log("LOAD ERROR:", e);
-          if (isMounted) {
-            setLoading(false);
-            setErrorMsg(language === "te" ? "డేటా లోడ్ అవ్వలేదు! ఇంటర్నెట్ చెక్ చేయండి." : "Failed to load data! Check connection.");
-            setShowErrorModal(true);
-          }
-        }
-      };
-
-      load();
-
-      return () => {
-        isMounted = false; 
-        if (unsubscribe) unsubscribe(); 
-      };
-    }, [language]) 
-  );
-  
+  // 🔥 Loading state is purely based on Zustand initializing and having empty arrays
+  const loading = isInitializing && data.length === 0 && landsData.length === 0;
   
   // 🔥 AUTO-MIGRATION & STATS DERIVATION 🔥
   useEffect(() => {

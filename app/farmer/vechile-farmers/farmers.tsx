@@ -12,6 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "@/store/useStore";
 import {
   ActivityIndicator,
   FlatList,
@@ -36,7 +37,11 @@ export default function VehicleDetails() {
   const vehicleNumber = Array.isArray(number) ? number[0] : number;
   const vehicleType = Array.isArray(type) ? type[0] : type;
 
-  const [data, setData] = useState<any[]>([]);
+  const vehicleFarmersMap = useStore(state => state.vehicleFarmers);
+  const data = vehicleFarmersMap[id as string] || [];
+  const initVehicleFarmersListener = useStore(state => state.initVehicleFarmersListener);
+  const unsubVehicleFarmers = useStore(state => state.unsubVehicleFarmers);
+
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [activeSession, setActiveSession] = useState("");
@@ -95,7 +100,7 @@ export default function VehicleDetails() {
 
   useFocusEffect(
     useCallback(() => {
-      let unsub: any;
+      let isMountedLocal = true;
 
       const load = async () => {
         try {
@@ -112,14 +117,13 @@ export default function VehicleDetails() {
           const session = userDoc.data()?.activeSession;
 
           if (!session) {
-            if (isMounted.current) {
-              setData([]); 
+            if (isMountedLocal) {
               setLoading(false);
             }
             return;
           }
           
-          if (isMounted.current) setActiveSession(session); 
+          if (isMountedLocal) setActiveSession(session); 
 
           try {
             const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
@@ -148,59 +152,22 @@ export default function VehicleDetails() {
               });
             });
             
-            if (isMounted.current) setPastFarmers(uniquePast);
+            if (isMountedLocal) setPastFarmers(uniquePast);
           } catch(err) { console.log("Past fetch error", err); }
 
-          unsub = firestore()
-            .collection("users")
-            .doc(phone)
-            .collection("vehicles")
-            .doc(id as string)
-            .collection("farmers")
-            .where("session", "==", session)
-            .onSnapshot(
-              (snap) => {
-                if (!snap || !snap.docs) {
-                  if (isMounted.current) {
-                    setData([]);
-                    setLoading(false);
-                  }
-                  return;
-                }
-
-                const list: any[] = [];
-                snap.forEach((doc: any) => {
-                  const d = doc.data();
-                  if (!d) return;
-                  list.push({ id: doc.id, ...d });
-                });
-
-                list.sort((a, b) => {
-                  const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                  const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                  return timeB - timeA;
-                });
-
-                if (isMounted.current) {
-                  setData(list);
-                  setLoading(false);
-                }
-              },
-              (error) => {
-                console.log("Firestore Error: ", error);
-                if (isMounted.current) setLoading(false);
-              }
-            );
+          initVehicleFarmersListener(id as string, phone, session);
+          if (isMountedLocal) setLoading(false);
         } catch (error) {
           console.log("Loading Error: ", error);
-          if (isMounted.current) setLoading(false);
+          if (isMountedLocal) setLoading(false);
         }
       };
 
       load();
 
       return () => {
-        if (unsub) unsub();
+        isMountedLocal = false;
+        unsubVehicleFarmers(id as string);
       };
     }, [id])
   );
@@ -327,7 +294,6 @@ export default function VehicleDetails() {
     const phone = await AsyncStorage.getItem("USER_PHONE");
     if (!phone) return;
 
-    setData(prev => prev.filter(item => item.id !== deleteItem.id));
     setShowDeleteModal(false);
 
     try {

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { StyleSheet, View, Modal } from "react-native";
+import { StyleSheet, View, Modal, Platform } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -114,8 +114,7 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <View style={styles.container}>
-
+        <View style={styles.pillContainer}>
           <AppText style={[styles.text, { color }]} language={language}>
             {getText()}
           </AppText>
@@ -125,7 +124,6 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
             <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle2]} />
             <Animated.View style={[styles.dot, { backgroundColor: color }, dotStyle3]} />
           </View>
-
         </View>
       </View>
     </Modal>
@@ -134,40 +132,43 @@ export default function AgriLoader({ visible, type = "loading", language = "en" 
 
 const styles = StyleSheet.create({
   overlay: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.15)",
-    justifyContent: "center",
+    flex: 1,
+    backgroundColor: "transparent",
+    justifyContent: "flex-start",
     alignItems: "center",
+    paddingTop: Platform.OS === "ios" ? 60 : 40,
     zIndex: 999,
   },
 
-  container: {
+  pillContainer: {
     backgroundColor: "#FFFFFF",
-    paddingVertical: 28,
-    paddingHorizontal: 40,
-    borderRadius: 22,
+    flexDirection: "row",
     alignItems: "center",
-    elevation: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
 
   text: {
     fontSize: 14,
     fontWeight: "600",
-    marginBottom: 16,
+    marginRight: 12,
   },
 
   row: {
     flexDirection: "row",
+    alignItems: "center",
   },
 
   dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginHorizontal: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginHorizontal: 3,
   },
 });

@@ -3,12 +3,13 @@ import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetc
 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
+import { useStore } from "@/store/useStore";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import {
   FlatList, Modal, SafeAreaView,
   StatusBar,
@@ -68,7 +69,11 @@ export default function OwnerWork() {
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  const [data, setData] = useState<WorkItem[]>([]);
+  const ownerEntriesMap = useStore(state => state.ownerEntries);
+  const data = ownerEntriesMap[oId as string] || [];
+  const initOwnerEntriesListener = useStore(state => state.initOwnerEntriesListener);
+  const unsubOwnerEntries = useStore(state => state.unsubOwnerEntries);
+
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [statusId, setStatusId] = useState<string | null>(null);
@@ -93,73 +98,46 @@ export default function OwnerWork() {
 
   useFocusEffect(
     useCallback(() => {
-      let unsub: any;
-      isMounted.current = true;
+      let isMountedLocal = true;
 
       const load = async () => {
         try {
-          const lang = await AsyncStorage.getItem("APP_LANG");
-          if (lang && isMounted.current) setLanguage(lang as any);
-
           const userPhone = await AsyncStorage.getItem("USER_PHONE");
           if (!userPhone || !oId) return;
 
-          // 🔥 FETCH ACTIVE SESSION
           const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
           const activeSession = userDoc.data()?.activeSession;
 
           if (!activeSession) {
-            if (isMounted.current) setLoading(false);
+            if (isMountedLocal) setLoading(false);
             return;
           }
 
-          if (isMounted.current) setLoading(true);
-
-          // 🔥 REALTIME SNAPSHOT WITH SESSION FILTER
-          unsub = firestore()
-            .collection("users")
-            .doc(userPhone)
-            .collection("owners")
-            .doc(oId)
-            .collection("entries")
-            .where("session", "==", activeSession) 
-            .onSnapshot(snap => {
-              if (!isMounted.current) return;
-              
-              if (!snap || !snap.docs) {
-                setLoading(false);
-                return;
-              }
-
-              const list: WorkItem[] = [];
-              snap.forEach((doc: any) => list.push({ id: doc.id, ...(doc.data() as any) }));
-
-              // 🔥 Client Side Sorting (Latest first)
-              list.sort((a, b) => {
-                const timeA = a.createdAt?.toMillis() || 0;
-                const timeB = b.createdAt?.toMillis() || 0;
-                return timeB - timeA;
-              });
-
-              setData(list);
-              setLoading(false);
-            }, (err) => {
-              console.log("Snapshot error:", err);
-              if (isMounted.current) setLoading(false);
-            });
+          initOwnerEntriesListener(oId as string, userPhone, activeSession);
+          if (isMountedLocal) setLoading(false);
         } catch (error) {
           console.log("Load error:", error);
-          if (isMounted.current) setLoading(false);
+          if (isMountedLocal) setLoading(false);
         }
       };
 
       load();
       return () => {
-        isMounted.current = false;
-        if (unsub) unsub();
+        isMountedLocal = false;
+        unsubOwnerEntries(oId as string);
       };
     }, [oId])
   );
+
+  useEffect(() => {
+    let isMountedLocal = true;
+    const loadLang = async () => {
+      const lang = await AsyncStorage.getItem("APP_LANG");
+      if (lang && isMountedLocal) setLanguage(lang as any);
+    };
+    loadLang();
+    return () => { isMountedLocal = false; };
+  }, []);
 
   /* ---------------- ACTIONS ---------------- */
   

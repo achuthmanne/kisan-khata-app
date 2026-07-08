@@ -2,6 +2,7 @@
 
 import AppEmptyState from "@/components/AppEmptyState";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
@@ -33,10 +34,13 @@ export default function AttendanceScreen() {
   const router = useRouter();
   const inputRef = useRef<TextInput>(null);
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const [mestris, setMestris] = useState<any[]>([]);
   
-  // 🔥 FIX 1: Initial loading must be true to prevent Empty State flash
-  const [loading, setLoading] = useState(true);
+  // 🔥 Read from Global Store instantly
+  const mestris = useStore((state) => state.mestris);
+  const isInitializing = useStore((state) => state.isInitializing);
+  
+  // Loading is strictly when Zustand is initializing AND we have no cached data
+  const loading = isInitializing && mestris.length === 0;
   const [search, setSearch] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [deleteItem, setDeleteItem] = useState<any>(null);
@@ -104,87 +108,42 @@ export default function AttendanceScreen() {
   }, []);
 
   useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    const loadData = async () => {
+    // Only fetch past mestris for imports, since current mestris are handled by Zustand
+    const loadPastMestris = async () => {
       try {
-        setLoading(true);
-        const userPhone = (await AsyncStorage.getItem("USER_PHONE")) ?? "";
-        if (!userPhone) {
-          setLoading(false);
-          return;
-        }
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        if (!userPhone) return;
 
-        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
-        const session = userDoc.data()?.activeSession;
-
-        if (!session) {
-          setMestris([]);
-          setLoading(false);
-          return;
-        }
-
+        // Retrieve active session dynamically to avoid waiting for a separate fetch if we just need the local storage one
+        const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+        if (!session) return;
+        
         setActiveSession(session);
 
-        try {
-          const pastSnap = await executeOfflineSafeRead(firestore()
-            .collection("users")
-            .doc(userPhone)
-            .collection("mestris")
-            .where("session", "!=", session)
-            , true);
-          
-          if (!pastSnap.empty) {
-            const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
-            const uniquePast: any[] = [];
-            const phones = new Set();
-            for (let m of pastList) {
-              if (m.phone && !phones.has(m.phone)) {
-                phones.add(m.phone);
-                uniquePast.push(m);
-              }
-            }
-            setPastMestris(uniquePast);
-          }
-        } catch(err) { console.log("Past fetch error", err); }
-
-        unsubscribe = firestore()
+        const pastSnap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(userPhone)
           .collection("mestris")
-          .where("session", "==", session)
-          .where("createdAt", "!=", null)
-          .orderBy("createdAt", "desc")
-          .onSnapshot((snapshot) => {
-            if (!snapshot) {
-              setMestris([]);
-              setLoading(false);
-              return;
+          .where("session", "!=", session)
+          , true);
+        
+        if (!pastSnap.empty) {
+          const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
+          const uniquePast: any[] = [];
+          const phones = new Set();
+          for (let m of pastList) {
+            if (m.phone && !phones.has(m.phone)) {
+              phones.add(m.phone);
+              uniquePast.push(m);
             }
-            const list = snapshot.docs.map((doc: any) => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setMestris(list);
-            setLoading(false);
-          }, (error) => {
-            console.log(error);
-            setLoading(false);
-          });
-      } catch (e) {
-        console.log("Load Data Error:", e);
-        setLoading(false);
-        setErrorMsg(language === "te" ? "డేటా లోడ్ అవ్వలేదు! ఇంటర్నెట్ చెక్ చేయండి." : "Failed to load data! Check connection.");
-        setShowErrorModal(true);
-      }
+          }
+          setPastMestris(uniquePast);
+        }
+      } catch(err) { console.log("Past fetch error", err); }
     };
 
-    loadData();
-
-    return () => {
-      if (unsubscribe) unsubscribe(); 
-    };
-  }, []); 
+    loadPastMestris();
+  }, []);
 
   // 🔥 CORE LOGIC: Check if Mestri has Attendance or Payments
   const checkHasRecords = async (mestriId: string) => {
@@ -292,7 +251,7 @@ export default function AttendanceScreen() {
     if (!deleteItem) return;
 
     try {
-      setLoading(true);
+      setActionLoading(true);
       const userPhone = (await AsyncStorage.getItem("USER_PHONE")) ?? "";
 
       if (!userPhone || !activeSession) return;
@@ -313,7 +272,7 @@ export default function AttendanceScreen() {
       setErrorMsg(language === "te" ? "తొలగించడం విఫలమైంది! ఇంటర్నెట్ చెక్ చేసి మళ్ళీ ప్రయత్నించండి." : "Failed to delete! Please check your connection.");
       setShowErrorModal(true);
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 

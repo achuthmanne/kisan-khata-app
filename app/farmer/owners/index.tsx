@@ -11,6 +11,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import React, { useCallback, useEffect, useState, useRef } from "react";
+import { useStore } from "@/store/useStore";
 import {
   ActivityIndicator,
   FlatList,
@@ -30,8 +31,10 @@ export default function OwnersList() {
 
   const router = useRouter();
 
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const owners = useStore((state) => state.owners);
+  const isInitializing = useStore((state) => state.isInitializing);
+  const loading = isInitializing && owners.length === 0;
+  const data = owners;
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [activeSession, setActiveSession] = useState("");
   const [pastOwners, setPastOwners] = useState<any[]>([]);
@@ -81,104 +84,45 @@ export default function OwnersList() {
   }, []);
 
   /* ---------------- LOAD DATA ---------------- */
-  useFocusEffect(
-    useCallback(() => {
-      let unsub: any;
-      isMounted.current = true;
+  useEffect(() => {
+    isMounted.current = true;
 
-      const loadData = async () => {
-        try {
-          const phone = await AsyncStorage.getItem("USER_PHONE");
-          if (!phone) return;
+    const loadPastOwners = async () => {
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+        if (!phone || !session) return;
+        
+        setActiveSession(session);
 
-          if (isMounted.current) setLoading(true);
-
-          const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-          const session = userDoc.data()?.activeSession;
-
-          if (!session) {
-            if (isMounted.current) {
-              setData([]); 
-              setLoading(false);
-            }
-            return;
-          }
-          
-          if (isMounted.current) setActiveSession(session);
-
-          try {
-            const pastSnap = await executeOfflineSafeRead(firestore()
-              .collection("users")
-              .doc(phone)
-              .collection("owners")
-              .where("session", "!=", session), true
-              );
+        const pastSnap = await executeOfflineSafeRead(firestore()
+          .collection("users")
+          .doc(phone)
+          .collection("owners")
+          .where("session", "!=", session), true
+        );
             
-            if (!pastSnap.empty) {
-              const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
-              const uniquePast: any[] = [];
-              const phones = new Set();
-              for (let o of pastList) {
-                if (o.phone && !phones.has(o.phone)) {
-                  phones.add(o.phone);
-                  uniquePast.push(o);
-                }
-              }
-              if (isMounted.current) setPastOwners(uniquePast);
+        if (!pastSnap.empty) {
+          const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
+          const uniquePast: any[] = [];
+          const phones = new Set();
+          for (let o of pastList) {
+            if (o.phone && !phones.has(o.phone)) {
+              phones.add(o.phone);
+              uniquePast.push(o);
             }
-          } catch(err) { console.log("Past fetch error", err); }
-
-          // Fetching "owners" instead of drivers
-          unsub = firestore()
-            .collection("users")
-            .doc(phone)
-            .collection("owners")
-            .where("session", "==", session)
-            .onSnapshot(
-              (snap) => {
-                if (!isMounted.current) return;
-                
-                if (!snap || !snap.docs) {
-                  setData([]);
-                  setLoading(false);
-                  return;
-                }
-
-                const list: any[] = [];
-                snap.forEach((doc: any) => {
-                  const d = doc.data();
-                  if (!d) return;
-                  list.push({ id: doc.id, ...d });
-                });
-
-                list.sort((a, b) => {
-                  const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-                  const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-                  return timeB - timeA;
-                });
-
-                setData(list);
-                setLoading(false);
-              },
-              (error) => {
-                console.log("Firestore Error: ", error);
-                if (isMounted.current) setLoading(false);
-              }
-            );
-        } catch (error) {
-          console.log("Loading Error: ", error);
-          if (isMounted.current) setLoading(false);
+          }
+          if (isMounted.current) setPastOwners(uniquePast);
         }
-      };
+      } catch(err) { console.log("Past fetch error", err); }
+    };
 
-      loadData();
+    loadPastOwners();
 
-      return () => { 
-        isMounted.current = false;
-        if (unsub) unsub(); 
-      };
-    }, [])
-  );
+    return () => { 
+      isMounted.current = false;
+    };
+  }, []);
 
   /* ---------------- FILTER & COLORS ---------------- */
   const filtered = data.filter(item =>
@@ -290,7 +234,6 @@ export default function OwnersList() {
     const phone = await AsyncStorage.getItem("USER_PHONE");
     if (!phone) return;
 
-    setData(prev => prev.filter(item => item.id !== deleteItem.id));
     setShowDeleteModal(false);
 
     try {

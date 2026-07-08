@@ -1,5 +1,6 @@
 import AppEmptyState from "@/components/AppEmptyState";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
@@ -9,7 +10,7 @@ import firestore from "@react-native-firebase/firestore";
 import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -29,9 +30,20 @@ export default function VehiclesScreen() {
   const router = useRouter();
   const isMounted = useRef(true); // 🔥 PRO FIX: Memory leak protection
 
-  const [data, setData] = useState<any[]>([]);
-  const [grouped, setGrouped] = useState<any>({});
-  const [loading, setLoading] = useState(true);
+  const vehicles = useStore((state) => state.vehicles);
+  const isInitializing = useStore((state) => state.isInitializing);
+  
+  const loading = isInitializing && vehicles.length === 0;
+
+  const grouped = useMemo(() => {
+    const group: any = {};
+    vehicles.forEach((v: any) => {
+      const type = v.type || "Others";
+      if (!group[type]) group[type] = [];
+      group[type].push(v);
+    });
+    return group;
+  }, [vehicles]);
   const [language, setLanguage] = useState<"te" | "en">("te");
 
   const [activeSession, setActiveSession] = useState("");
@@ -58,93 +70,40 @@ export default function VehiclesScreen() {
     return () => { isMounted.current = false; };
   }, []);
 
-  useFocusEffect(
-    useCallback(() => {
-      let unsubscribe: any;
-
-      const load = async () => {
-        setLoading(true);
-
+  useEffect(() => {
+    const loadPastVehicles = async () => {
+      try {
         const phone = await AsyncStorage.getItem("USER_PHONE");
-        if (!phone) {
-          if (isMounted.current) setLoading(false);
-          return;
-        }
+        const activeSession = await AsyncStorage.getItem("ACTIVE_SESSION");
+        if (!phone || !activeSession) return;
+        
+        setActiveSession(activeSession);
 
-        const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-        const activeSession = userDoc.data()?.activeSession;
-
-        if (!activeSession) {
-          if (isMounted.current) setLoading(false);
-          return;
-        }
-
-        if (isMounted.current) setActiveSession(activeSession);
-
-        try {
-          const pastSnap = await executeOfflineSafeRead(firestore()
-            .collection("users")
-            .doc(phone)
-            .collection("vehicles")
-            .where("session", "!=", activeSession), true
-            );
-          
-          if (!pastSnap.empty) {
-            const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
-            const uniquePast: any[] = [];
-            const numbers = new Set();
-            for (let v of pastList) {
-              const key = v.number ? v.number.trim().toLowerCase() : v.nickname?.trim().toLowerCase();
-              if (key && !numbers.has(key)) {
-                numbers.add(key);
-                uniquePast.push(v);
-              }
-            }
-            if (isMounted.current) setPastVehicles(uniquePast);
-          }
-        } catch(err) { console.log("Past fetch error", err); }
-
-        unsubscribe = firestore()
+        const pastSnap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
           .collection("vehicles")
-          .where("session", "==", activeSession)
-          .orderBy("createdAt", "desc")
-          .onSnapshot((snap) => {
-
-          if (!snap || !snap.docs) {
-            if (isMounted.current) setLoading(false);
-            return;
+          .where("session", "!=", activeSession), true
+        );
+          
+        if (!pastSnap.empty) {
+          const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
+          const uniquePast: any[] = [];
+          const numbers = new Set();
+          for (let v of pastList) {
+            const key = v.number ? v.number.trim().toLowerCase() : v.nickname?.trim().toLowerCase();
+            if (key && !numbers.has(key)) {
+              numbers.add(key);
+              uniquePast.push(v);
+            }
           }
-
-          const list: any[] = [];
-          const group: any = {};
-
-          snap.forEach((doc: any) => {
-            const d: any = doc.data();
-            if (!d) return; 
-
-            list.push({ id: doc.id, ...d });
-
-            const type = d.type || "Others";
-            if (!group[type]) group[type] = [];
-            group[type].push({ id: doc.id, ...d });
-          });
-
-          if (isMounted.current) {
-            setData(list);
-            setGrouped(group);
-            setLoading(false);
-          }
-        });
-      };
-
-      load();
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
-    }, [])
-  );
+          if (isMounted.current) setPastVehicles(uniquePast);
+        }
+      } catch(err) { console.log("Past fetch error", err); }
+    };
+    
+    loadPastVehicles();
+  }, []);
 
   /* ---------------- COLOR ---------------- */
   const typeColors: any = {
@@ -545,23 +504,8 @@ export default function VehiclesScreen() {
                       .collection("vehicles")
                       .doc(selectedItem.id);
 
-                    // 🔥 INSTANT UI REMOVE
-                    setGrouped((prev: any) => {
-                      const newGroup = { ...prev };
-                      Object.keys(newGroup).forEach((type) => {
-                        newGroup[type] = newGroup[type].filter(
-                          (item: any) => item.id !== selectedItem.id
-                        );
-                        if (newGroup[type].length === 0) {
-                          delete newGroup[type];
-                        }
-                      });
-                      return newGroup;
-                    });
-
+                    // 🔥 FIRESTORE DELETE ONLY - Zustand handles UI state automatically
                     setShowDeleteModal(false);
-
-                    // 🔥 FIRESTORE DELETE
                     await executeOfflineSafeWrite(docRef.delete());
                   } catch (e) {
                     console.log(e);

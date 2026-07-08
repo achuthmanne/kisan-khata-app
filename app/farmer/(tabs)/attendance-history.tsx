@@ -5,8 +5,8 @@ import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState, useRef } from "react";
@@ -170,15 +170,35 @@ export default function AttendanceHistory() {
     };
   }, [isScreenFocused]);
 
+  const mestrisGlobal = useStore(state => state.mestris);
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+
+  const [initialLoading, setInitialLoading] = useState(true);
+
   useFocusEffect(
     useCallback(() => {
       const loadLang = async () => {
         const lang = await AsyncStorage.getItem("APP_LANG");
         if (lang && isMounted.current) setLanguage(lang as "te" | "en");
       };
+      
+      const initAll = async () => {
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+        if (session && isMounted.current) setActiveSession(session);
+        
+        if (userPhone && session && isMounted.current) {
+          mestrisGlobal.forEach(m => {
+            initMestriAttendanceListener(m.id, userPhone, session);
+          });
+          setInitialLoading(false);
+        }
+      };
+
       loadLang();
-      loadData();
-    }, [])
+      initAll();
+    }, [mestrisGlobal])
   );
 
   const avatarColors = [
@@ -198,79 +218,44 @@ export default function AttendanceHistory() {
     return "#EF4444"; 
   };
 
-  /* ---------- LOAD DATA (TRUE WORK VOLUME LOGIC) ---------- */
-  const loadData = async (isRefreshed = false) => {
-    try {
-      if (!isRefreshed) setLoading(true);
-      setError(false);
+  /* ---------- CALCULATE TRUE WORK VOLUME ---------- */
+  useEffect(() => {
+    if (initialLoading) return;
 
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) throw new Error("NO_USER");
-
-      // 0-second delay: Read session directly from AsyncStorage cache
-      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
-
-      if (!session) {
-        if (isMounted.current) { setLoading(false); setRefreshing(false); }
-        return;
-      }
-
-      if (isMounted.current) setActiveSession(session);
-
-      // 0-second delay: Use fastCache (!isRefreshed) to instantly return local data while syncing in background
-      const mestriSnap = await executeOfflineSafeRead(
-        firestore().collection("users").doc(userPhone).collection("mestris"), 
-        !isRefreshed
-      );
-
-      const counts: any[] = [];
-      for (const doc of mestriSnap.docs) {
-        const mestri = doc.data();
-        const attendanceSnap = await executeOfflineSafeRead(
-          firestore().collection("users").doc(userPhone).collection("mestris").doc(doc.id).collection("attendance").where("session", "==", session),
-          !isRefreshed
-        );
-
-        // 🔥 PRO FIX: Calculate actual volume of work (Morning + Evening + Full)
-        let totalWorksVolume = 0;
-        attendanceSnap.docs.forEach((attDoc: any) => {
-          const attData = attDoc.data();
-          const m = Number(attData.morning) || 0;
-          const e = Number(attData.evening) || 0;
-          const f = Number(attData.full) || 0;
-          totalWorksVolume += (m + e + f);
-        });
-
-        if (totalWorksVolume > 0) {
-          counts.push({ id: doc.id, ...mestri, totalWorksVolume });
-        }
-      }
-
-      // 🔥 Percentage is now based on actual Work Volume
-      const grandTotalVolume = counts.reduce((sum, item) => sum + item.totalWorksVolume, 0);
-      const result = counts.map((item: any) => ({
-        ...item,
-        percent: grandTotalVolume > 0 ? Math.round((item.totalWorksVolume / grandTotalVolume) * 100) : 0
-      }));
+    const counts: any[] = [];
+    mestrisGlobal.forEach(m => {
+      const attendanceList = mestriAttendance[m.id] || [];
+      let totalWorksVolume = 0;
       
-      result.sort((a, b) => b.percent - a.percent);
-      
-      if (isMounted.current) setMestris(result);
+      attendanceList.forEach((attData: any) => {
+        const am = Number(attData.morning) || 0;
+        const e = Number(attData.evening) || 0;
+        const f = Number(attData.full) || 0;
+        totalWorksVolume += (am + e + f);
+      });
 
-    } catch (e) {
-      console.log("Attendance History Fetch Error:", e);
-      if (isMounted.current) setError(true);
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-        setRefreshing(false);
+      if (totalWorksVolume > 0) {
+        counts.push({ id: m.id, ...m, totalWorksVolume });
       }
+    });
+
+    const grandTotalVolume = counts.reduce((sum, item) => sum + item.totalWorksVolume, 0);
+
+    const finalData = counts.map((c) => ({
+      ...c,
+      percent: grandTotalVolume > 0 ? (c.totalWorksVolume / grandTotalVolume) * 100 : 0
+    })).sort((a, b) => b.totalWorksVolume - a.totalWorksVolume);
+
+    if (isMounted.current) {
+      setMestris(finalData);
+      setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [mestrisGlobal, mestriAttendance, initialLoading]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData(true);
+    setTimeout(() => { if (isMounted.current) setRefreshing(false); }, 800);
   };
 
   const filtered = mestris.filter(item =>
@@ -332,7 +317,7 @@ export default function AttendanceHistory() {
           <AppText style={styles.errorText} language={language}>
             {language === "te" ? "సర్వర్ కి కనెక్ట్ అవ్వలేకపోయాం" : "Failed to connect to server"}
           </AppText>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(false)}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setInitialLoading(true)}>
             <AppText style={styles.retryText} language={language}>
               {language === "te" ? "మళ్ళీ ప్రయత్నించండి" : "Try Again"}
             </AppText>

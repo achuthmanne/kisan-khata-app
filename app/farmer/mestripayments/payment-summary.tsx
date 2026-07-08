@@ -2,6 +2,7 @@
 
 import AppEmptyState from "@/components/AppEmptyState";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
@@ -10,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { Image } from "expo-image";
@@ -65,54 +66,63 @@ export default function PaymentSummary() {
     }, [])
   );
 
-  /* ---------------- LOAD DATA ---------------- */
-  const loadData = async () => {
-    setLoading(true);
-    try {
-        const userPhone = await AsyncStorage.getItem("USER_PHONE");
-        if (!userPhone) return;
-        const userDoc = await executeOfflineSafeRead(firestore()
-          .collection("users")
-          .doc(userPhone), true
-          );
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+  const unsubMestriAttendance = useStore(state => state.unsubMestriAttendance);
+  
+  const [initialLoading, setInitialLoading] = useState(true);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
 
-        const activeSession = userDoc.data()?.activeSession;
-        if (!activeSession) return;
-
-        const selectedIds = JSON.parse(ids as string);
-        const snap = await executeOfflineSafeRead(firestore()
-          .collection("users")
-          .doc(userPhone)
-          .collection("mestris")
-          .doc(id as string)
-          .collection("attendance")
-          .where("session", "==", activeSession) 
-          , true);
-
-        const list = snap.docs
-          .map((d: any) => ({ id: d.id, ...(d.data() as any) }))
-          .filter((item: any) => selectedIds.includes(item.id))
-          .sort((a: any, b: any) => {
-            const parseDate = (dStr: string) => {
-              if (!dStr) return 0;
-              const parts = dStr.split("/");
-              if (parts.length === 3) {
-                return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
-              }
-              return 0;
-            };
-            return parseDate(b.date) - parseDate(a.date);
-          });
-
-        setData(list);
-    } catch (err) {
-        console.log("Error loading payment summary:", err);
-    } finally {
-        setLoading(false);
+  const loadSession = async () => {
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+    
+    if (userPhone && session && id) {
+      initMestriAttendanceListener(id as string, userPhone, session);
+      setInitialLoading(false);
     }
   };
 
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  useFocusEffect(
+    useCallback(() => {
+      const loadLang = async () => {
+        const lang = await AsyncStorage.getItem("APP_LANG");
+        if (lang) setLanguage(lang as any);
+      };
+      loadLang();
+      loadSession();
+      return () => {
+        if (id) {
+          unsubMestriAttendance(id as string);
+        }
+      };
+    }, [id])
+  );
+
+  useEffect(() => {
+    if (!id || initialLoading) return;
+    
+    const allAttendance = mestriAttendance[id as string] || [];
+    const selectedIds = JSON.parse(ids as string);
+
+    const list = allAttendance
+      .filter((item: any) => selectedIds.includes(item.id))
+      .sort((a: any, b: any) => {
+        const parseDate = (dStr: string) => {
+          if (!dStr) return 0;
+          const parts = dStr.split("/");
+          if (parts.length === 3) {
+            return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime();
+          }
+          return 0;
+        };
+        return parseDate(b.date) - parseDate(a.date);
+      });
+
+    setData(list);
+    setLoading(false);
+  }, [mestriAttendance, id, ids, initialLoading]);
 
   /* ---------------- CALCULATIONS ---------------- */
   const totalMorning = data.reduce((sum, item) => sum + (item.morning || 0), 0);

@@ -7,7 +7,7 @@ import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import firestore from "@react-native-firebase/firestore";
+import { useStore } from "@/store/useStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -99,50 +99,25 @@ export default function PaymentsScreen() {
   );
 
   /* ---------------- LOAD DATA ---------------- */
-  const loadData = async () => {
-    setLoading(true);
-
-    try {
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) return;
-
-      const userDoc = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone), true
-        );
-
-      const activeSession = userDoc.data()?.activeSession;
+  /* ---------------- LOAD DATA FROM STORE ---------------- */
+  const mestrisGlobal = useStore(state => state.mestris);
+  
+  useEffect(() => {
+    const fetchActiveSession = async () => {
+      const activeSession = await AsyncStorage.getItem("ACTIVE_SESSION");
       if (!activeSession) {
         setMestris([]);
+        setLoading(false);
         return;
       }
 
-      const snap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        .where(`attendanceSessions.${activeSession}`, "==", true) 
-        );
-
-      const result = snap.docs.map((doc: any) => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      setMestris(result);
-
-    } catch (e) {
-      console.log(e);
-    } finally {
+      const activeMestris = mestrisGlobal.filter((m: any) => m.attendanceSessions?.[activeSession] === true);
+      setMestris(activeMestris);
       setLoading(false);
-    }
-  };
+    };
 
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
-  );
+    fetchActiveSession();
+  }, [mestrisGlobal]);
 
   /* ---------------- SEARCH FILTER (ROBUST) ---------------- */
   // 🔥 FIX 3: టెక్స్ట్ లో ఎక్స్‌ట్రా స్పేసులు, స్పెషల్ క్యారెక్టర్స్ ఉన్నా ఇగ్నోర్ చేసే సూపర్ ఫిల్టర్

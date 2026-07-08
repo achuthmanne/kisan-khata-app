@@ -3,8 +3,8 @@ import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
@@ -163,12 +163,38 @@ export default function PaymentHistory() {
   }, [isScreenFocused]);
 
   /* ---------- LANGUAGE ---------- */
+  const mestrisGlobal = useStore(state => state.mestris);
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const mestriPayments = useStore(state => state.mestriPayments);
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+  const initMestriPaymentsListener = useStore(state => state.initMestriPaymentsListener);
+
+  const [initialLoading, setInitialLoading] = useState(true);
+
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.getItem("APP_LANG").then(l => {
-        if (l && isMounted.current) setLanguage(l as any);
-      });
-    }, [])
+      const loadLang = async () => {
+        const lang = await AsyncStorage.getItem("APP_LANG");
+        if (lang && isMounted.current) setLanguage(lang as any);
+      };
+      
+      const initAll = async () => {
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+        if (session && isMounted.current) setActiveSession(session);
+        
+        if (userPhone && session && isMounted.current) {
+          mestrisGlobal.forEach(m => {
+            initMestriAttendanceListener(m.id, userPhone, session);
+            initMestriPaymentsListener(m.id, userPhone, session);
+          });
+          setInitialLoading(false);
+        }
+      };
+
+      loadLang();
+      initAll();
+    }, [mestrisGlobal])
   );
 
   /* ---------- COLORS ---------- */
@@ -179,105 +205,52 @@ export default function PaymentHistory() {
     return avatarColors[index];
   };
 
-  /* ---------- LOAD DATA (ROBUST & CRASH-PROOF) ---------- */
-  const loadData = async (isRefreshed = false) => {
-    try {
-      if (!isRefreshed) setLoading(true);
-      setError(false);
+  /* ---------- AGGREGATE PAYMENTS & ATTENDANCE ---------- */
+  useEffect(() => {
+    if (initialLoading) return;
 
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) throw new Error("NO_USER");
+    const map: any = {};
 
-      // 0-second delay: Read session directly from AsyncStorage cache
-      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
-      const db = firestore();
-
-      if (!session) {
-        if (isMounted.current) { setMestris([]); setLoading(false); }
-        return;
-      }
-
-      if (isMounted.current) setActiveSession(session);
-
-      /* 🔥 1. GET PAYMENTS ONLY */
-      const paymentSnap = await executeOfflineSafeRead(db
-        .collection("users")
-        .doc(userPhone)
-        .collection("payments")
-        .where("session", "==", session),
-        !isRefreshed
-      );
-
-      const payments = paymentSnap.docs.map((d: any) => d.data());
-
-      /* 🔥 2. GROUP BY MESTRI */
-      const map: any = {};
-      payments.forEach((p: any) => {
-        const id = p.mestriId;
-        if (!id) return;
-
-        const ids = Array.isArray(p.selectedAttendanceIds) ? p.selectedAttendanceIds : [];
-
-        if (!map[id]) {
-          map[id] = {
-            id,
-            name: p.name,
-            village: p.village,
-            paid: 0
-          };
-        }
-        map[id].paid += ids.length; 
-      });
-
-      /* 🔥 3. FETCH TOTAL ATTENDANCE */
-      const promises = Object.keys(map).map(async (key) => {
-        const attendanceSnap = await executeOfflineSafeRead(db
-          .collection("users")
-          .doc(userPhone)
-          .collection("mestris")
-          .doc(key)
-          .collection("attendance")
-          .where("session", "==", session),
-          !isRefreshed
-        );
-
-        const total = attendanceSnap.size;
-        const paid = map[key].paid;
-
-        if (total === 0) return null;
-
-        const percent = (paid / total) * 100;
-
-        return {
-          id: key,
-          name: map[key].name,
-          village: map[key].village,
-          total,
-          paid,
-          percent
-        };
-      });
-
-      const result = (await Promise.all(promises)).filter(Boolean);
+    mestrisGlobal.forEach(m => {
+      const attendance = mestriAttendance[m.id] || [];
+      const payments = mestriPayments[m.id] || [];
       
-      if (isMounted.current) setMestris(result);
+      const total = attendance.length;
+      if (total === 0) return;
 
-    } catch (e) {
-      console.log("Payment History Fetch Error:", e);
-      if (isMounted.current) setError(true); // 🔥 సైలెంట్ వైట్ స్క్రీన్ రాకుండా ఆపుతుంది
-    } finally {
-      if (isMounted.current) {
-        setLoading(false); 
-        setRefreshing(false);
-      }
+      let paid = 0;
+      payments.forEach((p: any) => {
+        const ids = Array.isArray(p.selectedAttendanceIds) ? p.selectedAttendanceIds : [];
+        paid += ids.length;
+      });
+
+      const percent = (paid / total) * 100;
+      const status = getStatus(paid, total);
+
+      map[m.id] = {
+        id: m.id,
+        name: m.name,
+        village: m.village,
+        paid,
+        total,
+        percent,
+        status
+      };
+    });
+
+    const result = Object.values(map);
+    result.sort((a: any, b: any) => b.percent - a.percent);
+
+    if (isMounted.current) {
+      setMestris(result);
+      setLoading(false);
+      setRefreshing(false);
     }
-  };
-
-  useFocusEffect(useCallback(() => { loadData(); }, []));
+  }, [mestrisGlobal, mestriAttendance, mestriPayments, initialLoading]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData(true);
+    setTimeout(() => { if (isMounted.current) setRefreshing(false); }, 800);
   };
 
   const filtered = useMemo(() => {
@@ -354,7 +327,7 @@ export default function PaymentHistory() {
           <AppText style={styles.errorText} language={language}>
             {language === "te" ? "సర్వర్ కి కనెక్ట్ అవ్వలేకపోయాం" : "Failed to connect to server"}
           </AppText>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(false)}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setInitialLoading(true)}>
             <AppText style={styles.retryText} language={language}>
               {language === "te" ? "మళ్ళీ ప్రయత్నించండి" : "Try Again"}
             </AppText>

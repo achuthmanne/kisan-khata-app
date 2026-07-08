@@ -7,6 +7,7 @@ import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter, useSegments } from "expo-router";
+import { useStore } from "@/store/useStore";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -180,6 +181,9 @@ export default function FarmerLayout() {
             // Guarantee fallback is available globally with zero delay
             await AsyncStorage.setItem("ACTIVE_SESSION", activeSession);
 
+            // 🔥 Initialize global listeners once per session
+            useStore.getState().initListeners(phone, activeSession);
+
             const hasUserUnlocked = await AsyncStorage.getItem(`USER_UNLOCKED_${activeSession}`);
             if (hasUserUnlocked === 'true') {
               const color = await AsyncStorage.getItem('TIER_COLOR');
@@ -269,6 +273,7 @@ export default function FarmerLayout() {
     const lang = await AsyncStorage.getItem("APP_LANG");
     await AsyncStorage.clear();
     if (lang) await AsyncStorage.setItem("APP_LANG", lang);
+    useStore.getState().clearStore();
     router.replace("/login");
   };
 

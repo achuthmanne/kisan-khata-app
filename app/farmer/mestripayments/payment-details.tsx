@@ -2,6 +2,7 @@
 
 import AppHeader from "@/components/AppHeader";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
@@ -10,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import {
   FlatList,
   SafeAreaView,
@@ -33,6 +34,28 @@ export default function PaymentDetails() {
   const [openCrops, setOpenCrops] = useState<any>({});
   const [openWorks, setOpenWorks] = useState<any>({});
 
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const mestriPayments = useStore(state => state.mestriPayments);
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+  const initMestriPaymentsListener = useStore(state => state.initMestriPaymentsListener);
+  const unsubMestriAttendance = useStore(state => state.unsubMestriAttendance);
+  const unsubMestriPayments = useStore(state => state.unsubMestriPayments);
+  
+  const [initialLoading, setInitialLoading] = useState(true);
+  const isMounted = useRef(true);
+  useEffect(() => { return () => { isMounted.current = false; }; }, []);
+
+  const loadSession = async () => {
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+    
+    if (userPhone && session && id) {
+      initMestriAttendanceListener(id as string, userPhone, session);
+      initMestriPaymentsListener(id as string, userPhone, session);
+      if (isMounted.current) setInitialLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       const loadLang = async () => {
@@ -40,82 +63,47 @@ export default function PaymentDetails() {
         if (lang) setLanguage(lang as any);
       };
       loadLang();
-    }, [])
-  );
-
-  /* ---------------- LOAD DATA ---------------- */
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) return;
-
-      const userDoc = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone), true
-        );
-
-      const activeSession = userDoc.data()?.activeSession;
-      if (!activeSession) {
-        setGrouped({});
-        return;
-      }
-
-      const snap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        .doc(id as string)
-        .collection("attendance")
-        .where("session", "==", activeSession) 
-        , true);
-
-      // Fetch payments to handle old records that don't have isPaid: true
-      const paymentsSnap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("payments")
-        .where("mestriId", "==", id)
-        .where("session", "==", activeSession)
-        , true);
-
-      let paidIds: string[] = [];
-      paymentsSnap.docs.forEach((p: any) => {
-        const data = p.data();
-        if (data.selectedAttendanceIds && Array.isArray(data.selectedAttendanceIds)) {
-          paidIds.push(...data.selectedAttendanceIds);
+      loadSession();
+      return () => {
+        if (id) {
+          unsubMestriAttendance(id as string);
+          unsubMestriPayments(id as string);
         }
-      });
-
-      const list = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
-      const unpaidList = list.filter((item: any) => !paidIds.includes(item.id));
-
-      const cropGroup: any = {};
-
-      unpaidList.forEach((item: any) => {
-        const crop = item.crop || "Other";
-        const work = item.work || "Other";
-
-        if (!cropGroup[crop]) cropGroup[crop] = {};
-        if (!cropGroup[crop][work]) cropGroup[crop][work] = [];
-
-        cropGroup[crop][work].push(item);
-      });
-
-      setGrouped(cropGroup);
-      
-    } catch (error) {
-      console.log("Error loading payment details:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useFocusEffect(
-    useCallback(() => {
-      loadData();
-    }, [])
+      };
+    }, [id])
   );
+
+  useEffect(() => {
+    if (!id || initialLoading) return;
+    
+    const allAttendance = mestriAttendance[id as string] || [];
+    const allPayments = mestriPayments[id as string] || [];
+
+    let paidIds: string[] = [];
+    allPayments.forEach((p: any) => {
+      if (p.selectedAttendanceIds && Array.isArray(p.selectedAttendanceIds)) {
+        paidIds.push(...p.selectedAttendanceIds);
+      }
+    });
+
+    const unpaidList = allAttendance.filter((item: any) => !paidIds.includes(item.id));
+    const cropGroup: any = {};
+
+    unpaidList.forEach((item: any) => {
+      const crop = item.crop || "Other";
+      const work = item.work || "Other";
+
+      if (!cropGroup[crop]) cropGroup[crop] = {};
+      if (!cropGroup[crop][work]) cropGroup[crop][work] = [];
+
+      cropGroup[crop][work].push(item);
+    });
+
+    setGrouped(cropGroup);
+    setLoading(false);
+  }, [mestriAttendance, mestriPayments, id, initialLoading]);
+
+  // Focus effect is combined above.
 
   /* ---------------- SHIMMER ---------------- */
   const ShimmerCard = () => (

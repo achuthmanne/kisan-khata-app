@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 import { LinearGradient } from "expo-linear-gradient";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
 import notifee from '@notifee/react-native';
@@ -57,11 +58,14 @@ export default function RemindersScreen() {
   const [language, setLanguage] = useState<"te" | "en">("te");
   const t = translations[language];
 
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [reminders, setReminders] = useState<any[]>([]);
+  const reminders = useStore(state => state.reminders);
+  const isInitializing = useStore(state => state.isInitializing);
+  
+  const loading = isInitializing && reminders.length === 0;
+
   const [activeTab, setActiveTab] = useState<"ALL" | "PENDING" | "COMPLETED">("PENDING");
 
   useEffect(() => {
@@ -69,64 +73,16 @@ export default function RemindersScreen() {
     const init = async () => {
       const lang = await AsyncStorage.getItem("APP_LANG");
       if (lang && isMounted) setLanguage(lang as "te" | "en");
-      fetchReminders(false, isMounted);
     };
     init();
     return () => { isMounted = false; };
   }, []);
 
-  const fetchReminders = async (forceRefresh = false, isMounted = true) => {
-    try {
-      if (!forceRefresh) setLoading(true);
-      setError(false);
-
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) { setLoading(false); return; }
-
-      // We will listen to snapshot so it auto updates when user marks done or adds new.
-      const unsub = firestore()
-        .collection("users")
-        .doc(phone)
-        .collection("reminders")
-        .onSnapshot(
-          (snap) => {
-            if (!isMounted) return;
-            if (snap.empty) {
-              setReminders([]);
-              setLoading(false);
-              setRefreshing(false);
-              return;
-            }
-
-            const data = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).sort((a: any, b: any) => {
-              const dateA = new Date(a.date).getTime();
-              const dateB = new Date(b.date).getTime();
-              return dateA - dateB; 
-            });
-            setReminders(data);
-            setLoading(false);
-            setRefreshing(false);
-          },
-          (err) => {
-            console.log("Reminders fetch error", err);
-            if (isMounted) setError(true);
-            if (isMounted) setLoading(false);
-          }
-        );
-      
-      // Cleanup listener not fully implemented here as we want it to stay active while on screen.
-      // A better approach is useEffect for snapshot, but this is fine for now.
-
-    } catch (err) {
-      console.log("Reminders API Error:", err);
-      if (isMounted) setError(true);
-      if (isMounted) { setLoading(false); setRefreshing(false); }
-    }
-  };
-
   const onRefresh = () => {
     setRefreshing(true);
-    fetchReminders(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
   };
 
   const markCompleted = async (id: string, notificationId?: string) => {
@@ -270,7 +226,7 @@ export default function RemindersScreen() {
         <ShimmerSkeleton />
       ) : error ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => fetchReminders(true)} language={language} />
+          <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => {}} language={language} />
         </View>
       ) : filteredReminders.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>

@@ -2,6 +2,7 @@
 
 import AppHeader from "@/components/AppHeader";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; 
@@ -10,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import {
   FlatList,
   SafeAreaView,
@@ -43,81 +44,78 @@ export default function PaymentWorkHistory() {
     }, [])
   );
 
-  /* ---------------- LOAD DATA ---------------- */
-  const loadData = async () => {
-    setLoading(true); 
-    try {
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) return;
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const mestriPayments = useStore(state => state.mestriPayments);
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+  const initMestriPaymentsListener = useStore(state => state.initMestriPaymentsListener);
+  const unsubMestriAttendance = useStore(state => state.unsubMestriAttendance);
+  const unsubMestriPayments = useStore(state => state.unsubMestriPayments);
 
-      const userDoc = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone), true
-        );
-
-      const activeSession = userDoc.data()?.activeSession;
-      if (!activeSession) return;
-
-      const snap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        .doc(id as string)
-        .collection("attendance")
-        .where("session", "==", activeSession) 
-        , true);
-
-      const paymentSnap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("payments")
-        .where("mestriId", "==", id)
-        .where("crop", "==", crop)
-        .where("work", "==", work)
-        , true);
-
-      let paidIds: string[] = [];
-
-      paymentSnap.docs.forEach((doc: any) => {
-        const paymentData = doc.data();
-        paidIds.push(...(paymentData.selectedAttendanceIds || []));
-      });
-
-      const allList = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
-      const list = allList.filter((item: any) =>
-        item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
-        item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
-        !paidIds.includes(item.id) 
-      )
-      .sort((a: any, b: any) => {
-          const parseDate = (dStr: string) => {
-            if (!dStr) return 0;
-            const parts = dStr.split("/");
-            if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
-            return new Date(dStr).getTime() || 0;
-          };
-          const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : parseDate(a.date);
-          const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : parseDate(b.date);
-          return timeB - timeA; 
-        });
-
-      setData(list);
-
-      if (list.length > 0) {
-          setInfoVisible(true); 
-      }
-
-    } catch (e) {
-      console.log("Error loading data:", e);
-    } finally {
-      setLoading(false);
+  const loadSession = async () => {
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+    
+    if (userPhone && session && id) {
+      initMestriAttendanceListener(id as string, userPhone, session);
+      initMestriPaymentsListener(id as string, userPhone, session);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
+      loadSession();
+      return () => {
+        if (id) {
+          unsubMestriAttendance(id as string);
+          unsubMestriPayments(id as string);
+        }
+      };
+    }, [id])
+  );
+
+  useEffect(() => {
+    if (!id) return;
+    
+    const allAttendance = mestriAttendance[id as string] || [];
+    const allPayments = mestriPayments[id as string] || [];
+
+    let paidIds: string[] = [];
+    
+    // Filter payments that match crop and work
+    const relevantPayments = allPayments.filter((p: any) => p.crop === crop && p.work === work);
+
+    relevantPayments.forEach((doc: any) => {
+      paidIds.push(...(doc.selectedAttendanceIds || []));
+    });
+
+    const list = allAttendance.filter((item: any) =>
+      item.crop?.trim().toLowerCase() === (crop as string)?.trim().toLowerCase() &&
+      item.work?.trim().toLowerCase() === (work as string)?.trim().toLowerCase() &&
+      !paidIds.includes(item.id) 
+    )
+    .sort((a: any, b: any) => {
+        const parseDate = (dStr: string) => {
+          if (!dStr) return 0;
+          const parts = dStr.split("/");
+          if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+          return new Date(dStr).getTime() || 0;
+        };
+        const timeA = a.timestamp?.toDate ? a.timestamp.toDate().getTime() : parseDate(a.date);
+        const timeB = b.timestamp?.toDate ? b.timestamp.toDate().getTime() : parseDate(b.date);
+        return timeB - timeA; 
+      });
+
+    setData(list);
+
+    if (list.length > 0) {
+        setInfoVisible(true); 
+    }
+    setLoading(false);
+  }, [mestriAttendance, mestriPayments, id, crop, work]);
+
+  useFocusEffect(
+    useCallback(() => {
       setSelected([]); 
-      loadData();
     }, [])
   );
 

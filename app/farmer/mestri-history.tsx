@@ -5,8 +5,9 @@ import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import firestore from "@react-native-firebase/firestore";
+import { useStore } from "@/store/useStore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -68,93 +69,70 @@ export default function MestriHistory() {
     }, [])
   );
 
-  /* ---------------- LOAD DATA (ROBUST) ---------------- */
-  const loadData = async (isRefreshed = false) => {
-    if (!id) return;
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+  const initMestriPaymentsListener = useStore(state => state.initMestriPaymentsListener);
+  const unsubMestriAttendance = useStore(state => state.unsubMestriAttendance);
+  const unsubMestriPayments = useStore(state => state.unsubMestriPayments);
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const mestriPayments = useStore(state => state.mestriPayments);
 
-    try {
-      if (!isRefreshed) setLoading(true);
-      setError(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) throw new Error("NO_USER");
-
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
-      const session = userDoc.data()?.activeSession;
-
-      if (!session) {
-        if (isMounted.current) { setLoading(false); setRefreshing(false); }
-        return;
-      }
-
-      if (isMounted.current) setActiveSession(session);
-
-      // 1️⃣ పేమెంట్ అయిన రికార్డ్స్ (Locked)
-      const paymentsSnap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("payments")
-        .where("mestriId", "==", id as string)
-        .where("session", "==", session)
-        , true);
-
-      let paidSet = new Set<string>();
-      paymentsSnap.forEach((doc: any) => {
-         const selectedIds = doc.data().selectedAttendanceIds || [];
-         selectedIds.forEach((attId: string) => paidSet.add(attId));
-      });
-      if (isMounted.current) setPaidIds(Array.from(paidSet));
-
-      // 2️⃣ మామూలు హాజరు లిస్ట్
-      const snap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        .doc(id as string)
-        .collection("attendance")
-        .where("session", "==", session)
-        .where("createdAt", "!=", null)
-        .orderBy("createdAt", "desc")
-        , true);
-        
-      const list = snap.docs.map((d: any) => ({
-        id: d.id,
-        ...(d.data() as any)
-      }));
-
-      // 🔥 GROUP BY CROP
-      const group: any = {};
-      list.forEach((item: any) => {
-        const crop = item.crop || "Others";
-        if (!group[crop]) group[crop] = [];
-        group[crop].push(item);
-      });
-
-      if (isMounted.current) {
-        setData(list);
-        setGrouped(group);
-      }
-
-    } catch (error) {
-      console.log("Error loading attendance history:", error);
-      if (isMounted.current) setError(true);
-    } finally {
-      if (isMounted.current) {
-        setLoading(false);
-        setRefreshing(false);
-      }
+  const loadSession = async () => {
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+    if (session && isMounted.current) setActiveSession(session);
+    
+    if (userPhone && session && id) {
+      initMestriAttendanceListener(id as string, userPhone, session);
+      initMestriPaymentsListener(id as string, userPhone, session);
+      if (isMounted.current) setInitialLoading(false);
     }
   };
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      loadSession();
+      return () => {
+        if (id) {
+          unsubMestriAttendance(id as string);
+          unsubMestriPayments(id as string);
+        }
+      };
     }, [id])
   );
 
+  useEffect(() => {
+    if (!id || initialLoading) return;
+    
+    const list = mestriAttendance[id as string] || [];
+    const payments = mestriPayments[id as string] || [];
+
+    let paidSet = new Set<string>();
+    payments.forEach((doc: any) => {
+       const selectedIds = doc.selectedAttendanceIds || [];
+       selectedIds.forEach((attId: string) => paidSet.add(attId));
+    });
+    setPaidIds(Array.from(paidSet));
+
+    // 🔥 GROUP BY CROP
+    const group: any = {};
+    list.forEach((item: any) => {
+      const crop = item.crop || "Others";
+      if (!group[crop]) group[crop] = [];
+      group[crop].push(item);
+    });
+
+    setData(list);
+    setGrouped(group);
+    setLoading(false);
+    setRefreshing(false);
+  }, [mestriAttendance, mestriPayments, id, initialLoading]);
+
   const onRefresh = () => {
     setRefreshing(true);
-    loadData(true);
+    // Since it's realtime, we just wait a bit and toggle off
+    setTimeout(() => setRefreshing(false), 800);
   };
 
   /* ---------------- DELETE ---------------- */
@@ -173,7 +151,7 @@ export default function MestriHistory() {
         .delete());
 
       if (isMounted.current) setModalVisible(false);
-      loadData(); // మళ్ళీ సింక్ కోసం
+      // Wait, no need to call loadData anymore. Zustand updates automatically.
     } catch (e) {
       console.log(e);
     }
@@ -252,7 +230,7 @@ export default function MestriHistory() {
           <AppText style={styles.errorText} language={language}>
             {language === "te" ? "సర్వర్ కి కనెక్ట్ అవ్వలేకపోయాం" : "Failed to connect to server"}
           </AppText>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(false)}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setInitialLoading(true)}>
             <AppText style={styles.retryText} language={language}>
               {language === "te" ? "మళ్ళీ ప్రయత్నించండి" : "Try Again"}
             </AppText>

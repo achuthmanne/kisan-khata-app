@@ -7,13 +7,14 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
-import { useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useStore } from "@/store/useStore";
 import { useCallback, useEffect, useState, useRef } from "react";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import { LayoutAnimation, Platform, UIManager, Linking, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { WebView } from "react-native-webview";
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
   FlatList,
   Modal,
@@ -68,135 +69,24 @@ export default function PaymentDetailHistory() {
     return () => { isMounted.current = false; };
   }, []);
 
-  const loadData = async (isRefreshed = false) => {
-    try {
-      if (!isRefreshed) setLoading(true);
-      setError(false);
+  const mestriAttendance = useStore(state => state.mestriAttendance);
+  const mestriPayments = useStore(state => state.mestriPayments);
+  const initMestriAttendanceListener = useStore(state => state.initMestriAttendanceListener);
+  const initMestriPaymentsListener = useStore(state => state.initMestriPaymentsListener);
+  const unsubMestriAttendance = useStore(state => state.unsubMestriAttendance);
+  const unsubMestriPayments = useStore(state => state.unsubMestriPayments);
 
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone) throw new Error("NO_USER");
+  const [initialLoading, setInitialLoading] = useState(true);
 
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(userPhone), true);
-      const session = userDoc.data()?.activeSession;
-
-      if (!session) {
-        if (isMounted.current) { setLoading(false); setRefreshing(false); }
-        return;
-      }
-
-      if (isMounted.current) setActiveSession(session);
-
-      const snap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("payments")
-        .where("mestriId", "==", mestriId)
-        .where("session", "==", session), true
-        );
-
-      const list = snap.docs.map((d: any) => ({ id: d.id, ...(d.data() as any) }));
-      
-      if (!list.length) {
-        if (isMounted.current) {
-          setGrouped({});
-          setSummary({ payments: 0, days: 0, paidDays: 0 }); 
-          setStatus({ label: "Not Paid", color: "#EF4444" }); 
-          setLoading(false);
-          setRefreshing(false);
-        }
-        return;
-      }
-
-      const attendanceSnap = await executeOfflineSafeRead(firestore()
-        .collection("users")
-        .doc(userPhone)
-        .collection("mestris")
-        .doc(mestriId as string)
-        .collection("attendance")
-        .where("session", "==", session), true
-        );
-
-      const totalDays = attendanceSnap.size;
-      let totalPayments = 0;
-      let paidDays = 0;
-
-      list.forEach((item: any) => {
-        totalPayments += 1;
-        paidDays += item.details?.totalDays || 0;
-      });
-
-      let newStatus;
-      if (paidDays === 0) newStatus = { label: "Not Paid", color: "#EF4444" };
-      else if (paidDays < totalDays) newStatus = { label: "Pending", color: "#F59E0B" };
-      else newStatus = { label: "Cleared", color: "#22C55E" };
-
-      const promises = list.map(async (item: any) => {
-        const ids = item.selectedAttendanceIds || [];
-        if (ids.length === 0) return null;
-
-        const docPromises = ids.map((attId: string) =>
-          firestore()
-            .collection("users")
-            .doc(userPhone)
-            .collection("mestris")
-            .doc(mestriId as string)
-            .collection("attendance")
-            .doc(attId)
-            .get()
-        );
-
-        const docs = await Promise.all(docPromises);
-        
-        // 🔥 PRO FIX: Safe Date Sorter (Ascending Order 17 -> 19)
-        const dates = docs
-          .map((d) => d.data()?.date)
-          .filter(Boolean)
-          .sort((a, b) => {
-            const parseSafeDate = (dStr: string) => {
-              if (dStr.includes("/")) {
-                const [d, m, y] = dStr.split("/");
-                return new Date(`${y}-${m}-${d}`).getTime();
-              }
-              if (dStr.includes("-") && dStr.split("-")[0].length <= 2) {
-                const [d, m, y] = dStr.split("-");
-                return new Date(`${y}-${m}-${d}`).getTime();
-              }
-              return new Date(dStr).getTime();
-            };
-            return parseSafeDate(a) - parseSafeDate(b); 
-          });
-
-        return { id: item.id, dates };
-      });
-
-      const results = (await Promise.all(promises)).filter(Boolean);
-      const finalMap: any = {};
-      results.forEach((r: any) => { finalMap[r.id] = r.dates; });
-
-      const group: any = {};
-      list.forEach((item: any) => {
-        const crop = item.crop || "Others";
-        const work = item.work || "Other";
-        if (!group[crop]) group[crop] = {};
-        if (!group[crop][work]) group[crop][work] = [];
-        group[crop][work].push(item);
-      });
-
-      if (isMounted.current) {
-        setSummary({ payments: totalPayments, days: totalDays, paidDays: paidDays });
-        setStatus(newStatus);
-        setDateMap(finalMap);
-        setGrouped(group);
-      }
-
-    } catch (e) {
-      console.log("Details Fetch Error:", e);
-      if (isMounted.current) setError(true);
-    } finally {
-      if (isMounted.current) {
-        setLoading(false); 
-        setRefreshing(false);
-      }
+  const loadSession = async () => {
+    const userPhone = await AsyncStorage.getItem("USER_PHONE");
+    const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+    if (session && isMounted.current) setActiveSession(session);
+    
+    if (userPhone && session && mestriId) {
+      initMestriAttendanceListener(mestriId as string, userPhone, session);
+      initMestriPaymentsListener(mestriId as string, userPhone, session);
+      if (isMounted.current) setInitialLoading(false);
     }
   };
 
@@ -205,13 +95,93 @@ export default function PaymentDetailHistory() {
       AsyncStorage.getItem("APP_LANG").then((l) => {
         if (l && isMounted.current) setLanguage(l as any);
       });
-      loadData();
-    }, [])
+      loadSession();
+      return () => {
+        if (mestriId) {
+          unsubMestriAttendance(mestriId as string);
+          unsubMestriPayments(mestriId as string);
+        }
+      };
+    }, [mestriId])
   );
+
+  useEffect(() => {
+    if (!mestriId || initialLoading) return;
+    
+    const allAttendance = mestriAttendance[mestriId as string] || [];
+    const paymentsList = mestriPayments[mestriId as string] || [];
+
+    if (!paymentsList.length) {
+      setGrouped({});
+      setSummary({ payments: 0, days: 0, paidDays: 0 }); 
+      setStatus({ label: "Not Paid", color: "#EF4444" }); 
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    const totalDays = allAttendance.length;
+    let totalPayments = 0;
+    let paidDays = 0;
+
+    paymentsList.forEach((item: any) => {
+      totalPayments += 1;
+      paidDays += item.details?.totalDays || 0;
+    });
+
+    let newStatus;
+    if (paidDays === 0) newStatus = { label: "Not Paid", color: "#EF4444" };
+    else if (paidDays < totalDays) newStatus = { label: "Pending", color: "#F59E0B" };
+    else newStatus = { label: "Cleared", color: "#22C55E" };
+
+    const finalMap: any = {};
+    paymentsList.forEach((item: any) => {
+      const ids = item.selectedAttendanceIds || [];
+      if (ids.length === 0) return;
+      
+      const dates = ids.map((attId: string) => {
+        const att = allAttendance.find(a => a.id === attId);
+        return att ? att.date : null;
+      }).filter(Boolean);
+
+      dates.sort((a: any, b: any) => {
+        const parseSafeDate = (dStr: string) => {
+          if (dStr.includes("/")) {
+            const [d, m, y] = dStr.split("/");
+            return new Date(`${y}-${m}-${d}`).getTime();
+          }
+          if (dStr.includes("-") && dStr.split("-")[0].length <= 2) {
+            const [d, m, y] = dStr.split("-");
+            return new Date(`${y}-${m}-${d}`).getTime();
+          }
+          return new Date(dStr).getTime();
+        };
+        return parseSafeDate(a) - parseSafeDate(b); 
+      });
+
+      finalMap[item.id] = dates;
+    });
+
+    const group: any = {};
+    paymentsList.forEach((item: any) => {
+      const crop = item.crop || "Others";
+      const work = item.work || "Other";
+      if (!group[crop]) group[crop] = {};
+      if (!group[crop][work]) group[crop][work] = [];
+      group[crop][work].push(item);
+    });
+
+    setSummary({ payments: totalPayments, days: totalDays, paidDays: paidDays });
+    setStatus(newStatus);
+    setDateMap(finalMap);
+    setGrouped(group);
+    setLoading(false); 
+    setRefreshing(false);
+  }, [mestriAttendance, mestriPayments, mestriId, initialLoading]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadData(true);
+    setTimeout(() => setRefreshing(false), 800);
   };
 
   const toggleCrop = (crop: string) => {
@@ -286,7 +256,6 @@ export default function PaymentDetailHistory() {
       }
 
       await executeOfflineSafeWrite(docRef.delete());
-      loadData(); 
 
     } catch (e) {
       console.log(e);
@@ -346,7 +315,7 @@ export default function PaymentDetailHistory() {
           <AppText style={styles.errorText} language={language}>
             {language === "te" ? "సర్వర్ కి కనెక్ట్ అవ్వలేకపోయాం" : "Failed to connect to server"}
           </AppText>
-          <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(false)}>
+          <TouchableOpacity style={styles.retryBtn} onPress={() => setInitialLoading(true)}>
             <AppText style={styles.retryText} language={language}>
               {language === "te" ? "మళ్ళీ ప్రయత్నించండి" : "Try Again"}
             </AppText>

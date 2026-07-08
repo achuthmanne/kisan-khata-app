@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { useStore } from "@/store/useStore";
 
 import { View, StyleSheet, TouchableOpacity, FlatList, RefreshControl, StatusBar, SafeAreaView, Modal } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -52,11 +53,13 @@ export default function LockerScreen() {
   const [language, setLanguage] = useState<"te" | "en">("te");
   const t = translations[language];
 
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const [items, setItems] = useState<any[]>([]);
+  const items = useStore(state => state.locker);
+  const isInitializing = useStore(state => state.isInitializing);
+  const loading = isInitializing && items.length === 0;
+
   const [activeTab, setActiveTab] = useState<"seed" | "fertilizer" | "pesticide" | "other">("seed");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -82,64 +85,16 @@ export default function LockerScreen() {
     const init = async () => {
       const lang = await AsyncStorage.getItem("APP_LANG");
       if (lang && isMounted) setLanguage(lang as "te" | "en");
-      fetchItems(false, isMounted);
     };
     init();
     return () => { isMounted = false; };
   }, []);
 
-  const fetchItems = async (forceRefresh = false, isMounted = true) => {
-    try {
-      if (!forceRefresh) setLoading(true);
-      setError(false);
-
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone) { setLoading(false); return; }
-
-      const userDoc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-      const activeSession = userDoc.data()?.activeSession;
-
-      // Listen to snapshot for instant updates when adding/deleting
-      const unsub = firestore()
-        .collection("users")
-        .doc(phone)
-        .collection("locker")
-        .orderBy("createdAt", "desc")
-        .onSnapshot(
-          (snap) => {
-            if (!isMounted) return;
-            if (snap.empty) {
-              setItems([]);
-              setLoading(false);
-              setRefreshing(false);
-              return;
-            }
-
-            let data = snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-            if (activeSession) {
-              data = data.filter((item: any) => !item.session || item.session === activeSession);
-            }
-            setItems(data);
-            setLoading(false);
-            setRefreshing(false);
-          },
-          (err) => {
-            console.log("Locker fetch error", err);
-            if (isMounted) setError(true);
-            if (isMounted) { setLoading(false); setRefreshing(false); }
-          }
-        );
-
-    } catch (err) {
-      console.log("Locker API Error:", err);
-      if (isMounted) setError(true);
-      if (isMounted) { setLoading(false); setRefreshing(false); }
-    }
-  };
-
   const onRefresh = () => {
     setRefreshing(true);
-    fetchItems(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
   };
 
   const deleteItem = async (id: string) => {
@@ -320,7 +275,7 @@ export default function LockerScreen() {
         <ShimmerSkeleton />
       ) : error ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>
-          <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => fetchItems(true)} language={language} />
+          <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => {}} language={language} />
         </View>
       ) : filteredItems.length === 0 ? (
         <View style={{ flex: 1, justifyContent: 'center' }}>

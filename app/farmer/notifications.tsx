@@ -1,4 +1,5 @@
 import AppHeader from "@/components/AppHeader";
+import { useStore } from "@/store/useStore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
 
 import AppText from "@/components/AppText";
@@ -44,78 +45,76 @@ export default function Notifications() {
     loadLang();
   }, []);
 
+  const globalNotifications = useStore(state => state.notifications);
+  const isInitializing = useStore(state => state.isInitializing);
+
   /* ---------------- FETCH + AUTO DELETE ---------------- */
   useEffect(() => {
-    const unsub = firestore()
-      .collection("notifications")
-      .onSnapshot(async snap => {
-
-        const list: any[] = [];
-        const now = new Date();
+    if (isInitializing) return;
+    
+    let isMounted = true;
+    const loadFiltered = async () => {
+      try {
         const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone) {
+          if (isMounted) setLoading(false);
+          return;
+        }
 
-        if (!phone) return; // 🔥 important
         const hiddenSnap = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone)
           .collection("hiddenNotifications"), true
-          );
+        );
 
         const userDoc = await executeOfflineSafeRead(firestore()
           .collection("users")
           .doc(phone), true
-          );
+        );
 
         const userState = userDoc.data()?.state;
         const hiddenIds = hiddenSnap.docs.map((d: any) => d.id);
         const normalize = (s:any) => (s || "").trim().toLowerCase();
 
-        for (const doc of snap.docs) {
-          const data = doc.data();
+        const now = new Date();
+        const list: any[] = [];
+
+        for (const doc of globalNotifications) {
           let deleteTime = null;
 
-          // 🔥 SKIP hidden
-          if (hiddenIds.includes(doc.id)) {
-            continue;
+          if (hiddenIds.includes(doc.id)) continue;
+
+          if (doc.deleteAt && typeof doc.deleteAt.toDate === "function") {
+            deleteTime = doc.deleteAt.toDate();
           }
 
-          // 🔥 SAFE CONVERSION
-          if (data.deleteAt && typeof data.deleteAt.toDate === "function") {
-            deleteTime = data.deleteAt.toDate();
-          }
+          if (deleteTime && now > deleteTime) continue;
 
-          if (deleteTime && now > deleteTime) {
-            continue;
-          }
-
-          if (data.userId === "all") {
+          if (doc.userId === "all") {
             // show
-          }
-          else if (data.state) {
-            if (!userState || normalize(data.state) !== normalize(userState)) {
-              continue;
-            }
-          }
-          else if (data.userId && data.userId !== phone) {
+          } else if (doc.state) {
+            if (!userState || normalize(doc.state) !== normalize(userState)) continue;
+          } else if (doc.userId && doc.userId !== phone) {
             continue;
           }
 
-          list.push({ id: doc.id, ...data });
+          list.push(doc);
         }
 
-        // 🔥 SORT MANUALLY
-        list.sort((a, b) => {
-          const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
-          const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
-          return bTime - aTime;
-        });
-
-        setData(list);
-        setLoading(false);
-      });
-
-    return () => unsub();
-  }, []);
+        if (isMounted) {
+          setData(list);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.log("Error filtering notifications", err);
+        if (isMounted) setLoading(false);
+      }
+    };
+    
+    loadFiltered();
+    
+    return () => { isMounted = false; };
+  }, [globalNotifications, isInitializing]);
 
   /* ---------------- FEEDBACK SAVE ---------------- */
   const submitFeedback = async (itemId:string) => {

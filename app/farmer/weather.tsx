@@ -296,21 +296,59 @@ export default function WeatherScreen() {
   /* ---------------- SHIMMER UI COMPONENT ---------------- */
   const ShimmerSkeleton = () => (
     <View style={styles.scrollContent}>
-      <View style={[styles.shimmerBox, { width: 150, height: 35, borderRadius: 12, marginBottom: 20 }]} />
-      <View style={{ alignItems: "center", marginBottom: 25 }}>
-        <View style={[styles.shimmerBox, { width: 90, height: 90, borderRadius: 45, marginBottom: 10 }]} />
-        <View style={[styles.shimmerBox, { width: 120, height: 50, borderRadius: 12, marginBottom: 10 }]} />
-        <View style={[styles.shimmerBox, { width: 180, height: 20, borderRadius: 8 }]} />
+      {/* 📍 EXACT LOCATION */}
+      <View style={styles.headerRow}>
+        <View style={[styles.shimmerBox, { width: 180, height: 40, borderRadius: 12, marginBottom: 8 }]} />
       </View>
-      <View style={[styles.shimmerBox, { height: 90, borderRadius: 16, marginBottom: 25, width: "100%" }]} />
+
+      {/* 🌡️ MAIN WEATHER */}
+      <View style={styles.mainWeatherBox}>
+        <View style={[styles.shimmerBox, { width: 85, height: 85, borderRadius: 45, marginBottom: 10 }]} />
+        <View style={[styles.shimmerBox, { width: 140, height: 80, borderRadius: 12, marginBottom: 5 }]} />
+        <View style={[styles.shimmerBox, { width: 160, height: 24, borderRadius: 8 }]} />
+      </View>
+
+      {/* 🌍 AGRI ADVICE */}
+      <View style={[styles.shimmerBox, { height: 160, borderRadius: 16, marginBottom: 25, width: "100%" }]} />
+
+      {/* 📊 WEATHER GRID */}
       <View style={styles.gridContainer}>
         {[1, 2, 3, 4].map((i) => (
           <View key={i} style={[styles.shimmerBox, { width: (width - 52) / 2, height: 100, borderRadius: 16 }]} />
         ))}
       </View>
+
+      {/* ⏱️ HOURLY FORECAST */}
+      <View style={styles.section}>
+        <View style={[styles.shimmerBox, { width: 120, height: 24, borderRadius: 8, marginBottom: 12 }]} />
+        <View style={{ flexDirection: "row", gap: 12, overflow: "hidden" }}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} style={[styles.shimmerBox, { width: 75, height: 110, borderRadius: 16 }]} />
+          ))}
+        </View>
+      </View>
+
+      {/* 📅 5-DAY FORECAST */}
+      <View style={styles.section}>
+        <View style={[styles.shimmerBox, { width: 140, height: 24, borderRadius: 8, marginBottom: 12 }]} />
+        <View style={styles.dailyBox}>
+          {[1, 2, 3, 4, 5].map((i) => (
+            <View key={i} style={[styles.dailyRow, i === 5 && { borderBottomWidth: 0 }]}>
+               <View style={[styles.shimmerBox, { width: 60, height: 20, borderRadius: 6 }]} />
+               <View style={[styles.shimmerBox, { width: 26, height: 26, borderRadius: 13 }]} />
+               <View style={{ flexDirection: "row", gap: 12 }}>
+                  <View style={[styles.shimmerBox, { width: 35, height: 20, borderRadius: 6 }]} />
+                  <View style={[styles.shimmerBox, { width: 35, height: 20, borderRadius: 6 }]} />
+               </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* OVERLAY */}
       <Animated.View style={[styles.shimmerOverlay, { transform: [{ translateX: shimmerTranslate }] }]}>
         <LinearGradient
-          colors={["transparent", "rgba(255,255,255,0.6)", "transparent"]}
+          colors={["transparent", "rgba(255,255,255,0.7)", "transparent"]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flex: 1 }}
         />
       </Animated.View>

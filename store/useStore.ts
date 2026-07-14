@@ -56,6 +56,7 @@ interface AppState {
 }
 
 // ROOT UNSUBS
+let currentActiveSession: string | null = null;
 let unsubMestris: (() => void) | null = null;
 let unsubFields: (() => void) | null = null;
 let unsubLands: (() => void) | null = null;
@@ -157,8 +158,14 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   initListeners: async (phone: string, session: string) => {
-    // Prevent duplicate root listeners
-    if (unsubMestris || unsubFields || unsubLands) return;
+    if (currentActiveSession === session) {
+      // Prevent duplicate root listeners for the same session
+      if (unsubMestris || unsubFields || unsubLands) return;
+    } else {
+      // Session changed! Clear old store and listeners
+      get().clearStore();
+      currentActiveSession = session;
+    }
 
     set({ isInitializing: true });
 
@@ -336,7 +343,7 @@ export const useStore = create<AppState>((set, get) => ({
 
       // 11. Notifications Listener
       unsubNotifications = firestore()
-        .collection("users").doc(phone).collection("notifications")
+        .collection("notifications")
         .onSnapshot((snap) => {
           if (snap) {
             const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));

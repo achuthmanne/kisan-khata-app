@@ -237,11 +237,18 @@ export default function LoginScreen() {
           
           {/* Top Language Toggle */}
           <View style={styles.langRow}>
-            <Pressable onPress={() => setLanguage("te")} disabled={loading}>
+            <Pressable 
+              onPress={() => setLanguage("te")} 
+              disabled={loading}
+              style={[styles.langTab, language === "te" && styles.langTabActive]}
+            >
               <AppText style={[styles.lang, language === "te" && styles.active]} language={language}>తెలుగు</AppText>
             </Pressable>
-            <AppText style={{ marginHorizontal: 8, color: "#E5E7EB" }} language={language}>|</AppText>
-            <Pressable onPress={() => setLanguage("en")} disabled={loading}>
+            <Pressable 
+              onPress={() => setLanguage("en")} 
+              disabled={loading}
+              style={[styles.langTab, language === "en" && styles.langTabActive]}
+            >
               <AppText style={[styles.lang, language === "en" && styles.active]} language={language}>English</AppText>
             </Pressable>
           </View>
@@ -249,7 +256,7 @@ export default function LoginScreen() {
           {step === 1 ? (
             // --- STEP 1: PHONE INPUT ---
             <Animated.View entering={FadeInLeft} exiting={FadeOutLeft} style={{ flex: 1 }}>
-              <AppText style={styles.title} language={language}>Kisan Khata</AppText>
+              <AppText style={styles.title} language={language}>{language === "te" ? "కిసాన్ ఖాతా" : "Kisan Khata"}</AppText>
               <AppText style={styles.tagline} language={language}>
               {language === "te" 
                 ? "ఆధునిక వ్యవసాయానికి డిజిటల్ ఖాతా." 
@@ -359,11 +366,32 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
   container: { flex: 1, padding: 24, paddingTop: 60 },
-  langRow: { flexDirection: "row", alignSelf: "flex-end", marginBottom: 40, alignItems: 'center' },
-  lang: { color: "#9CA3AF", fontSize: 14 },
-  active: { color: "#1B5E20", fontWeight: "500" },
+  langRow: { 
+    flexDirection: "row", 
+    alignSelf: "flex-end", 
+    marginBottom: 40, 
+    alignItems: 'center',
+    backgroundColor: '#E5E7EB',
+    borderRadius: 20,
+    padding: 4
+  },
+  langTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  langTabActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  lang: { color: "#6B7280", fontSize: 14, fontWeight: "500" },
+  active: { color: "#1B5E20", fontWeight: "600" },
   
-  title: { fontSize: 28, fontWeight: "700", color: "#1B5E20", letterSpacing: -0.5 },
+  title: { fontSize: 28, fontWeight: "600", color: "#1B5E20", letterSpacing: -0.5 },
   tagline: { fontSize: 15, color: "#6B7280", marginBottom: 40, fontWeight: "500", lineHeight: 22 },
   
   inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 22, borderWidth: 0.5, borderColor: "#E5E7EB", paddingHorizontal: 18, height: 60, marginBottom: 20 },

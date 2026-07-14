@@ -206,11 +206,7 @@ export default function FarmerLayout() {
   }, [segments]);
 
   const getDefaultImage = () => {
-    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
-    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
-    if (isFarmer) return require("../../../assets/images/farmer.png");
-    if (isMestri) return require("../../../assets/images/kuli.png");
-    return require("../../../assets/images/default.jpg");
+    return require("../../../assets/images/default.avif");
   };
 
   const getTierDisplay = () => {
@@ -368,7 +364,7 @@ export default function FarmerLayout() {
                     >
                       <Image 
                         source={profileImage ? { uri: profileImage } : getDefaultImage()} 
-                        style={{ width: "100%", height: "100%" }} 
+                        style={[{ width: "100%", height: "100%" }, !profileImage && { transform: [{ scale: 1.25 }] }]} 
                         contentFit="cover"
                       />
                     </View>

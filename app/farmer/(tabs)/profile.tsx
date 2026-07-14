@@ -24,11 +24,14 @@ import {
   View,
   ActivityIndicator
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import AppText from "@/components/AppText";
 import AgriLoader from "../../../components/AgriLoader";
+import AppHeader from "../../../components/AppHeader";
 
 const { width } = Dimensions.get("window");
 
@@ -39,7 +42,7 @@ export default function ProfileScreen() {
   const APP_VERSION = "1.0.0";
 
   // --- STATE ---
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -54,7 +57,6 @@ export default function ProfileScreen() {
   
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showAlert, setShowAlert] = useState(false);
   const [loaderType, setLoaderType] = useState<"loading" | "updating">("loading");
   const [photoModal, setPhotoModal] = useState(false);
 
@@ -96,11 +98,7 @@ export default function ProfileScreen() {
   );
 
   const getDefaultImage = () => {
-    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
-    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
-    if (isFarmer) return require("../../../assets/images/farmer.png");
-    if (isMestri) return require("../../../assets/images/kuli.png");
-    return require("../../../assets/images/default.jpg");
+    return require("../../../assets/images/default.avif");
   };
 
   // 🔥 TIER BADGE DYNAMIC LOGIC BASED ON SAVED COLOR
@@ -167,9 +165,8 @@ export default function ProfileScreen() {
 
           setBackupData({ name: dbName, state: dbState, language });
 
-          if (!dbName || dbName.trim().length < 3) {
+          if (!data?.name) {
             setIsEditing(true);
-            setTimeout(() => setShowAlert(true), 500);
           }
         }
       } catch (error) {
@@ -243,10 +240,6 @@ export default function ProfileScreen() {
   };
 
   const handleBackPress = () => {
-    if (!name || name.trim().length < 3) {
-      setShowAlert(true);
-      return;
-    }
     router.back();
   };
 
@@ -257,7 +250,6 @@ export default function ProfileScreen() {
     } else {
       if (!backupData.name || backupData.name.trim().length < 3) {
         setErrors({ name: language === "te" ? "దయచేసి ముందుగా మీ పేరు నమోదు చేయండి*" : "Please enter your name first*" });
-        setShowAlert(true);
         return;
       }
       
@@ -331,18 +323,12 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1B5E20" />
 
-      {/* 🏛️ MODERN HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleBackPress} style={styles.headerIconBtn}>
-          <Ionicons name="arrow-back" size={20} color="white" />
-        </TouchableOpacity>
-        <AppText style={styles.headerTitle} language={language}>
-          {language === "te" ? "ప్రొఫైల్" : "My Profile"}
-        </AppText>
-        <TouchableOpacity onPress={() => setShowLogoutModal(true)} style={styles.headerIconBtn}>
-          <Ionicons name="log-out-outline" size={22} color="white" />
-        </TouchableOpacity>
-      </View>
+      {/* 🏛️ MODERN HEADER (AppHeader) */}
+      <AppHeader 
+        title={language === "te" ? "ప్రొఫైల్" : "My Profile"} 
+        subtitle={language === "te" ? "మీ వ్యక్తిగత వివరాలు" : "Your Personal Details"}
+        language={language}
+      />
 
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <KeyboardAwareScrollView
@@ -357,7 +343,7 @@ export default function ProfileScreen() {
               <View style={[styles.avatarInner, { borderColor: tierColor, borderWidth: 4 }]}>
                 <Image 
                   source={profileImage ? { uri: profileImage } : getDefaultImage()} 
-                  style={styles.avatarImage} 
+                  style={[styles.avatarImage, !profileImage && { transform: [{ scale: 1.25 }] }]} 
                   contentFit="cover"
                 />
                 <View style={[styles.onlineDot, { backgroundColor: online ? "#4ADE80" : "#F87171" }]} />
@@ -572,6 +558,20 @@ export default function ProfileScreen() {
             </View>
           </View>
 
+          {/* 🚪 EXACT SIDEBAR LOGOUT DESIGN UNDER APP LANGUAGE */}
+          {!loading && backupData?.name && backupData.name.trim().length >= 3 && (
+            <TouchableOpacity 
+              style={styles.logoutBottomBtn} 
+              activeOpacity={0.8} 
+              onPress={() => setShowLogoutModal(true)}
+            >
+              <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+              <AppText style={styles.logoutBottomText} language={language}>
+                {language === "te" ? "లాగౌట్" : "Logout"}
+              </AppText>
+            </TouchableOpacity>
+          )}
+
           {/* 💾 SAVE BUTTON */}
           {isEditing && (
             <View style={styles.buttonContainer}>
@@ -595,32 +595,6 @@ export default function ProfileScreen() {
       </KeyboardAvoidingView>
 
      {/* --- MODALS --- */}
-      <Modal visible={showAlert} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={[styles.modalIconBg, { backgroundColor: '#E8F5E9' }]}>
-              <Ionicons name="alert-circle" size={40} color="#1B5E20" />
-            </View>
-            <AppText style={styles.modalTitle} language={language}>
-              {language === "te" ? "పేరు అవసరం" : "Name Required"}
-            </AppText>
-            <AppText style={styles.modalSubText} language={language}>
-              {language === "te" ? "ముందుకు సాగడానికి దయచేసి మీ పేరును నమోదు చేయండి." : "Please enter your name to continue using the app."}
-            </AppText>
-            
-            {/* 🔥 ఇక్కడ బటన్ స్టైల్ అప్‌డేట్ చేశాను చూడు బ్రో */}
-            <TouchableOpacity 
-              onPress={() => setShowAlert(false)} 
-              style={[styles.modalPrimaryBtn, { paddingHorizontal: 40, minWidth: 140 }]}
-            >
-              <AppText style={styles.modalPrimaryBtnText} language={language}>
-                {language === "te" ? "సరే" : "Okay"}
-              </AppText>
-            </TouchableOpacity>
-
-          </View>
-        </View>
-      </Modal>
 
       <Modal visible={showLogoutModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -708,28 +682,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1B5E20",
-    paddingTop: Platform.OS === "android" ? 50 : 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
   },
   scrollContent: {
     paddingBottom: 0,
@@ -1062,6 +1014,24 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  logoutBottomBtn: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginHorizontal: 20,
+    marginTop: 20
+  },
+  logoutBottomText: {
+    color: "#DC2626",
+    fontSize: 15,
+    fontWeight: "600"
   },
   modalActionRow: {
     flexDirection: "row",

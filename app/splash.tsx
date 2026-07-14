@@ -155,10 +155,8 @@ export default function SplashScreen() {
       
       {/* 🔥 THE PREMIUM PROFESSIONAL TAGLINE (BILINGUAL & RESPONSIVE) */}
       <Animated.View style={taglineStyle}>
-        <AppText style={styles.tagline} language={language}>
-          {language === "te" 
-            ? "ఆధునిక వ్యవసాయానికి డిజిటల్ ఖాతా." 
-            : "The Digital Ledger for Modern Agriculture."}
+        <AppText style={styles.tagline} language="te">
+          ఆధునిక వ్యవసాయానికి డిజిటల్ ఖాతా.
         </AppText>
       </Animated.View>
     </View>

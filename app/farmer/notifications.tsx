@@ -1,6 +1,7 @@
 import AppHeader from "@/components/AppHeader";
 import { useStore } from "@/store/useStore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 
 import AppText from "@/components/AppText";
 import AppEmptyState from "@/components/AppEmptyState"; // 🔥 మన గ్లోబల్ కాంపోనెంట్
@@ -11,7 +12,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated, FlatList, Linking, SafeAreaView,
-  StatusBar,
+  StatusBar, ActivityIndicator,
   StyleSheet, TextInput, TouchableOpacity,
   View
 } from "react-native";
@@ -24,6 +25,7 @@ export default function Notifications() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [language, setLanguage] = useState<"te" | "en">("en");
   const [submittedMap, setSubmittedMap] = useState<{[key:string]: boolean}>({});
+  const [submittingMap, setSubmittingMap] = useState<{[key:string]: boolean}>({});
   const [ratingMap, setRatingMap] = useState<{[key:string]: number}>({});
   const [feedbackMap, setFeedbackMap] = useState<{[key:string]: string}>({});
   const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -44,6 +46,31 @@ export default function Notifications() {
 
     loadLang();
   }, []);
+
+  const [isListening, setIsListening] = useState(false);
+  const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
+
+  useSpeechRecognitionEvent("result", (event) => {
+    if (event.results && event.results.length > 0) {
+      const transcript = event.results[0].transcript;
+      if (activeFeedbackId) {
+        setFeedbackMap(prev => ({ ...prev, [activeFeedbackId]: transcript }));
+      }
+    }
+  });
+
+  useSpeechRecognitionEvent("end", () => setIsListening(false));
+
+  const handleVoiceInput = async (itemId: string) => {
+    setActiveFeedbackId(itemId);
+    const result = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+    if (!result.granted) return;
+    setIsListening(true);
+    ExpoSpeechRecognitionModule.start({
+      lang: language === "te" ? "te-IN" : "en-US",
+      interimResults: true,
+    });
+  };
 
   const globalNotifications = useStore(state => state.notifications);
   const isInitializing = useStore(state => state.isInitializing);
@@ -118,9 +145,14 @@ export default function Notifications() {
 
   /* ---------------- FEEDBACK SAVE ---------------- */
   const submitFeedback = async (itemId:string) => {
-    if (!ratingMap[itemId]) return;
+    if (!ratingMap[itemId] || submittingMap[itemId]) return;
+    setSubmittingMap(prev => ({ ...prev, [itemId]: true }));
+
     const phone = await AsyncStorage.getItem("USER_PHONE");
-    if (!phone) return;
+    if (!phone) {
+      setSubmittingMap(prev => ({ ...prev, [itemId]: false }));
+      return;
+    }
 
     const userDoc = await executeOfflineSafeRead(firestore()
       .collection("users")
@@ -129,14 +161,24 @@ export default function Notifications() {
 
     const userData = userDoc.data();
 
-    await executeOfflineSafeWrite(firestore().collection("feedback").add({
-      rating: ratingMap[itemId],
-      feedback: ratingMap[itemId] < 5 ? (feedbackMap[itemId] || "") : "",
-      userName: userData?.name || "Farmer",
-      phone: phone || "",
-      notificationId: itemId,
-      createdAt: firestore.FieldValue.serverTimestamp()
-    }));
+    try {
+      await fetch("https://script.google.com/macros/s/AKfycbytjZWQSpKCI4h21newdt6yiXmE_y4_crm5khS6RLkCrM2A3ZB9lr7i3JRvG98vS3k5/exec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain" // Prevents CORS preflight issues on some fetch implementations
+        },
+        body: JSON.stringify({
+          rating: ratingMap[itemId],
+          feedback: ratingMap[itemId] < 5 ? (feedbackMap[itemId] || "") : "",
+          userName: userData?.name || "Farmer",
+          phone: phone || "",
+          state: userData?.state || "",
+          notificationId: itemId
+        })
+      });
+    } catch (err) {
+      console.log("Error sending feedback to sheets:", err);
+    }
 
     // 🔥 HIDE NOTIFICATION
     await executeOfflineSafeWrite(firestore()
@@ -152,6 +194,8 @@ export default function Notifications() {
       ...prev,
       [itemId]: true
     }));
+    
+    setSubmittingMap(prev => ({ ...prev, [itemId]: false }));
 
     Animated.timing(scaleAnim, {
       toValue: 0.8,
@@ -222,6 +266,7 @@ export default function Notifications() {
 
       <AppHeader
         title={language === "te" ? "నోటిఫికేషన్లు" : "Notifications"}
+        subtitle={language === "te" ? "మీకు వచ్చిన తాజా అప్‌డేట్స్" : "Your latest updates"}
         language={language}
       />
 
@@ -310,35 +355,60 @@ export default function Notifications() {
 
                         {/* ✍️ FEEDBACK INPUT (ONLY <5) */}
                         {rating > 0 && rating < 5 && (
-                          <TextInput
-                            placeholder={
-                              language === "te"
-                                ? "మీ అభిప్రాయం చెప్పండి..."
-                                : "Tell us what can be improved..."
-                            }
-                            value={feedbackText}
-                            cursorColor={'green'}
-                            placeholderTextColor={'black'}
-                            onChangeText={(text) => 
-                              setFeedbackMap(prev => ({ ...prev, [item.id]: text }))
-                            }
-                            multiline
-                            style={[styles.feedbackInput, { fontFamily: "Mandali" }]}
-                          />
+                          <View style={{ flexDirection: "row", alignItems: "center", width: "100%", gap: 10 }}>
+                            <TextInput
+                              placeholder={
+                                language === "te"
+                                  ? "మీ అభిప్రాయం చెప్పండి..."
+                                  : "Tell us what can be improved..."
+                              }
+                              value={feedbackText}
+                              cursorColor={'#16A34A'}
+                              selectionColor={'rgba(22,163,74,0.3)'}
+                              placeholderTextColor={'#9CA3AF'}
+                              onChangeText={(text) => 
+                                setFeedbackMap(prev => ({ ...prev, [item.id]: text }))
+                              }
+                              multiline
+                              style={[styles.feedbackInput, { flex: 1, fontFamily: "Mandali", minHeight: 45, marginTop: 0, marginBottom: 10 }]}
+                            />
+                            <TouchableOpacity
+                               onPress={() => handleVoiceInput(item.id)}
+                               style={{
+                                 width: 44,
+                                 height: 44,
+                                 borderRadius: 22,
+                                 backgroundColor: isListening && activeFeedbackId === item.id ? "#FEF2F2" : "#F3F4F6",
+                                 justifyContent: "center",
+                                 alignItems: "center",
+                                 marginBottom: 10
+                               }}
+                            >
+                               <Ionicons 
+                                 name={isListening && activeFeedbackId === item.id ? "mic" : "mic-outline"} 
+                                 size={24} 
+                                 color={isListening && activeFeedbackId === item.id ? "#EF4444" : "#4B5563"} 
+                               />
+                            </TouchableOpacity>
+                          </View>
                         )}
 
                         {/* SUBMIT */}
                         <TouchableOpacity activeOpacity={0.8}
                           style={[
                             styles.submitBtn,
-                            { opacity: rating ? 1 : 0.5 }
+                            { opacity: rating && !submittingMap[item.id] ? 1 : 0.5 }
                           ]}
-                          disabled={!rating}
+                          disabled={!rating || submittingMap[item.id]}
                           onPress={() => submitFeedback(item.id)}
                         >
-                          <AppText style={styles.submitText}>
-                            {language === "te" ? "సమర్పించండి" : "Submit"}
-                          </AppText>
+                          {submittingMap[item.id] ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <AppText style={styles.submitText}>
+                              {language === "te" ? "సమర్పించండి" : "Submit"}
+                            </AppText>
+                          )}
                         </TouchableOpacity>
                       </>
                     ) : (

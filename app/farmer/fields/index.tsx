@@ -585,16 +585,19 @@ export default function FieldsScreen() {
                   </View>
                 </View>
 
-                <View style={styles.divider} />
-                
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  {cropStats.map((item, index) => (
-                    <View key={index} style={styles.miniChip}>
-                      <View style={[styles.dot, { backgroundColor: item.color }]} />
-                      <AppText style={styles.chipText}>{item.name}: {item.population} {language === "te" ? "ఎకరాలు" : "Acres"}</AppText>
-                    </View>
-                  ))}
-                </ScrollView>
+                {cropStats.length > 0 && (
+                  <>
+                    <View style={styles.divider} />
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      {cropStats.map((item, index) => (
+                        <View key={index} style={styles.miniChip}>
+                          <View style={[styles.dot, { backgroundColor: item.color }]} />
+                          <AppText style={styles.chipText}>{item.name}: {item.population} {language === "te" ? "ఎకరాలు" : "Acres"}</AppText>
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </>
+                )}
             </LinearGradient>
 
             <View style={styles.chartsRow}>
@@ -623,24 +626,26 @@ export default function FieldsScreen() {
                   </View>
                 </Animated.View>
 
-                <Animated.View entering={FadeInDown.delay(400)} style={styles.chartBox}>
-                  <AppText style={styles.sectionTitle}>{language === "te" ? "పంటల వారీగా వివరాలు" : "Crop-wise Distribution"}</AppText>
-                  <View style={styles.centerChartWrapper}>
-                    <PieChart
-                      data={safeCropStats} width={screenWidth - 60} height={200}
-                      chartConfig={{ color: (opacity = 1) => `rgba(0,0,0, ${opacity})` }}
-                      accessor={"population"} backgroundColor={"transparent"} paddingLeft={(screenWidth / 4).toString()} hasLegend={false}
-                    />
-                  </View>
-                  <View style={styles.gridLegendContainer}>
-                    {cropStats.map((item, index) => (
-                      <View key={index} style={styles.gridLegendItem}>
-                        <View style={[styles.gridDot, { backgroundColor: item.color }]} />
-                        <View style={styles.gridTextWrapper}><AppText style={styles.gridName} numberOfLines={1}>{item.name}</AppText></View>
-                      </View>
-                    ))}
-                  </View>
-                </Animated.View>
+                {cropStats.length > 0 && (
+                  <Animated.View entering={FadeInDown.delay(400)} style={styles.chartBox}>
+                    <AppText style={styles.sectionTitle}>{language === "te" ? "పంటల వారీగా వివరాలు" : "Crop-wise Distribution"}</AppText>
+                    <View style={styles.centerChartWrapper}>
+                      <PieChart
+                        data={safeCropStats} width={screenWidth - 60} height={200}
+                        chartConfig={{ color: (opacity = 1) => `rgba(0,0,0, ${opacity})` }}
+                        accessor={"population"} backgroundColor={"transparent"} paddingLeft={(screenWidth / 4).toString()} hasLegend={false}
+                      />
+                    </View>
+                    <View style={styles.gridLegendContainer}>
+                      {cropStats.map((item, index) => (
+                        <View key={index} style={styles.gridLegendItem}>
+                          <View style={[styles.gridDot, { backgroundColor: item.color }]} />
+                          <View style={styles.gridTextWrapper}><AppText style={styles.gridName} numberOfLines={1}>{item.name}</AppText></View>
+                        </View>
+                      ))}
+                    </View>
+                  </Animated.View>
+                )}
 
                 <PremiumDonutChart chartData={soilStats} title={language === "te" ? "నేల రకాల విశ్లేషణ" : "Soil Type Analytics"} />
             </View>

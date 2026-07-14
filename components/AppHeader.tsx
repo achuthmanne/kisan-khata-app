@@ -5,7 +5,7 @@ import { StyleSheet, TouchableOpacity, View, Platform, StatusBar } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "./AppText";
 
-export default function AppHeader({ title, subtitle, language, onDownload }: any) {
+export default function AppHeader({ title, subtitle, language, onDownload, rightIcon, onRightPress }: any) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
@@ -35,10 +35,14 @@ export default function AppHeader({ title, subtitle, language, onDownload }: any
           )}
         </View>
 
-        {/* 📥 DOWNLOAD BUTTON - SAME AS BACK BUTTON STYLE */}
+        {/* 📥 DOWNLOAD OR CUSTOM RIGHT BUTTON */}
         {onDownload ? (
           <TouchableOpacity onPress={onDownload} style={styles.iconBtn}>
             <Ionicons name="cloud-download-outline" size={20} color="white" />
+          </TouchableOpacity>
+        ) : rightIcon && onRightPress ? (
+          <TouchableOpacity onPress={onRightPress} style={styles.iconBtn}>
+            <Ionicons name={rightIcon} size={20} color="white" />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 32 }} /> // Space maintainer

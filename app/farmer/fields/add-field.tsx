@@ -180,10 +180,15 @@ export default function AddField() {
     AsyncStorage.getItem("APP_LANG").then((l) => { if (l && isMounted) setLanguage(l as any); });
     
     const loadSession = async () => {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (phone) {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-        if (isMounted) setActiveSession(doc.data()?.activeSession || "");
+      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+      if (session && isMounted) {
+        setActiveSession(session);
+      } else {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (phone) {
+          const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
+          if (isMounted) setActiveSession(doc.data()?.activeSession || "");
+        }
       }
     };
     loadSession();

@@ -102,13 +102,21 @@ export default function MestriAttendance() {
 
   useEffect(() => {
     const loadSession = async () => {
-      try {
+      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+      if (session) {
+        if (typeof isMounted !== 'undefined' && isMounted && !isMounted.current) {
+           setActiveSession(session);
+        } else if (typeof isMounted !== 'undefined' && isMounted.current) {
+           setActiveSession(session);
+        } else {
+           setActiveSession(session);
+        }
+      } else {
         const phone = await AsyncStorage.getItem("USER_PHONE");
-        if (!phone) return;
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-        setActiveSession(doc.data()?.activeSession || "");
-      } catch (e) {
-        console.log("Load session error", e);
+        if (phone) {
+          const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
+          setActiveSession(doc.data()?.activeSession || "");
+        }
       }
     };
     loadSession();

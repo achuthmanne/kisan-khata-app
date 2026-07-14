@@ -165,11 +165,7 @@ const getRankAndTier = (phone: string, totalFarmers: number, profit: number, tot
 
 const KisanKhataReportCard = ({ userName, phone, language, totalFarmers, stateFarmers, userState, profit, totalCost, cropCount, profileImage, role }: any) => {
   const getDefaultImage = () => {
-    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
-    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
-    if (isFarmer) return require('../../assets/images/farmer.png');
-    if (isMestri) return require('../../assets/images/kuli.png');
-    return require('../../assets/images/default.jpg');
+    return require('../../assets/images/default.avif');
   };
   const viewShotRef = useRef<any>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -243,9 +239,9 @@ const KisanKhataReportCard = ({ userName, phone, language, totalFarmers, stateFa
         <View style={{ alignItems: "center", paddingVertical: 10 }}>
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: "#E2E8F0", justifyContent: "center", alignItems: "center", marginBottom: 8, borderWidth: 2, borderColor: overall.tierColor[0], overflow: "hidden" }}>
             {profileImage ? (
-              <Image source={{ uri: profileImage }} style={{ width: "100%", height: "100%" }} />
+              <Image source={{ uri: profileImage }} style={{ width: "100%", height: "100%", resizeMode: "cover" }} />
             ) : (
-              <Image source={getDefaultImage()} style={{ width: "100%", height: "100%" }} />
+              <Image source={getDefaultImage()} style={[{ width: "100%", height: "100%", resizeMode: "cover" }, !profileImage && { transform: [{ scale: 1.25 }] }]} />
             )}
           </View>
           <AppText style={{ fontSize: 20, fontWeight: "600", color: "#1E293B" }}>{userName}</AppText>

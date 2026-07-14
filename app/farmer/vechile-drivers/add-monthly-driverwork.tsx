@@ -108,10 +108,21 @@ export default function AddDriverWork() {
     });
 
     const loadSession = async () => {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (phone) {
-        const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
-        if (isMounted.current) setActiveSession(doc.data()?.activeSession || "");
+      const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+      if (session) {
+        if (typeof isMounted !== 'undefined' && isMounted && !isMounted.current) {
+           setActiveSession(session);
+        } else if (typeof isMounted !== 'undefined' && isMounted.current) {
+           setActiveSession(session);
+        } else {
+           setActiveSession(session);
+        }
+      } else {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (phone) {
+          const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
+          setActiveSession(doc.data()?.activeSession || "");
+        }
       }
     };
     loadSession();

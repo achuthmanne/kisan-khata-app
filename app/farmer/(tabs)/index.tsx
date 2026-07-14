@@ -2,11 +2,11 @@
 
 import { setDrawer } from "@/assets/stores/drawerStore";
 import { useLanguage } from "@/context/LanguageContext";
+import { executeOfflineSafeFetch, executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
-import { executeOfflineSafeRead, executeOfflineSafeFetch, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import messaging from "@react-native-firebase/messaging";
 import { useFocusEffect } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -29,9 +29,10 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 // 🔥 PRO FIX: Use expo-image for faster caching and remote image handling
 import { Image } from "expo-image";
-import AnimatedReanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, FadeInDown } from "react-native-reanimated";
+import AnimatedReanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import Svg, { Path } from "react-native-svg";
 import AppText from "../../../components/AppText";
 const { width } = Dimensions.get("window");
@@ -241,6 +242,7 @@ export default function Dashboard() {
   const quickRef = useRef<FlatList>(null); 
   const scrollY = useRef(new Animated.Value(0)).current; 
   const [loading, setLoading] = useState(true);
+  const insets = useSafeAreaInsets();
   
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
@@ -691,23 +693,23 @@ export default function Dashboard() {
     try {
       const netState = await NetInfo.fetch();
       const isOffline = netState.isConnected === false || netState.isInternetReachable === false;
-      if (isOffline) {
-        const cached = await AsyncStorage.getItem(CACHE_KEY);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
-        }
-        return;
-      }
-
+      
+      // 1. ALWAYS LOAD CACHE FIRST (to prevent empty/broken UI while fetching)
       const cached = await AsyncStorage.getItem(CACHE_KEY);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Date.now() - parsed.timestamp < CACHE_TIME && parsed.language === language) {
-          setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
-          return; 
+        setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
+        
+        // If offline OR cache is fresh, stop here and just use cache.
+        if (isOffline || (Date.now() - parsed.timestamp < CACHE_TIME && parsed.language === language)) {
+          return;
         }
+      } else if (isOffline) {
+        setCity(language === "te" ? "డేటా రాలేదు" : "Data Failed");
+        return;
       }
+
+      // 2. FETCH NEW DATA (in background)
 
       let latitude; let longitude;
       
@@ -924,11 +926,7 @@ export default function Dashboard() {
 
   // 🔥 DETERMINE DEFAULT AVATAR DYNAMICALLY
   const getDefaultAvatar = () => {
-    const isFarmer = role?.toLowerCase() === "farmer" || role === "రైతు";
-    const isMestri = role?.toLowerCase() === "mestri" || role === "మేస్త్రీ";
-    if (isFarmer) return require("../../../assets/images/farmer.png");
-    if (isMestri) return require("../../../assets/images/kuli.png");
-    return require("../../../assets/images/default.jpg");
+    return require("../../../assets/images/default.avif");
   };
 
   /* ---------------- CONDITIONAL LOADING UI ---------------- */
@@ -942,16 +940,18 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" />
 
       {/* BODY */}
-     <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={styles.stickyTop}>
+     <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={[styles.stickyTop, { paddingTop: Math.max(insets.top + 10, 45) }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.profileRow} onPress={() => setDrawer(true)} activeOpacity={0.8}>
             
             {/* 🔥 PROFILE IMAGE LOGIC APPLIED HERE */}
-            <Image 
-              source={profilePic ? { uri: profilePic } : getDefaultAvatar()} 
-              style={styles.profileImage} 
-              contentFit="cover" // Important for rounded remote images
-            />
+            <View style={{ width: 50, height: 50, borderRadius: 25, overflow: 'hidden', marginRight: 10, backgroundColor: "#E2E8F0" }}>
+              <Image 
+                source={profilePic ? { uri: profilePic } : getDefaultAvatar()} 
+                style={[{ width: "100%", height: "100%" }, !profilePic && { transform: [{ scale: 1.25 }] }]} 
+                contentFit="cover" 
+              />
+            </View>
 
             <View>
               <View style={styles.greetRow}>
@@ -978,14 +978,14 @@ export default function Dashboard() {
       onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingTop: 95 }}
+      contentContainerStyle={{ paddingTop: Math.max(insets.top + 10, 45) + 50 }}
       refreshControl={ 
         <RefreshControl 
           refreshing={refreshing} 
           onRefresh={onRefresh} 
           colors={["#2E7D32"]} 
           tintColor="#2E7D32" 
-          progressViewOffset={95} 
+          progressViewOffset={Math.max(insets.top + 10, 45) + 50} 
         /> 
       }
     >
@@ -1004,7 +1004,7 @@ export default function Dashboard() {
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item,index)=>index.toString()}
               onMomentumScrollEnd={(e)=>{
-                const index = Math.round(e.nativeEvent.contentOffset.x / (width - 40));
+                const index = Math.round(e.nativeEvent.contentOffset.x / width);
                 setActiveHeaderCard(index);
               }}
               onScrollToIndexFailed={(info) => {
@@ -1016,7 +1016,7 @@ export default function Dashboard() {
               renderItem={({item})=>{
                 if(item.type==="weather"){
                   return(
-                    <View style={{ width: width - 40, alignSelf:"center" }}>
+                    <View style={{ width: width, paddingHorizontal: 20 }}>
                       <TouchableOpacity style={[styles.headerGlassCard, { flexDirection: "column", justifyContent: "space-between" }]} onPress={()=>router.push("/farmer/weather")} activeOpacity={0.9}>
                         {/* TOP ROW */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: -5 }}>
@@ -1047,7 +1047,7 @@ export default function Dashboard() {
                     </View>
                   )}
                 return(
-                  <View style={{ width: width - 40, alignSelf:"center" }}>
+                  <View style={{ width: width, paddingHorizontal: 20 }}>
                     <TouchableOpacity style={[styles.headerGlassCard,{flexDirection:"column"}]} onPress={()=>router.push("/farmer/market")} activeOpacity={0.9}>
                       <View style={styles.marketHeaderRow}>
                         <View style={styles.marketTitleRow}>
@@ -1224,6 +1224,7 @@ export default function Dashboard() {
             <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor: activeSession === s ? "#DCFCE7" : "#F3F4F6", marginBottom:10 }} onPress={async ()=>{
                 const phone = await AsyncStorage.getItem("USER_PHONE");
                 await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
+                await AsyncStorage.setItem("ACTIVE_SESSION", s);
                 setActiveSession(s);
                 setSessionModal(false);
               }}>
@@ -1254,6 +1255,7 @@ export default function Dashboard() {
               <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor:"#F3F4F6", marginBottom:10 }} onPress={async ()=>{
                   const phone = await AsyncStorage.getItem("USER_PHONE");
                   await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
+                  await AsyncStorage.setItem("ACTIVE_SESSION", s);
                   setActiveSession(s);
                   setOldSessionModal(false);
                 }}>
@@ -1273,7 +1275,7 @@ export default function Dashboard() {
 /* ---------------- STYLES ---------------- */
 const styles = StyleSheet.create({
   safe:{ flex:1, backgroundColor:"#F6F7F6" },
-  header:{ paddingTop:28, paddingBottom:15, paddingHorizontal:20, justifyContent:"center" },
+  header:{ paddingTop:28, paddingBottom:15, justifyContent:"center" },
   headerCarousel:{ alignItems:"center", justifyContent:"center" },
   headerSvg:{ marginTop:-1, alignSelf:"center" },
   stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 5 },

@@ -154,10 +154,14 @@ export default function SalesScreen() {
     </View>
   );
 
-  const colors = ["#10B981", "#3B82F6", "#F59E0B", "#950f45", "#8B5CF6", "#EC4899"];
+  const colors = ["#06B6D4", "#3B82F6", "#F59E0B", "#950f45", "#8B5CF6", "#EC4899"];
   const getColor = (crop: string) => {
-    const code = crop?.charCodeAt(0) || 0;
-    return colors[code % colors.length];
+    let hash = 0;
+    const cleanStr = crop?.trim().toLowerCase() || "";
+    for (let i = 0; i < cleanStr.length; i++) {
+      hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
   };
 
   const optionsStyles = {
@@ -260,9 +264,9 @@ export default function SalesScreen() {
                       <View style={[styles.catIconCircle, { backgroundColor: getColor(crop) + "15" }]}>
                         <Ionicons name="pie-chart" size={16} color={getColor(crop)} />
                       </View>
-                      <AppText style={styles.catBoxLabel}>{crop}</AppText>
-                      <AppText style={[styles.catBoxValue, { color: getColor(crop) }]}>
-                        ₹{cropIncome[crop].toLocaleString("en-IN")}
+                      <AppText style={styles.catBoxLabel} numberOfLines={2} ellipsizeMode="tail">{crop}</AppText>
+                      <AppText style={[styles.catBoxValue, { color: "#16A34A" }]} numberOfLines={1}>
+                        + ₹{cropIncome[crop].toLocaleString("en-IN")}
                       </AppText>
                     </View>
                   ))}
@@ -307,7 +311,7 @@ export default function SalesScreen() {
               </View>
 
               <View style={styles.cardRight}>
-                <AppText style={styles.income}>
+                <AppText style={styles.income} numberOfLines={1} ellipsizeMode="tail">
                   + ₹{item.total?.toLocaleString("en-IN")}
                 </AppText>
                 
@@ -493,7 +497,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
     width: 110,          
-    height: 110,         
+    height: 125,
+    justifyContent: "center",
     alignItems: "center",
     minWidth: 90
   },
@@ -508,7 +513,10 @@ const styles = StyleSheet.create({
   },
   catBoxLabel: {
     fontSize: 12,
-    color: "#6B7280"
+    color: "#6B7280",
+    textAlign: "center",
+    width: "100%",
+    paddingHorizontal: 8
   },
   catBoxValue: {
     fontSize: 14,
@@ -523,8 +531,7 @@ const styles = StyleSheet.create({
   cardCrop: { 
     fontSize: 18, 
     fontWeight: "600", 
-    color: "#1F2937",
-    flexWrap: "wrap" 
+    color: "#1F2937"
   },
   cardDesc: { 
     fontSize: 13, 
@@ -539,6 +546,18 @@ const styles = StyleSheet.create({
     color: "#9CA3AF", 
     marginTop: 6,
     fontWeight: "500"
+  },
+  cardRight: { 
+    alignItems: 'center', 
+    flexDirection: 'row', 
+    gap: 10, 
+    flexShrink: 1 
+  },
+  income: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#16A34A",
+    flexShrink: 1
   },
   card: {
     marginHorizontal: 16,

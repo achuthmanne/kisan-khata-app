@@ -1,19 +1,18 @@
 // app/farmer/attendance.tsx
 
 import AppEmptyState from "@/components/AppEmptyState";
-import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
-import { useStore } from "@/store/useStore";
-
 import AppHeader from "@/components/AppHeader";
 import AppText from "@/components/AppText";
+import { useStore } from "@/store/useStore";
+import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
-import { useIsFocused } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -107,43 +106,51 @@ export default function AttendanceScreen() {
     loadLang();
   }, []);
 
-  useEffect(() => {
-    // Only fetch past mestris for imports, since current mestris are handled by Zustand
-    const loadPastMestris = async () => {
-      try {
-        const userPhone = await AsyncStorage.getItem("USER_PHONE");
-        if (!userPhone) return;
+  useFocusEffect(
+    useCallback(() => {
+      // Only fetch past mestris for imports, since current mestris are handled by Zustand
+      const loadPastMestris = async () => {
+        try {
+          const userPhone = await AsyncStorage.getItem("USER_PHONE");
+          if (!userPhone) return;
 
-        // Retrieve active session dynamically to avoid waiting for a separate fetch if we just need the local storage one
-        const session = await AsyncStorage.getItem("ACTIVE_SESSION");
-        if (!session) return;
-        
-        setActiveSession(session);
+          // Retrieve active session dynamically to avoid waiting for a separate fetch if we just need the local storage one
+          const session = await AsyncStorage.getItem("ACTIVE_SESSION");
+          if (!session) return;
+          
+          setActiveSession(session);
 
-        const pastSnap = await executeOfflineSafeRead(firestore()
-          .collection("users")
-          .doc(userPhone)
-          .collection("mestris")
-          .where("session", "!=", session)
-          , true);
-        
-        if (!pastSnap.empty) {
-          const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
-          const uniquePast: any[] = [];
-          const phones = new Set();
-          for (let m of pastList) {
-            if (m.phone && !phones.has(m.phone)) {
-              phones.add(m.phone);
-              uniquePast.push(m);
+          const pastSnap = await executeOfflineSafeRead(firestore()
+            .collection("users")
+            .doc(userPhone)
+            .collection("mestris")
+            .where("session", "!=", session)
+            , true);
+          
+          if (!pastSnap.empty) {
+            const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));
+            const uniquePast: any[] = [];
+            const seenKeys = new Set();
+            
+            for (let m of pastList) {
+              // Create a unique key using phone if available, otherwise use name
+              const key = m.phone ? `phone_${m.phone}` : `name_${m.name?.trim().toLowerCase()}`;
+              
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniquePast.push(m);
+              }
             }
+            setPastMestris(uniquePast);
+          } else {
+            setPastMestris([]);
           }
-          setPastMestris(uniquePast);
-        }
-      } catch(err) { console.log("Past fetch error", err); }
-    };
+        } catch(err) { console.log("Past fetch error", err); }
+      };
 
-    loadPastMestris();
-  }, []);
+      loadPastMestris();
+    }, [])
+  );
 
   // 🔥 CORE LOGIC: Check if Mestri has Attendance or Payments
   const checkHasRecords = async (mestriId: string) => {
@@ -406,44 +413,44 @@ export default function AttendanceScreen() {
             filteredMestris.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View>
-              {(search.trim().length === 0 && pastMestris.length > 0) && (
-                <View style={styles.importSuggestionCard}>
-                  <View style={styles.importIconBg}>
-                    <Ionicons name="time-outline" size={28} color="#D97706" />
-                  </View>
-                  <AppText style={styles.importTitle} language={language}>
-                    {language === "te" ? "పాత సాగు సంవత్సరాల మేస్త్రీలు" : "Past Seasons Mestris"}
-                  </AppText>
-                  <AppText style={styles.importSub} language={language}>
-                    {language === "te" 
-                      ? "మీరు గతంలో పని చేసిన మేస్త్రీలను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
-                      : "Do you want to reuse the mestris you worked with in previous seasons?"}
-                  </AppText>
-                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
-                    <AppText style={styles.importBtnText} language={language}>
-                      {language === "te" ? "పాత మేస్త్రీలను ఎంచుకోండి" : "Select Past Mestris"}
-                    </AppText>
-                  </TouchableOpacity>
+          ListHeaderComponent={
+            (search.trim().length === 0 && pastMestris.length > 0) ? (
+              <View style={styles.importSuggestionCard}>
+                <View style={styles.importIconBg}>
+                  <Ionicons name="time-outline" size={28} color="#D97706" />
                 </View>
-              )}
-              <AppEmptyState
-                iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
-                title={
-                  search.trim().length > 0
-                    ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
-                    : language === "te" ? "కొత్త మేస్త్రీలు లేరు" : "No New Mestris"
-                }
-                subtitle={
-                  search.trim().length > 0
-                    ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
-                    : language === "te" ? "+ బటన్ నొక్కి కొత్త మేస్త్రీలను చేర్చండి" : "Tap + button to add new mestris"
-                }
-                language={language}
-                marginTop={mestris.length === 0 && pastMestris.length === 0 ? 60 : 20} 
-              />
-            </View>
+                <AppText style={styles.importTitle} language={language}>
+                  {language === "te" ? "పాత సాగు సంవత్సరాల మేస్త్రీలు" : "Past Seasons Mestris"}
+                </AppText>
+                <AppText style={styles.importSub} language={language}>
+                  {language === "te" 
+                    ? "మీరు గతంలో పని చేసిన మేస్త్రీలను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                    : "Do you want to reuse the mestris you worked with in previous seasons?"}
+                </AppText>
+                <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                  <AppText style={styles.importBtnText} language={language}>
+                    {language === "te" ? "పాత మేస్త్రీలను ఎంచుకోండి" : "Select Past Mestris"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <AppEmptyState
+              iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
+              title={
+                search.trim().length > 0
+                  ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
+                  : language === "te" ? "కొత్త మేస్త్రీలు లేరు" : "No New Mestris"
+              }
+              subtitle={
+                search.trim().length > 0
+                  ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
+                  : language === "te" ? "+ బటన్ నొక్కి కొత్త మేస్త్రీలను చేర్చండి" : "Tap + button to add new mestris"
+              }
+              language={language}
+              marginTop={mestris.length === 0 && pastMestris.length === 0 ? 60 : 20} 
+            />
           }
           renderItem={({ item }) => (
             <View style={styles.row}>

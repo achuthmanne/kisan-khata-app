@@ -11,7 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import {
   FlatList,
   SafeAreaView,
@@ -33,6 +33,7 @@ export default function PaymentWorkHistory() {
   const [loading, setLoading] = useState(true); 
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [infoVisible, setInfoVisible] = useState(false); 
+  const hasShownInfo = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -107,8 +108,9 @@ export default function PaymentWorkHistory() {
 
     setData(list);
 
-    if (list.length > 0) {
+    if (list.length > 0 && !hasShownInfo.current) {
         setInfoVisible(true); 
+        hasShownInfo.current = true;
     }
     setLoading(false);
   }, [mestriAttendance, mestriPayments, id, crop, work]);
@@ -301,8 +303,8 @@ export default function PaymentWorkHistory() {
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
-                ? "మీరు ఏ రోజులకు డబ్బులు చెల్లించాలనుకుంటున్నారో, ఆ తేదీలను ఇక్కడ టిక్ (✔) చేయండి."
-                : "Select the dates you want to pay for by ticking (✔) them."}
+                ? "మీరు ఏ రోజులకు డబ్బులు చెల్లించాలనుకుంటున్నారో, ఆ రోజుకి సంబంధించిన కార్డ్ పై నొక్కండి."
+                : "Tap on the attendance cards for the dates you want to pay."}
             </AppText>
             <View style={styles.modalButtonsStandard}>
               <TouchableOpacity
@@ -427,7 +429,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     color: "#6B7280",
-    marginTop: 4
+    marginTop: 4,
+    lineHeight: 16
   },
 
   value: {
@@ -448,6 +451,8 @@ const styles = StyleSheet.create({
   totalText: {
     fontSize: 13,
     fontWeight: "600",
+    lineHeight: 20,
+    paddingBottom: 2
   },
 
   shimmerCard: {

@@ -135,7 +135,7 @@ export default function ExpensesScreen() {
         if (colorMap[cleanStr]) return colorMap[cleanStr];
 
         // ఒకవేళ పంట పేరు (Crop Name) అయితే కలర్ కొలైడ్ అవ్వకుండా బ్యూటిఫుల్ డైనమిక్ హ్యాష్ కలర్
-        const fallbackColors = ["#10B981", "#3B82F6", "#F59E0B", "#950f52", "#8B5CF6", "#EC4899", "#14B8A6", "#06B6D4"];
+        const fallbackColors = ["#06B6D4", "#3B82F6", "#F59E0B", "#950f52", "#8B5CF6", "#EC4899", "#14B8A6"];
         let hash = 0;
         for (let i = 0; i < cleanStr.length; i++) hash = cleanStr.charCodeAt(i) + ((hash << 5) - hash);
         return fallbackColors[Math.abs(hash) % fallbackColors.length];
@@ -270,12 +270,11 @@ export default function ExpensesScreen() {
                                             <View style={[styles.catIconCircle, { backgroundColor: color + "12" }]}>
                                                 <Ionicons name="pie-chart" size={16} color={color} />
                                             </View>
-                                            {/* 🔥 PRO FIX: Category name long ఉంటే 1 లైన్ కే కట్ అవ్వడానికి */}
-                                            <AppText style={styles.catBoxLabel} numberOfLines={1} ellipsizeMode="tail">
+                                            <AppText style={styles.catBoxLabel} numberOfLines={2} ellipsizeMode="tail">
                                               {cat}
                                             </AppText>
-                                            <AppText style={[styles.catBoxValue, { color }]} numberOfLines={1}>
-                                                ₹{categoryTotals[cat].toLocaleString("en-IN")}
+                                            <AppText style={[styles.catBoxValue, { color: "#EF4444" }]} numberOfLines={1}>
+                                                - ₹{categoryTotals[cat].toLocaleString("en-IN")}
                                             </AppText>
                                         </View>
                                     );
@@ -296,8 +295,7 @@ export default function ExpensesScreen() {
                    <View style={styles.card}>
                         <View style={[styles.cardBar, { backgroundColor: color }]} />
                         <View style={styles.cardInfo}>
-                            {/* 🔥 PRO FIX: numberOfLines & ellipsizeMode యాడ్ చేశాను */}
-                            <AppText style={styles.cardCrop} numberOfLines={1} ellipsizeMode="tail">
+                            <AppText style={styles.cardCrop}>
                                 {item.crop}
                             </AppText>
                             <AppText style={styles.cardCat} numberOfLines={1} ellipsizeMode="tail">
@@ -305,7 +303,9 @@ export default function ExpensesScreen() {
                             </AppText>
                         </View>
                         <View style={styles.cardRight}>
-                            <AppText style={styles.cardAmount}>- ₹{item.amount.toLocaleString('en-IN')}</AppText>
+                            <AppText style={styles.cardAmount} numberOfLines={1} ellipsizeMode="tail">
+                                - ₹{item.amount.toLocaleString('en-IN')}
+                            </AppText>
                             
                             <Menu>
                               <MenuTrigger style={styles.menuBtn}>
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     statValue: { color: "#fff", fontSize: 32, fontWeight: "600", marginVertical: 2, marginTop: -5, fontFamily: 'System', padding: 0 },
     divider: { height: 1, backgroundColor: "rgba(255,255,255,0.1)", marginVertical: 12},
     dot: { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-    chipText: { color: '#fff', fontSize: 12 },
+    chipText: { color: '#fff', fontSize: 12, flexShrink: 1 },
     // 🔥 cropChip లో maxWidth పెట్టాలి, అప్పుడే అది స్క్రీన్ బయటకి పోకుండా ఆగుతుంది
     cropChip: { 
       flexDirection: 'row', 
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
     },
     catBox: {
       width: 115,          
-      height: 110,         
+      height: 125,         
       backgroundColor: "#fff",
       borderRadius: 16,
       marginRight: 10,
@@ -465,8 +465,8 @@ const styles = StyleSheet.create({
     cardInfo: { flex: 1, marginLeft: 15, paddingRight: 10 }, // 🔥 paddingRight: 10 యాడ్ చేశాను
     cardCrop: { fontSize: 16, fontWeight: '600', color: '#1e293b' },
     cardCat: { fontSize: 12, color: '#64748b', marginTop: 2 },
-    cardRight: { alignItems: 'center', flexDirection: 'row', gap: 10 },
-    cardAmount: { fontSize: 16, fontWeight: '600', color: '#ef4444' },
+    cardRight: { alignItems: 'center', flexDirection: 'row', gap: 10, flexShrink: 1 },
+    cardAmount: { fontSize: 16, fontWeight: '600', color: '#ef4444', flexShrink: 1 },
 
     modernMenuItem: { flexDirection: "row", alignItems: "center", paddingVertical: 10, paddingHorizontal: 14, gap: 10 },
     menuTextEdit: { fontSize: 14, color: "#1E293B", fontWeight: "500" },

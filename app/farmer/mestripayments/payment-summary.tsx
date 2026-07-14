@@ -413,21 +413,23 @@ export default function PaymentSummary() {
                     </View>
                   ) : null}
 
-                  <TouchableOpacity
-                    disabled={!!rateErrorMsg}
-                    activeOpacity={0.9}
-                    onPress={() => {
-                      setModeModal(true);
-                    }}
-                    style={[styles.inlineConfirmWrapper, { opacity: rateErrorMsg ? 0.6 : 1 }]}
-                  >
-                    <LinearGradient colors={rateErrorMsg ? ["#9CA3AF", "#6B7280"] : ["#2E7D32", "#1B5E20"]} style={styles.confirmBtn}>
-                      <Ionicons name={rateErrorMsg ? "lock-closed-outline" : "checkmark-circle-outline"} size={18} color="#fff" />
-                      <AppText style={styles.confirmText} language={language}>
-                        {language === "te" ? "లెక్కలు భద్రపరచండి" : "Save Payment Record"}
-                      </AppText>
-                    </LinearGradient>
-                  </TouchableOpacity>
+                  {!rateErrorMsg && (
+                    <TouchableOpacity
+                      disabled={!!rateErrorMsg}
+                      activeOpacity={0.9}
+                      onPress={() => {
+                        setModeModal(true);
+                      }}
+                      style={[styles.inlineConfirmWrapper, { opacity: rateErrorMsg ? 0.6 : 1 }]}
+                    >
+                      <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.confirmBtn}>
+                        <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+                        <AppText style={styles.confirmText} language={language}>
+                          {language === "te" ? "లెక్కలు భద్రపరచండి" : "Save Payment Record"}
+                        </AppText>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ) : null
             }

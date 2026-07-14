@@ -593,10 +593,7 @@ export default function AddDriverWork() {
               <Ionicons name="warning" size={22} color="#D97706" />
             </View>
             <View style={{ flex: 1 }}>
-              <AppText style={{ fontSize: 14, color: "#92400E", fontWeight: "600", marginBottom: 2 }} language={language}>
-                {language === "te" ? "పాత సాగు సంవత్సరం" : "Old Active Season"}
-              </AppText>
-              <AppText style={{ fontSize: 13, color: "#92400E", lineHeight: 18 }} language={language}>
+<AppText style={{ fontSize: 13, color: "#92400E", lineHeight: 18 }} language={language}>
                 {language === "te" 
                   ? `మీరు పాత సాగు సంవత్సరం (${activeSession}) లో డ్రైవర్కి పని వివరాలు నమోదు చేస్తున్నారు.` 
                   : `You are adding driver work to an older season (${activeSession}).`}

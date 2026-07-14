@@ -178,14 +178,27 @@ export default function PaymentDetails() {
           showsVerticalScrollIndicator={false}
 
           /* 🔥 OUR NEW GLOBAL EMPTY STATE COMPONENT */
-          ListEmptyComponent={
-            <AppEmptyState
-              iconName="folder-open-outline"
-              title={language === "te" ? "డేటా లేదు" : "No Data"}
-              subtitle={language === "te" ? "ఈ మేస్త్రీకి సంబంధించి ఇంకా ఎలాంటి పని వివరాలు నమోదు కాలేదు" : "No work details found for this mestri yet"}
-              language={language}
-            />
-          }
+          ListEmptyComponent={() => {
+            const hasAttendance = (mestriAttendance[id as string] || []).length > 0;
+            const isAllPaid = hasAttendance && Object.keys(grouped).length === 0;
+
+            return (
+              <AppEmptyState
+                iconName={isAllPaid ? "checkmark-done-circle-outline" : "folder-open-outline"}
+                title={
+                  isAllPaid
+                    ? (language === "te" ? "అన్ని చెల్లింపులు పూర్తయ్యాయి 🎉" : "All Payments Cleared 🎉")
+                    : (language === "te" ? "డేటా లేదు" : "No Data")
+                }
+                subtitle={
+                  isAllPaid
+                    ? (language === "te" ? "ఈ మేస్త్రీకి ఎలాంటి పెండింగ్ చెల్లింపులు లేవు" : "No pending payments for this mestri")
+                    : (language === "te" ? "ఈ మేస్త్రీకి సంబంధించి ఇంకా ఎలాంటి పని వివరాలు నమోదు కాలేదు" : "No work details found for this mestri yet")
+                }
+                language={language}
+              />
+            );
+          }}
 
           renderItem={({ item }) => {
             const cropColor = getCropColor(item);

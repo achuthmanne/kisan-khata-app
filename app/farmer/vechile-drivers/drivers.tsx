@@ -23,7 +23,8 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ToastAndroid
 } from "react-native";
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from "react-native-popup-menu";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
@@ -43,7 +44,7 @@ export default function VehicleDetails() {
   const initVehicleDriversListener = useStore(state => state.initVehicleDriversListener);
   const unsubVehicleDrivers = useStore(state => state.unsubVehicleDrivers);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(vehicleDriversMap[vId as string] === undefined);
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [activeSession, setActiveSession] = useState("");
 
@@ -123,11 +124,11 @@ export default function VehicleDetails() {
           
           if (isMountedLocal) setActiveSession(session);
 
-          // 🔥 PAST DRIVERS FETCH REMOVED FROM HERE
-          // They will now be fetched ONLY when the user clicks 'Import Past Drivers'
-
           initVehicleDriversListener(vId as string, phone, session);
           if (isMountedLocal) setLoading(false);
+
+          // 🔥 Fetch past drivers quietly on mount (0 reads due to noBackgroundSync)
+          loadPastDrivers(phone, session);
         } catch (error) {
           console.log("Loading Error: ", error);
           if (isMountedLocal) setLoading(false);
@@ -143,25 +144,17 @@ export default function VehicleDetails() {
     }, [vId])
   );
 
-  // 🔥 NEW FUNCTION: Fetch past drivers ONLY on demand
-  const fetchPastDrivers = async () => {
+  const loadPastDrivers = async (userPhone: string, currentSession: string) => {
     try {
-      setImporting(true);
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession) {
-        setImporting(false);
-        return;
-      }
-
       const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
-        .doc(phone)
+        .doc(userPhone)
         .collection("vehicles")
-        .where("session", "!=", activeSession), false
+        .where("session", "!=", currentSession), true, true // fastCache=true, noBackgroundSync=true
       );
         
       const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
-        executeOfflineSafeRead(vDoc.ref.collection("drivers"), false)
+        executeOfflineSafeRead(vDoc.ref.collection("drivers"), true, true) // noBackgroundSync=true
       );
       
       const snaps = await Promise.all(fetchPromises);
@@ -172,21 +165,27 @@ export default function VehicleDetails() {
         snap.docs.forEach((doc: any) => {
           const d = { id: doc.id, ...(doc.data() as any) };
           const key = d.phone ? d.phone.trim() : d.driverName?.trim().toLowerCase();
+          
           if (key && !phones.has(key)) {
-            phones.add(key);
-            uniquePast.push(d);
+            const currentDrivers = useStore.getState().vehicleDrivers[vId as string] || [];
+            const existsInCurrent = currentDrivers.some(curr => 
+              (curr.phone && d.phone && curr.phone === d.phone) || 
+              (!curr.phone && !d.phone && curr.driverName?.trim().toLowerCase() === d.driverName?.trim().toLowerCase())
+            );
+
+            if (!existsInCurrent) {
+              phones.add(key);
+              uniquePast.push(d);
+            }
           }
         });
       });
       
       if (isMounted.current) {
         setPastDrivers(uniquePast);
-        setShowImportModal(true);
       }
     } catch(err) { 
       console.log("Past fetch error", err); 
-    } finally {
-      if (isMounted.current) setImporting(false);
     }
   };
 
@@ -434,7 +433,7 @@ export default function VehicleDetails() {
           ]}
           ListEmptyComponent={
             <View>
-              {(search.trim().length === 0) && (
+              {(search.trim().length === 0 && pastDrivers.length > 0) && (
                 <View style={styles.importSuggestionCard}>
                   <View style={styles.importIconBg}>
                     <Ionicons name="time-outline" size={28} color="#D97706" />
@@ -447,10 +446,7 @@ export default function VehicleDetails() {
                       ? "మీరు గతంలో పని చేసిన డ్రైవర్లను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
                       : "Do you want to reuse the drivers you worked with in previous seasons?"}
                   </AppText>
-                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => {
-                    if (pastDrivers.length === 0) fetchPastDrivers();
-                    else setShowImportModal(true);
-                  }}>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
                     <AppText style={styles.importBtnText} language={language}>
                       {language === "te" ? "పాత డ్రైవర్లను ఎంచుకోండి" : "Select Past Drivers"}
                     </AppText>

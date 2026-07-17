@@ -417,7 +417,7 @@ export default function AddReminderScreen() {
         <DateTimePicker
           value={time || new Date()}
           mode="time"
-          display="default"
+          display="spinner"
           onChange={(event: DateTimePickerEvent, selectedTime?: Date) => {
             setShowTimePicker(false);
             setActiveInput(null);

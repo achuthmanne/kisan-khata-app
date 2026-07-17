@@ -5,7 +5,7 @@ import { StyleSheet, TouchableOpacity, View, Platform, StatusBar } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AppText from "./AppText";
 
-export default function AppHeader({ title, subtitle, language, onDownload, rightIcon, onRightPress }: any) {
+export default function AppHeader({ title, subtitle, language, onDownload, rightIcon, onRightPress, onBackPress }: any) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
@@ -19,7 +19,10 @@ export default function AppHeader({ title, subtitle, language, onDownload, right
     >
       {/* TOP ROW */}
       <View style={styles.topRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+        <TouchableOpacity 
+          onPress={() => onBackPress ? onBackPress() : router.back()} 
+          style={styles.iconBtn}
+        >
           <Ionicons name="arrow-back" size={20} color="white" />
         </TouchableOpacity>
 
@@ -86,6 +89,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textAlign: "center",
     color: "rgba(255,255,255,0.8)",
-    fontSize: 12
+    fontSize: 13,
+    includeFontPadding: false,
   }
 });

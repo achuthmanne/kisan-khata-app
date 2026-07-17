@@ -23,7 +23,8 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ToastAndroid
 } from "react-native";
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from "react-native-popup-menu";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
@@ -42,7 +43,7 @@ export default function VehicleDetails() {
   const initVehicleFarmersListener = useStore(state => state.initVehicleFarmersListener);
   const unsubVehicleFarmers = useStore(state => state.unsubVehicleFarmers);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(vehicleFarmersMap[id as string] === undefined);
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [activeSession, setActiveSession] = useState("");
 
@@ -125,11 +126,11 @@ export default function VehicleDetails() {
           
           if (isMountedLocal) setActiveSession(session); 
 
-          // 🔥 PAST FARMERS FETCH REMOVED FROM HERE
-          // They will now be fetched ONLY when the user clicks 'Import Past Farmers'
-
           initVehicleFarmersListener(id as string, phone, session);
           if (isMountedLocal) setLoading(false);
+
+          // 🔥 Fetch past farmers quietly on mount (0 reads due to noBackgroundSync)
+          loadPastFarmers(phone, session);
         } catch (error) {
           console.log("Loading Error: ", error);
           if (isMountedLocal) setLoading(false);
@@ -146,25 +147,18 @@ export default function VehicleDetails() {
     }, [id])
   );
 
-  // 🔥 NEW FUNCTION: Fetch past farmers ONLY on demand
-  const fetchPastFarmers = async () => {
+  // 🔥 NEW FUNCTION: Fetch past farmers ONLY on mount
+  const loadPastFarmers = async (userPhone: string, currentSession: string) => {
     try {
-      setImporting(true);
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession) {
-        setImporting(false);
-        return;
-      }
-
       const pastVehiclesSnap = await executeOfflineSafeRead(firestore()
         .collection("users")
-        .doc(phone)
+        .doc(userPhone)
         .collection("vehicles")
-        .where("session", "!=", activeSession), false // 🔥 Use cache first!
+        .where("session", "!=", currentSession), true, true // fastCache=true, noBackgroundSync=true
       );
         
       const fetchPromises = pastVehiclesSnap.docs.map((vDoc: any) => 
-        executeOfflineSafeRead(vDoc.ref.collection("farmers"), false)
+        executeOfflineSafeRead(vDoc.ref.collection("farmers"), true, true) // noBackgroundSync=true
       );
       
       const snaps = await Promise.all(fetchPromises);
@@ -175,21 +169,27 @@ export default function VehicleDetails() {
         snap.docs.forEach((doc: any) => {
           const f = { id: doc.id, ...(doc.data() as any) };
           const key = f.phone ? f.phone.trim() : f.farmerName?.trim().toLowerCase();
+          
           if (key && !phones.has(key)) {
-            phones.add(key);
-            uniquePast.push(f);
+            const currentFarmers = useStore.getState().vehicleFarmers[id as string] || [];
+            const existsInCurrent = currentFarmers.some(curr => 
+              (curr.phone && f.phone && curr.phone === f.phone) || 
+              (!curr.phone && !f.phone && curr.farmerName?.trim().toLowerCase() === f.farmerName?.trim().toLowerCase())
+            );
+
+            if (!existsInCurrent) {
+              phones.add(key);
+              uniquePast.push(f);
+            }
           }
         });
       });
       
       if (isMounted.current) {
         setPastFarmers(uniquePast);
-        setShowImportModal(true);
       }
     } catch(err) { 
       console.log("Past fetch error", err); 
-    } finally {
-      if (isMounted.current) setImporting(false);
     }
   };
 
@@ -430,7 +430,7 @@ export default function VehicleDetails() {
           ]}
           ListEmptyComponent={
             <View>
-              {(search.trim().length === 0) && (
+              {(search.trim().length === 0 && pastFarmers.length > 0) && (
                 <View style={styles.importSuggestionCard}>
                   <View style={styles.importIconBg}>
                     <Ionicons name="time-outline" size={28} color="#D97706" />
@@ -443,10 +443,7 @@ export default function VehicleDetails() {
                       ? "మీరు గతంలో పని చేసిన రైతులను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
                       : "Do you want to reuse the farmers you worked with in previous seasons?"}
                   </AppText>
-                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => {
-                    if (pastFarmers.length === 0) fetchPastFarmers();
-                    else setShowImportModal(true);
-                  }}>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
                     <AppText style={styles.importBtnText} language={language}>
                       {language === "te" ? "పాత రైతులను ఎంచుకోండి" : "Select Past Farmers"}
                     </AppText>

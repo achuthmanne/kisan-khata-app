@@ -125,7 +125,7 @@ export default function AttendanceScreen() {
             .doc(userPhone)
             .collection("mestris")
             .where("session", "!=", session)
-            , true);
+            , true, true);
           
           if (!pastSnap.empty) {
             const pastList = pastSnap.docs.map((doc: any) => ({ id: doc.id, ...(doc.data() as any) }));

@@ -288,7 +288,7 @@ export default function AddLand() {
               }}
             >
               <AppText style={[styles.pillText, { color: type === "own" ? "#fff" : "#4B5563" }]}>
-                {language === "te" ? "సొంతం" : "Own"}
+                {language === "te" ? "సొంత భూమి" : "Own Land"}
               </AppText>
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.8}
@@ -300,7 +300,7 @@ export default function AddLand() {
               }}
             >
               <AppText style={[styles.pillText, { color: type === "rent" ? "#fff" : "#4B5563" }]}>
-                {language === "te" ? "కౌలు" : "Rent"}
+                {language === "te" ? "కౌలు భూమి" : "Leased Land"}
               </AppText>
             </TouchableOpacity>
           </View>
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  activePill: { backgroundColor: "#16A34A", borderColor: "#16A34A" },
+  activePill: { backgroundColor: "#1B5E20", borderColor: "#1B5E20" },
   pillText: { fontSize: 15, fontWeight: "600", fontFamily: "Mandali" },
 
   saveBtn: { marginTop: 10, borderRadius: 14, overflow: 'hidden' },

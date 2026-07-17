@@ -83,7 +83,7 @@ export default function VehiclesScreen() {
           .collection("users")
           .doc(phone)
           .collection("vehicles")
-          .where("session", "!=", activeSession), true
+          .where("session", "!=", activeSession), true, true
         );
           
         if (!pastSnap.empty) {

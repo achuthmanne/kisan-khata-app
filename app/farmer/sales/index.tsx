@@ -547,18 +547,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: "500"
   },
-  cardRight: { 
-    alignItems: 'center', 
-    flexDirection: 'row', 
-    gap: 10, 
-    flexShrink: 1 
-  },
-  income: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#16A34A",
-    flexShrink: 1
-  },
+
   card: {
     marginHorizontal: 16,
     marginVertical: 6,

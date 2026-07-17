@@ -137,8 +137,17 @@ export default function AdminSchemeScreen() {
         createdAt: firestore.FieldValue.serverTimestamp(),
       };
 
-      await executeOfflineSafeWrite(firestore().collection("schemes").add(schemeData));
+      const docRef = await executeOfflineSafeWrite(firestore().collection("schemes").add(schemeData));
 
+      // Append to cache so it shows instantly without fetching
+      const CACHE_KEY = "SCHEMES_CACHE";
+      const existingCache = await AsyncStorage.getItem(CACHE_KEY);
+      if (existingCache) {
+        const parsed = JSON.parse(existingCache);
+        const newSchemeObj = { id: (docRef as any)?.id || `temp-${Date.now()}`, ...schemeData, createdAt: { toMillis: () => Date.now() } };
+        const updatedData = [newSchemeObj, ...parsed.data];
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: parsed.timestamp, data: updatedData }));
+      }
       setLoading(false);
       Alert.alert(
         language === "te" ? "విజయవంతం" : "Success",

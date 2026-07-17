@@ -84,6 +84,8 @@ const radiusOptions = [2, 5, 10, 20, 50];
 export default function FindMachines() {
   const router = useRouter();
   const [language, setLanguage] = useState<"te" | "en">("en");
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
   const [coords, setCoords] = useState<any>(null);
   const [locationText, setLocationText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -330,7 +332,15 @@ export default function FindMachines() {
   };
 
   // 🔥 DYNAMIC SERVICE MESSAGES LOGIC 🔥
-  const getServiceDetails = (type: string, lang: string) => {
+  const getServiceDetails = (type: string, lang: string, listingType?: string) => {
+    if (listingType === "labor") {
+      return {
+        text: lang === "te" ? "కూలీ / ముఠా పనులు చేసిపెట్టబడును" : "Available for Labor Services",
+        icon: "people-outline",
+        color: "#16A34A", // Green
+        bg: "#F0FDF4"
+      };
+    }
     if (type === "Rent") {
       return {
         text: lang === "te" ? "కేవలం అద్దెకు మాత్రమే అందుబాటులో ఉంది" : "Available for Rent Only",
@@ -374,12 +384,21 @@ export default function FindMachines() {
   );
 
   const renderItem = ({ item }: any) => {
-    const serviceInfo = getServiceDetails(item.serviceType, language);
+    const serviceInfo = getServiceDetails(item.serviceType, language, item.listingType);
 
     return (
       <View style={styles.card}>
-        <View style={styles.imageWrapper}>
-          <Image source={getLocalImage(item.equipment)} style={styles.image} />
+        <View style={[styles.imageWrapper, item.imageUri && imageRatios[item.id] ? { aspectRatio: imageRatios[item.id] } : {}]}>
+          <Image 
+            source={item.imageUri ? { uri: item.imageUri } : getLocalImage(item.equipment || item.listingName)} 
+            style={styles.image} 
+            onLoad={(e) => {
+              if (item.imageUri && e.nativeEvent.source.width && e.nativeEvent.source.height) {
+                const ratio = e.nativeEvent.source.width / e.nativeEvent.source.height;
+                setImageRatios(prev => ({ ...prev, [item.id]: ratio }));
+              }
+            }}
+          />
           <View style={styles.distBadge}>
             <Ionicons name="navigate" size={12} color="#fff" />
             <AppText style={styles.distText}>
@@ -390,7 +409,7 @@ export default function FindMachines() {
         <View style={[styles.content, { borderWidth: 1, borderBottomEndRadius: 20, borderColor: "#E5E7EB" }]}>
           <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <AppText style={styles.cardTitle}>{item.equipment}</AppText>
+              <AppText style={styles.cardTitle}>{item.listingName || item.equipment}</AppText>
               <View style={styles.ownerRow}>
                 <Ionicons name="person-circle" size={16} color="#6B7280" />
                 <AppText style={styles.ownerText}>
@@ -471,7 +490,7 @@ export default function FindMachines() {
       <View style={styles.filterContainer}>
         <View style={[styles.locationWrapper, { borderColor: (locationText.includes(",") || !["PERMISSION_DENIED", "GPS_OFF"].includes(locationText)) ? '#16A34A' : '#EF4444' }]}>
           <Ionicons name="location" size={20} color={(locationText.includes(",") || !["PERMISSION_DENIED", "GPS_OFF"].includes(locationText)) ? "#16A34A" : "#EF4444"} />
-          <AppText style={[styles.locationInput, { color: (locationText.includes(",") || !["PERMISSION_DENIED", "GPS_OFF"].includes(locationText)) ? '#374151' : '#EF4444' }]} numberOfLines={1}>
+          <AppText style={[styles.locationInput, { color: (locationText.includes(",") || !["PERMISSION_DENIED", "GPS_OFF"].includes(locationText)) ? '#374151' : '#EF4444' }]}>
             {locationText === "PERMISSION_DENIED" ? (language === "te" ? "అనుమతి ఇవ్వలేదు" : "Permission Denied") : locationText === "GPS_OFF" ? (language === "te" ? "GPS ఆఫ్ లో ఉంది" : "GPS is Off") : locationText ? locationText : (language === "te" ? "మీ ప్రాంతం కోసం వెతుకుతోంది..." : "Fetching your location...")}
           </AppText>
           <TouchableOpacity onPress={handleOpenMap}>
@@ -481,16 +500,35 @@ export default function FindMachines() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.rowFilters}>
-          <TouchableOpacity activeOpacity={0.7} style={[styles.filterBtn, { flex: 2 }]} onPress={() => setModalType("equipment")}>
-            <MaterialCommunityIcons name="tractor" size={18} color="#2E7D32" />
-            <AppText style={styles.btnText} numberOfLines={1}>{selectedEq || (language === "te" ? "యంత్రం" : "Equipment")}</AppText>
-            <Ionicons name="chevron-down" size={14} color="#9CA3AF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.filterBtn, { flex: 1 }]} onPress={() => setModalType("radius")}>
-            <MaterialCommunityIcons name="radius-outline" size={18} color="#2E7D32" />
-            <AppText style={styles.btnText}>{radius} {language === "te" ? "కి.మీ" : "KM"}</AppText>
-            <Ionicons name="chevron-down" size={14} color="#9CA3AF" />
+        <View style={{ marginTop: 10 }}>
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={{ 
+              flexDirection: "row", 
+              alignItems: "center", 
+              justifyContent: "space-between", 
+              backgroundColor: "#FFFFFF", 
+              borderWidth: 1, 
+              borderColor: "#E5E7EB", 
+              borderRadius: 12, 
+              paddingHorizontal: 16,
+              height: 54
+            }} 
+            onPress={() => setModalType("radius")}
+          >
+            <View style={{flexDirection: "row", alignItems: "center", gap: 8}}>
+              <MaterialCommunityIcons name="map-marker-distance" size={24} color="#16A34A" />
+              <AppText style={{ fontSize: 16, color: "#4B5563", fontWeight: "500" }}>
+                {language === "te" ? "చుట్టుకొలత పరిధి :" : "Search Radius :"}
+              </AppText>
+            </View>
+            
+            <View style={{flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#F0FDF4", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8}}>
+              <AppText style={{ fontSize: 15, fontWeight: "bold", color: "#16A34A" }}>
+                {radius} {language === "te" ? "కి.మీ" : "KM"}
+              </AppText>
+              <Ionicons name="chevron-down" size={16} color="#16A34A" />
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -540,14 +578,7 @@ export default function FindMachines() {
         </View>
       ) : (
         <View style={{ flex: 1 }}> 
-          {(selectedEq && (showAll || allMachines.length > results.length)) && (
-            <TouchableOpacity activeOpacity={0.8} style={[styles.seeAllBtn, showAll && styles.activeSeeAll]} onPress={() => setShowAll(!showAll)}>
-              <Ionicons name={showAll ? "chevron-up-circle" : "apps-sharp"} size={18} color="#fff" />
-              <AppText style={[styles.seeAllText, { color: "#fff" }]}>
-                {showAll ? (language === "te" ? "ఎంచుకున్నవి మాత్రమే చూడండి" : "Show Selected Only") : (language === "te" ? `మిగిలిన అన్ని యంత్రాలను చూడండి (${allMachines.length})` : `See All Other Machines (${allMachines.length})`)}
-              </AppText>
-            </TouchableOpacity>
-          )}
+
           <FlatList data={results} renderItem={renderItem} keyExtractor={item => item.id} contentContainerStyle={{ padding: 16, paddingBottom: 100 }} showsVerticalScrollIndicator={false} />
         </View>
       )}
@@ -564,11 +595,11 @@ export default function FindMachines() {
             />
           )}
           <View style={styles.centerPinWrapper} pointerEvents="none"><Ionicons name="location-sharp" size={46} color="#DC2626" /></View>
-          <SafeAreaView style={styles.mapTopArea}>
+          <View style={styles.mapTopArea}>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setShowMapModal(false)} style={styles.simpleBackBtn}>
               <Ionicons name="chevron-back" size={24} color="#111827" />
             </TouchableOpacity>
-          </SafeAreaView>
+          </View>
           
           <View style={styles.bottomContainer}>
             <TouchableOpacity activeOpacity={0.8} style={styles.simpleLocateBtn} onPress={fetchLocation}>
@@ -577,8 +608,8 @@ export default function FindMachines() {
 
             <View style={styles.minimalBottomCard}>
               <View style={styles.addressRow}>
-                <Ionicons name="location" size={24} color="#16A34A" />
-                <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
+                <Ionicons name="location" size={24} color="#16A34A" style={{ marginTop: 2 }} />
+                <AppText style={styles.minimalAddress}>{locationText}</AppText>
               </View>
               <TouchableOpacity activeOpacity={0.85} onPress={() => setShowMapModal(false)}>
                 <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
@@ -590,43 +621,16 @@ export default function FindMachines() {
         </View>
       </Modal>
 
-      {/* EQUIPMENT MODAL */}
-      <Modal visible={modalType === "equipment"} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <AppText style={styles.modalTitleText}>{language === "te" ? "యంత్రం ఎంచుకోండి" : "Select Equipment"}</AppText>
-              <TouchableOpacity onPress={() => { setShowAll(false); setModalType(null); setSearchText(""); }}>
-                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-            <View style={[styles.searchBar, { flexDirection: "row", alignItems: "center" }]}>
-              <TextInput value={searchText} onChangeText={setSearchText} placeholder={language === "te" ? "వెతకండి..." : "Search..."} placeholderTextColor="#9CA3AF" cursorColor="green" selectionColor="#16A34A40" style={{ flex: 1, height: 50, fontFamily: "Mandali", color: "#1F2937" }} />
-              {searchText && searchText.trim().length > 0 ? (
-                <TouchableOpacity onPress={() => setSearchText("")} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#e5e7eb" }}>
-                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={startVoice} style={{ marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#e5e7eb" }}>
-                  <MaterialCommunityIcons name={isListening ? "microphone" : "microphone-outline"} size={20} color={isListening ? "#EF4444" : "#2E7D32"} />
-                </TouchableOpacity>
-              )}
-            </View>
-            <FlatList data={equipmentOptions.filter(item => (language === "te" ? item.te : item.en).toLowerCase().includes(searchText.toLowerCase()))} keyExtractor={(item, i) => i.toString()} renderItem={({ item }) => (
-              <TouchableOpacity style={styles.categoryItem} onPress={() => { setSelectedEq(language === "te" ? item.te : item.en); setModalType(null); setSearchText(""); }}>
-                <AppText>{language === "te" ? item.te : item.en}</AppText>
-                {selectedEq === (language === "te" ? item.te : item.en) && <Ionicons name="checkmark-circle" size={20} color="#16A34A" />}
-              </TouchableOpacity>
-            )} />
-          </View>
-        </View>
-      </Modal>
-
       {/* RADIUS MODAL */}
       <Modal visible={modalType === "radius"} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalType(null)}>
           <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }]}>
-            <View style={styles.modalHeader}><AppText style={styles.modalTitleText}>{language === "te" ? "దూరం ఎంచుకోండి" : "Select Distance"}</AppText></View>
+            <View style={styles.modalHeader}>
+              <AppText style={styles.modalTitleText}>{language === "te" ? "దూరం ఎంచుకోండి" : "Select Distance"}</AppText>
+              <TouchableOpacity onPress={() => setModalType(null)}>
+                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
             <View style={styles.radiusGrid}>
               {radiusOptions.map((opt) => (
                 <TouchableOpacity key={opt} style={[styles.radiusOption, radius === opt && styles.activeRadius]} onPress={() => { setRadius(opt); setModalType(null); }}>
@@ -646,35 +650,25 @@ export default function FindMachines() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F7F6" },
 
-  // 🔥 ZOMATO MAP STYLES
-  mapTopArea: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 50, left: 20 },
-  simpleBackBtn: { width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  bottomContainer: { position: 'absolute', bottom: 0, width: '100%' },
-  simpleLocateBtn: { position: 'absolute', bottom: "100%", right: 20, marginBottom: 15, width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  minimalBottomCard: { width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-  centerPinWrapper: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -23, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5 },
+  // 🔥 MAP MODAL STYLES (MATCHING ADD-MACHINE EXACTLY)
+  centerPinWrapper: { position: "absolute", top: "50%", left: "50%", marginLeft: -23, marginTop: -46, zIndex: 10 },
+  mapTopArea: { position: "absolute", top: Platform.OS === "ios" ? 55 : (StatusBar.currentHeight || 24) + 15, left: 16, zIndex: 10 },
+  simpleBackBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "white", justifyContent: "center", alignItems: "center", elevation: 5, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
+  bottomContainer: { position: "absolute", bottom: 0, width: "100%", padding: 16, paddingBottom: Platform.OS === "ios" ? 30 : 16, zIndex: 10 },
+  simpleLocateBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: "white", justifyContent: "center", alignItems: "center", alignSelf: "flex-end", marginBottom: 16, elevation: 4, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  minimalBottomCard: { backgroundColor: "white", borderRadius: 16, padding: 12, elevation: 10, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: -4 } },
+  addressRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 16 },
+  minimalAddress: { flex: 1, fontSize: 14, color: "#1F2937", marginLeft: 10, fontFamily: "Mandali", lineHeight: 22 },
+  minimalConfirmBtn: { paddingVertical: 10, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  minimalConfirmText: { color: "white", fontSize: 14, fontWeight: "600" },
 
   blueMapBtn: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 10, marginLeft: 10 },
-  addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
-  minimalAddress: { flex: 1, fontSize: 13, color: '#4B5563', lineHeight: 18, fontFamily: "Mandali" },
-  minimalConfirmBtn: { 
-    paddingVertical: 10, 
-    borderRadius: 10, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    elevation: 3, 
-    shadowColor: '#16A34A', 
-    shadowOffset: { width: 0, height: 3 }, 
-    shadowOpacity: 0.25, 
-    shadowRadius: 5 
-  },
-  minimalConfirmText: { color: '#fff', fontSize: 14, fontWeight: '600', fontFamily: "Mandali" },
   
   filterContainer: { padding: 16, backgroundColor: '#fff', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10, zIndex: 10 },
-  locationWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: 52, borderRadius: 15, borderWidth: 1.5, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-  locationInput: { flex: 1, fontSize: 14, color: '#374151', fontWeight: '600' },
+  locationWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 12, height: undefined, minHeight: 55, paddingVertical: 12, borderRadius: 15, borderWidth: 1.5, marginBottom: 12, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
+  locationInput: { flex: 1, fontSize: 14, color: '#374151', fontWeight: '600', marginLeft: 8, paddingRight: 8, lineHeight: 22 },
   card: { backgroundColor: "#fff", borderRadius: 24, marginBottom: 20, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, borderWidth: 1, borderColor: "#F3F4F6" },
-  imageWrapper: { width: "100%", height: 280, position: 'relative' },
+  imageWrapper: { width: "100%", aspectRatio: 4/3, position: 'relative', backgroundColor: "#F3F4F6" },
   image: { width: "100%", height: "100%", resizeMode: "cover" },
   distBadge: { position: 'absolute', top: 15, right: 15, backgroundColor: 'rgba(0,0,0,0.65)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 5 },
   distText: { color: '#fff', fontSize: 11, fontWeight: '600' },

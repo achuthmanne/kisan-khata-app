@@ -62,14 +62,14 @@ export default function FarmerHistory() {
   const vId = Array.isArray(vehicleId) ? vehicleId[0] : vehicleId;
   const fId = Array.isArray(farmerId) ? farmerId[0] : farmerId;
 
-  const [loading, setLoading] = useState(true);
-  const [language, setLanguage] = useState<"te" | "en">("te");
-  const [expanded, setExpanded] = useState<string | null>(null);
-
   const farmerWorksMap = useStore(state => state.farmerWorks);
   const data = farmerWorksMap[`${vId}_${fId}`] || [];
   const initFarmerWorksListener = useStore(state => state.initFarmerWorksListener);
   const unsubFarmerWorks = useStore(state => state.unsubFarmerWorks);
+
+  const [loading, setLoading] = useState(farmerWorksMap[`${vId}_${fId}`] === undefined);
+  const [language, setLanguage] = useState<"te" | "en">("te");
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -496,17 +496,17 @@ export default function FarmerHistory() {
                             <AppText style={{ fontSize: 13, color: "#4B5563", fontFamily: "Mandali", fontWeight: "600" }}>
                               {language === "te" ? "చెల్లింపు విధానం:" : "Payment Mode:"} 
                               <AppText style={{ color: "#1F2937" }}>
-                                {work.paymentMode === "cash" ? " Cash" : work.paymentMode === "upi" ? " UPI" : " Cash + UPI"}
+                                {work.paymentMode === "cash" ? (language === "te" ? " నగదు" : " Cash") : work.paymentMode === "upi" ? (language === "te" ? " ఆన్‌లైన్ పే" : " UPI") : (language === "te" ? " నగదు + ఆన్‌లైన్ పే" : " Cash + UPI")}
                               </AppText>
                             </AppText>
                           </View>
                           {work.paymentMode === "both" && (
                             <View style={{ flexDirection: "row", gap: 16, marginLeft: 22 }}>
                               <AppText style={{ fontSize: 13, color: "#6B7280", fontFamily: "Mandali" }}>
-                                Cash: <AppText style={{ color: "#1F2937", fontWeight: "600" }}>₹{work.splitCash || 0}</AppText>
+                                {language === "te" ? "నగదు" : "Cash"}: <AppText style={{ color: "#1F2937", fontWeight: "600" }}>₹{work.splitCash || 0}</AppText>
                               </AppText>
                               <AppText style={{ fontSize: 13, color: "#6B7280", fontFamily: "Mandali" }}>
-                                UPI: <AppText style={{ color: "#1F2937", fontWeight: "600" }}>₹{work.splitUpi || 0}</AppText>
+                                {language === "te" ? "ఆన్‌లైన్" : "UPI"}: <AppText style={{ color: "#1F2937", fontWeight: "600" }}>₹{work.splitUpi || 0}</AppText>
                               </AppText>
                             </View>
                           )}
@@ -607,11 +607,11 @@ export default function FarmerHistory() {
                           if (work.paymentStatus === "paid") {
                               msg += `✅ *స్టేటస్:* చెల్లింపు పూర్తయింది (Paid)\n`;
                               if (work.paymentMode) {
-                                  let pMode = work.paymentMode === "cash" ? "Cash" : work.paymentMode === "upi" ? "UPI" : "Cash + UPI";
-                                  msg += `- విధానం: ${pMode}\n`;
+                                  let pMode = work.paymentMode === "cash" ? (language === "te" ? "నగదు" : "Cash") : work.paymentMode === "upi" ? (language === "te" ? "ఆన్‌లైన్ పే" : "UPI") : (language === "te" ? "నగదు + ఆన్‌లైన్ పే" : "Cash + UPI");
+                                  msg += `- ${language === "te" ? "విధానం" : "Mode"}: ${pMode}\n`;
                                   if (work.paymentMode === "both") {
-                                      msg += `  • క్యాష్: ₹${work.splitCash || 0}\n`;
-                                      msg += `  • యూపీఐ: ₹${work.splitUpi || 0}\n`;
+                                      msg += `  • ${language === "te" ? "నగదు" : "Cash"}: ₹${work.splitCash || 0}\n`;
+                                      msg += `  • ${language === "te" ? "ఆన్‌లైన్ పే" : "UPI"}: ₹${work.splitUpi || 0}\n`;
                                   }
                               }
                           } else {

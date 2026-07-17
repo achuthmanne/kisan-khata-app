@@ -172,7 +172,7 @@ export default function AddBatchAbsent() {
         language={language} 
       />
 
-      <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+      <KeyboardAwareScrollView contentContainerStyle={{ paddingBottom: 100 }} enableOnAndroid={true} extraScrollHeight={20} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           
           <AppText style={styles.sectionTitle}>{language === "te" ? "తేదీలు ఎంచుకోండి" : "Select Dates"}</AppText>
@@ -206,14 +206,15 @@ export default function AddBatchAbsent() {
           {/* REASON */}
           <View style={{ marginBottom: 16 }}>
             <AppText style={styles.label}>{language === "te" ? "సెలవుకి కారణం (ఆప్షనల్)" : "Reason for leave (Optional)"}</AppText>
-            <View style={[styles.inputBox, { height: 80, alignItems: "flex-start", paddingRight: 8 }]}>
+            <View style={[styles.inputBox, { paddingRight: 8 }]}>
               <TextInput
-                style={{ flex: 1, textAlignVertical: "top", height: "100%", fontSize: 15, color: "#1F2937", fontFamily: "Mandali" }}
+                style={{ flex: 1, fontSize: 15, color: "#1F2937", fontFamily: "Mandali" }}
                 value={reason}
                 onChangeText={setReason}
-                placeholder={language === "te" ? "ఉదా: జ్వరం, ఊరు వెళ్ళాడు..." : "Ex: Fever, Function..."}
-                placeholderTextColor="#9CA3AF"
-                multiline
+                placeholder={isListening ? (language === "te" ? "వింటున్నాను..." : "Listening...") : (language === "te" ? "ఉదా: జ్వరం, ఊరు వెళ్ళాడు..." : "Ex: Fever, Function...")}
+                placeholderTextColor={isListening ? "#EF4444" : "#9CA3AF"}
+                cursorColor="#16A34A"
+                selectionColor="rgba(22, 163, 74, 0.3)"
               />
               {reason.trim().length > 0 ? (
                 <TouchableOpacity onPress={() => setReason("")} style={{ padding: 4 }} activeOpacity={0.7}>
@@ -261,6 +262,9 @@ export default function AddBatchAbsent() {
               onChangeText={setCuttingAmount}
               keyboardType="numeric"
               placeholder="₹ 0"
+              placeholderTextColor="#9CA3AF"
+              cursorColor="#16A34A"
+              selectionColor="rgba(22, 163, 74, 0.3)"
             />
           </View>
 
@@ -272,6 +276,9 @@ export default function AddBatchAbsent() {
               onChangeText={setAdvanceAmount}
               keyboardType="numeric"
               placeholder="₹ 0"
+              placeholderTextColor="#9CA3AF"
+              cursorColor="#16A34A"
+              selectionColor="rgba(22, 163, 74, 0.3)"
             />
           </View>
 

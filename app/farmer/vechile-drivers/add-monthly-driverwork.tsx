@@ -110,13 +110,7 @@ export default function AddDriverWork() {
     const loadSession = async () => {
       const session = await AsyncStorage.getItem("ACTIVE_SESSION");
       if (session) {
-        if (typeof isMounted !== 'undefined' && isMounted && !isMounted.current) {
-           setActiveSession(session);
-        } else if (typeof isMounted !== 'undefined' && isMounted.current) {
-           setActiveSession(session);
-        } else {
-           setActiveSession(session);
-        }
+        if (isMountedLocal) setActiveSession(session);
       } else {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (phone) {
@@ -1162,7 +1156,7 @@ export default function AddDriverWork() {
         <DateTimePicker
           value={startTime || new Date()}
           mode="time"
-          display="default"
+          display="spinner"
           onChange={(event, selectedTime) => {
             setShowStartTimePicker(false);
             if (selectedTime) setStartTime(selectedTime);
@@ -1175,7 +1169,7 @@ export default function AddDriverWork() {
         <DateTimePicker
           value={endTime || startTime || new Date()}
           mode="time"
-          display="default"
+          display="spinner"
           onChange={(event, selectedTime) => {
             setShowEndTimePicker(false);
             if (selectedTime) setEndTime(selectedTime);
@@ -1188,7 +1182,7 @@ export default function AddDriverWork() {
         <DateTimePicker
           value={breaks.find(b => b.id === activeBreakId)?.startTime || startTime || new Date()}
           mode="time"
-          display="default"
+          display="spinner"
           onChange={(event, selectedTime) => {
             setShowBreakStartTimePicker(false);
             if (selectedTime) {
@@ -1203,7 +1197,7 @@ export default function AddDriverWork() {
         <DateTimePicker
           value={breaks.find(b => b.id === activeBreakId)?.endTime || breaks.find(b => b.id === activeBreakId)?.startTime || new Date()}
           mode="time"
-          display="default"
+          display="spinner"
           onChange={(event, selectedTime) => {
             setShowBreakEndTimePicker(false);
             if (selectedTime) {

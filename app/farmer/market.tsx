@@ -17,7 +17,7 @@ import {
 } from "react-native";
 
 import AppHeader from "@/components/AppHeader";
-import AppText from "@/components/AppText";
+import { getTranslatedCropName } from '@/utils/cropTranslations';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 
@@ -393,23 +393,12 @@ export default function MarketScreen() {
       const q = query.toLowerCase();
       filtered = filtered.filter((item) => {
         const engName = item.commodity?.toLowerCase() || "";
-        const telName = getTranslatedCropName(engName);
+        const telName = getTranslatedCropName(engName, language);
         return engName.includes(q) || telName.includes(q);
       });
     }
 
     setFilteredPrices(filtered);
-  };
-
-  const getTranslatedCropName = (rawName: string) => {
-    const cleanName = rawName.toLowerCase().trim();
-    if (language === "te") {
-      if (cropTranslations[cleanName]) return cropTranslations[cleanName];
-      for (const [key, value] of Object.entries(cropTranslations)) {
-        if (cleanName.includes(key)) return value;
-      }
-    }
-    return rawName.replace(/\(.*?\)/g, "").trim().replace(/\b\w/g, c => c.toUpperCase());
   };
 
   /* ---------------- COMPONENTS ---------------- */
@@ -430,7 +419,7 @@ export default function MarketScreen() {
   );
 
   const renderPriceCard = ({ item }: { item: any }) => {
-    const cropName = getTranslatedCropName(item.commodity);
+    const cropName = getTranslatedCropName(item.commodity, language);
     const trend = item.modal_price > item.prevPrice ? "up" : item.modal_price < item.prevPrice ? "down" : "same";
 
     return (

@@ -27,6 +27,8 @@ import AppText from "@/components/AppText";
 
 export default function MyMachines() {
   const router = useRouter();
+  const [activeSession, setActiveSession] = useState<string>("");
+  const [imageRatios, setImageRatios] = useState<Record<string, number>>({});
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [language, setLanguage] = useState<"te" | "en">("te");
@@ -91,7 +93,15 @@ export default function MyMachines() {
   };
 
   // 🔥 DYNAMIC SERVICE MESSAGES LOGIC 🔥
-  const getServiceDetails = (type: string, lang: string) => {
+  const getServiceDetails = (type: string, lang: string, listingType?: string) => {
+    if (listingType === "labor") {
+      return {
+        text: lang === "te" ? "కూలీ / ముఠా పనులు చేసిపెట్టబడును" : "Available for Labor Services",
+        icon: "people-outline",
+        color: "#16A34A", // Green
+        bg: "#F0FDF4"
+      };
+    }
     if (type === "Rent") {
       return {
         text: lang === "te" ? "కేవలం అద్దెకు మాత్రమే అందుబాటులో ఉంది" : "Available for Rent Only",
@@ -132,24 +142,33 @@ export default function MyMachines() {
   );
 
   const renderItem = ({ item }: any) => {
-    const serviceInfo = getServiceDetails(item.serviceType, language);
+    const serviceInfo = getServiceDetails(item.serviceType, language, item.listingType);
 
     return (
       <View style={styles.card}>
         {/* 1. TOP IMAGE SECTION */}
-        <View style={styles.imageWrapper}>
-          <Image source={getImage(item.equipment)} style={styles.image} />
-          <View style={styles.badge}>
-            <AppText style={styles.badgeText}>
-              {language === "te" ? "యాక్టివ్" : "Active"}
-            </AppText>
-          </View>
+        <View style={[styles.imageWrapper, item.imageUri && imageRatios[item.id] ? { aspectRatio: imageRatios[item.id] } : {}]}>
+          <Image 
+            source={item.imageUri ? { uri: item.imageUri } : getImage(item.equipment || item.listingName)} 
+            style={styles.image} 
+            onLoad={(e) => {
+              if (item.imageUri && e.nativeEvent.source.width && e.nativeEvent.source.height) {
+                const ratio = e.nativeEvent.source.width / e.nativeEvent.source.height;
+                setImageRatios(prev => ({ ...prev, [item.id]: ratio }));
+              }
+            }}
+          />
         </View>
 
         {/* 2. DETAILS SECTION */}
         <View style={styles.content}>
           <View style={styles.headerRow}>
-            <AppText style={styles.cardTitle}>{item.equipment}</AppText>
+            <AppText style={styles.cardTitle} numberOfLines={2}>{item.listingName || item.equipment}</AppText>
+            <View style={styles.badge}>
+              <AppText style={styles.badgeText}>
+                {language === "te" ? "యాక్టివ్" : "Active"}
+              </AppText>
+            </View>
           </View>
 
           {/* 🔥 DYNAMIC SERVICE TYPE MESSAGE 🔥 */}
@@ -216,8 +235,8 @@ export default function MyMachines() {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
       <AppHeader
-        title={language === "te" ? "నా యంత్రాలు" : "My Machines"}
-        subtitle={language === "te" ? "మీరు జోడించిన యంత్రాల జాబితా" : "List of machines you added"}
+        title={language === "te" ? "నేను నమోదు చేసినవి" : "My Registrations"}
+        subtitle={language === "te" ? "మీరు యాప్‌లో నమోదు చేసిన వివరాలు" : "Details you have registered in the app"}
         language={language}
       />
 
@@ -284,26 +303,15 @@ export default function MyMachines() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F3F4F6" },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    marginBottom: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  imageWrapper: { width: "100%", height: 250, position: 'relative' },
+  card: { backgroundColor: "#fff", borderRadius: 24, marginBottom: 20, overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 12, borderWidth: 1, borderColor: "#F3F4F6" },
+  imageWrapper: { width: "100%", aspectRatio: 4/3, position: 'relative', backgroundColor: "#F3F4F6" },
   image: { width: "100%", height: "100%", resizeMode: "cover" },
   badge: { 
-    position: 'absolute', 
-    bottom: 10, 
-    left: 15, 
-    backgroundColor: 'rgba(22, 163, 74, 0.9)', 
-    paddingHorizontal: 12, 
+    backgroundColor: '#16A34A', 
+    paddingHorizontal: 10, 
     paddingVertical: 4,
-    borderRadius: 12 
+    borderRadius: 12,
+    alignSelf: 'flex-start'
   },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   
@@ -312,9 +320,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', 
     justifyContent: 'space-between', 
     alignItems: 'center',
-    marginBottom: 6 
+    marginBottom: 6,
+    gap: 8
   },
-  cardTitle: { fontSize: 19, fontWeight: "600", color: "#111827" },
+  cardTitle: { fontSize: 19, fontWeight: "600", color: "#111827", flexShrink: 1 },
 
   // 🔥 NEW SERVICE ROW STYLES
   serviceRow: {

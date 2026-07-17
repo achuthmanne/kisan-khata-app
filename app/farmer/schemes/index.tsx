@@ -57,12 +57,58 @@ export default function SchemesScreen() {
   const [error, setError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const schemes = useStore(state => state.schemes);
-  const isInitializing = useStore(state => state.isInitializing);
-  
-  const loading = isInitializing && schemes.length === 0;
-
+  const [schemes, setSchemes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"AP" | "TS">("AP");
+
+  const CACHE_KEY = "SCHEMES_CACHE";
+  const CACHE_TIME = 24 * 60 * 60 * 1000; // 24 hours
+
+  const fetchSchemes = async (isMounted: boolean, forceRefetch = false) => {
+    try {
+      if (!forceRefetch) {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Date.now() - parsed.timestamp < CACHE_TIME) {
+            if (isMounted) {
+              setSchemes(parsed.data);
+              setLoading(false);
+            }
+            return;
+          }
+        }
+      }
+      
+      if (isMounted && forceRefetch) setLoading(true);
+      const snap = await executeOfflineSafeRead(firestore().collection("schemes").where("isActive", "==", true), false);
+      if (!snap.empty) {
+        const list = (snap as any).docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        list.sort((a: any, b: any) => {
+          const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+          const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+          return tB - tA;
+        });
+        if (isMounted) {
+          setSchemes(list);
+          setLoading(false);
+        }
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: list }));
+      } else {
+        if (isMounted) {
+          setSchemes([]);
+          setLoading(false);
+        }
+        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: [] }));
+      }
+    } catch (e) {
+      console.error("Error fetching schemes", e);
+      if (isMounted) {
+         setError(true);
+         setLoading(false);
+      }
+    }
+  };
 
   useEffect(() => {
     let isMounted = true; 
@@ -70,6 +116,7 @@ export default function SchemesScreen() {
     const init = async () => {
       const lang = await AsyncStorage.getItem("APP_LANG");
       if (lang && isMounted) setLanguage(lang as "te" | "en");
+      await fetchSchemes(isMounted);
     };
 
     init();
@@ -79,11 +126,10 @@ export default function SchemesScreen() {
     };
   }, []);
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
+    await fetchSchemes(true, true);
+    setRefreshing(false);
   };
 
   /* ---------------- FILTERING ---------------- */

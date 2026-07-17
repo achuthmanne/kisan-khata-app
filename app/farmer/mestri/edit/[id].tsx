@@ -98,13 +98,7 @@ export default function EditMestri() {
     const loadSession = async () => {
       const session = await AsyncStorage.getItem("ACTIVE_SESSION");
       if (session) {
-        if (typeof isMounted !== 'undefined' && isMounted && !isMounted.current) {
-           setActiveSession(session);
-        } else if (typeof isMounted !== 'undefined' && isMounted.current) {
-           setActiveSession(session);
-        } else {
-           setActiveSession(session);
-        }
+        if (isMountedLocal) setActiveSession(session);
       } else {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (phone) {
@@ -500,6 +494,6 @@ const styles = StyleSheet.create({
   iconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#E8F5E9", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   modalTitle: { fontSize: 18, fontWeight: "600", color: "#111827" },
   modalSub: { fontSize: 13, color: "#6B7280", textAlign: "center", marginTop: 8 },
-  okBtn: { marginTop: 20, paddingVertical: 12, paddingHorizontal: 40, borderRadius: 12, width: "100%", alignItems: "center" },
-  okText: { color: "white", fontWeight: "600", fontSize: 15 }
+  okBtn: { marginTop: 20, paddingVertical: 10, paddingHorizontal: 36, borderRadius: 12, alignSelf: "center", alignItems: "center" },
+  okText: { color: "white", fontWeight: "600", fontSize: 16 }
 });

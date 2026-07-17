@@ -2,7 +2,7 @@
 
 import { setDrawer } from "@/assets/stores/drawerStore";
 import { useLanguage } from "@/context/LanguageContext";
-import { executeOfflineSafeFetch, executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { executeOfflineSafeFetch, executeOfflineSafeRead, executeOfflineSafeWrite, isOnline } from "@/utils/offlineHelper";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
@@ -33,7 +33,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // 🔥 PRO FIX: Use expo-image for faster caching and remote image handling
 import { Image } from "expo-image";
 import AnimatedReanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path } from 'react-native-svg';
+
+import { getTranslatedCropName } from '@/utils/cropTranslations';
 import AppText from "../../../components/AppText";
 const { width } = Dimensions.get("window");
 
@@ -168,7 +170,7 @@ const DashboardSkeleton = ({ width }: { width: number }) => {
       <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={{ position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 5 }}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Animated.View style={{ width: 50, height: 50, borderRadius: 25, marginRight: 10, backgroundColor: "rgba(255,255,255,0.12)", opacity: pulseAnim }} />
+            <Animated.View style={{ width: 50, height: 50, borderRadius: 14, marginRight: 10, backgroundColor: "rgba(255,255,255,0.12)", opacity: pulseAnim }} />
             <View>
               <Animated.View style={{ width: 100, height: 14, borderRadius: 4, marginBottom: 8, backgroundColor: "rgba(255,255,255,0.12)", opacity: pulseAnim }} />
               <Animated.View style={{ width: 140, height: 22, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.12)", opacity: pulseAnim }} />
@@ -268,6 +270,8 @@ export default function Dashboard() {
   const headerCardRef = useRef<any>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [weatherType, setWeatherType] = useState("");
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  const [weatherError, setWeatherError] = useState(false);
   const [activeSession, setActiveSession] = useState("");
   
   const ADMIN_PHONE = "8121648629"; 
@@ -671,26 +675,27 @@ export default function Dashboard() {
   /* ---------------- WEATHER ---------------- */
   const formatWeather = (raw: string, language: string) => {
     const w = raw.toLowerCase();
-    if (w.includes("thunderstorm") || w.includes("storm") || w.includes("lightning")) return { text: language === "te" ? "పిడుగులతో కూడిన వర్షం" : "Thunderstorm Warning", type: "storm" };
+    if (w.includes("thunderstorm") || w.includes("storm") || w.includes("lightning")) return { text: language === "te" ? "తుఫాను" : "Thunderstorm", type: "storm" };
     if (w.includes("rain") || w.includes("drizzle") || w.includes("shower")) {
-      if (w.includes("heavy") || w.includes("extreme") || w.includes("very heavy")) return { text: language === "te" ? "భారీ వర్షం" : "Heavy Rainfall", type: "rain" };
-      if (w.includes("light") || w.includes("drizzle")) return { text: language === "te" ? "చిరుజల్లులు" : "Light Drizzle", type: "rain" };
-      return { text: language === "te" ? "వర్షం" : "Rainy Weather", type: "rain" };
+      if (w.includes("heavy") || w.includes("extreme") || w.includes("very heavy")) return { text: language === "te" ? "భారీ వర్షం" : "Heavy Rain", type: "rain" };
+      if (w.includes("light") || w.includes("drizzle")) return { text: language === "te" ? "చిరుజల్లులు" : "Drizzle", type: "rain" };
+      return { text: language === "te" ? "వర్షం" : "Rain", type: "rain" };
     }
     if (w.includes("cloud") || w.includes("overcast")) {
-      if (w.includes("few") || w.includes("scattered") || w.includes("broken")) return { text: language === "te" ? "పాక్షికంగా మబ్బులు" : "Partly Cloudy", type: "cloud" };
-      return { text: language === "te" ? "మబ్బులుగా ఉంది" : "Overcast/Cloudy", type: "cloud" };
+      if (w.includes("few") || w.includes("scattered") || w.includes("broken")) return { text: language === "te" ? "పాక్షిక మబ్బులు" : "Partly Cloudy", type: "cloud" };
+      return { text: language === "te" ? "మబ్బులు" : "Cloudy", type: "cloud" };
     }
-    if (w.includes("haze") || w.includes("mist") || w.includes("fog") || w.includes("smoke")) return { text: language === "te" ? "పొగమంచు / మసక" : "Hazy & Misty", type: "haze" };
-    if (w.includes("clear") || w.includes("sun") || w.includes("hot")) return { text: language === "te" ? "ఎండ / నిర్మలం" : "Clear Sunny Sky", type: "clear" };
-    if (w.includes("wind") || w.includes("gale") || w.includes("tornado") || w.includes("squall")) return { text: language === "te" ? "బలమైన గాలులు" : "High Wind Alert", type: "wind" };
-    if (w.includes("snow") || w.includes("sleet")) return { text: language === "te" ? "మంచు కురుస్తోంది" : "Snowfall", type: "snow" };
+    if (w.includes("haze") || w.includes("mist") || w.includes("fog") || w.includes("smoke")) return { text: language === "te" ? "పొగమంచు" : "Haze", type: "haze" };
+    if (w.includes("clear") || w.includes("sun") || w.includes("hot")) return { text: language === "te" ? "నిర్మలం" : "Clear", type: "clear" };
+    if (w.includes("wind") || w.includes("gale") || w.includes("tornado") || w.includes("squall")) return { text: language === "te" ? "బలమైన గాలులు" : "Windy", type: "wind" };
+    if (w.includes("snow") || w.includes("sleet")) return { text: language === "te" ? "మంచు" : "Snow", type: "snow" };
     return { text: raw, type: "default" };
   };
 
   /* ---------------- WEATHER & LOCATION ---------------- */
   const getLocationWeather = async () => {
     try {
+      setWeatherError(false);
       const netState = await NetInfo.fetch();
       const isOffline = netState.isConnected === false || netState.isInternetReachable === false;
       
@@ -699,17 +704,20 @@ export default function Dashboard() {
       if (cached) {
         const parsed = JSON.parse(cached);
         setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
+        setWeatherLoading(false);
         
         // If offline OR cache is fresh, stop here and just use cache.
         if (isOffline || (Date.now() - parsed.timestamp < CACHE_TIME && parsed.language === language)) {
           return;
         }
       } else if (isOffline) {
-        setCity(language === "te" ? "డేటా రాలేదు" : "Data Failed");
+        setWeatherLoading(false);
+        setWeatherError(true);
         return;
       }
 
       // 2. FETCH NEW DATA (in background)
+      if (!cached) setWeatherLoading(true);
 
       let latitude; let longitude;
       
@@ -770,6 +778,9 @@ export default function Dashboard() {
 
       setWeather(result.text); setWeatherType(result.type); setHumidity(data.main?.humidity); setWind(data.wind?.speed);
 
+      setWeatherLoading(false);
+      setWeatherError(false);
+
       await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ 
         city: finalCity, temp: Math.round(tempVal), weather: result.text, 
         humidity: data.main?.humidity, wind: data.wind?.speed, timestamp: Date.now(), language: language 
@@ -781,8 +792,10 @@ export default function Dashboard() {
       if (cached) {
         const parsed = JSON.parse(cached);
         setCity(parsed.city); setTemp(parsed.temp); setWeather(parsed.weather); setHumidity(parsed.humidity); setWind(parsed.wind);
+        setWeatherLoading(false);
       } else {
-        setCity(language === "te" ? "డేటా రాలేదు" : "Data Failed");
+        setWeatherLoading(false);
+        setWeatherError(true);
       }
     }
   };
@@ -945,7 +958,7 @@ export default function Dashboard() {
           <TouchableOpacity style={styles.profileRow} onPress={() => setDrawer(true)} activeOpacity={0.8}>
             
             {/* 🔥 PROFILE IMAGE LOGIC APPLIED HERE */}
-            <View style={{ width: 50, height: 50, borderRadius: 25, overflow: 'hidden', marginRight: 10, backgroundColor: "#E2E8F0" }}>
+            <View style={{ width: 50, height: 50, borderRadius: 14, overflow: 'hidden', marginRight: 10, backgroundColor: "#E2E8F0" }}>
               <Image 
                 source={profilePic ? { uri: profilePic } : getDefaultAvatar()} 
                 style={[{ width: "100%", height: "100%" }, !profilePic && { transform: [{ scale: 1.25 }] }]} 
@@ -1017,31 +1030,64 @@ export default function Dashboard() {
                 if(item.type==="weather"){
                   return(
                     <View style={{ width: width, paddingHorizontal: 20 }}>
-                      <TouchableOpacity style={[styles.headerGlassCard, { flexDirection: "column", justifyContent: "space-between" }]} onPress={()=>router.push("/farmer/weather")} activeOpacity={0.9}>
-                        {/* TOP ROW */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: -5 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1, paddingRight: 10 }}>
-                            <Ionicons name="location-outline" size={16} color="white" style={{ marginTop: 1 }} />
-                            <AppText style={styles.city} language={language} numberOfLines={1} ellipsizeMode="tail">{city}</AppText>
+                      <TouchableOpacity style={[styles.headerGlassCard, { flexDirection: "column", justifyContent: "space-between" }]} onPress={() => {
+                        if (weatherError) {
+                          setWeatherLoading(true);
+                          setWeatherError(false);
+                          getLocationWeather();
+                        } else {
+                          router.push("/farmer/weather");
+                        }
+                      }} activeOpacity={0.9}>
+                        {/* Watermark */}
+                        {!weatherLoading && !weatherError && (
+                          <View style={{position: 'absolute', right: -18, bottom: -36, opacity: 0.15, transform: [{ rotate: "-15deg" }]}} pointerEvents="none">
+                            <Ionicons name="partly-sunny" size={135} color="white" />
                           </View>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <AppText style={styles.openText} language={language}>{t.forecast}</AppText>
-                            <AnimatedReanimated.View style={swipeAnimatedStyle}>
-                              <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
-                            </AnimatedReanimated.View>
+                        )}
+
+                        {/* HEADER ROW (Matches Market Card Structure) */}
+                        <View style={styles.marketHeaderRow}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, paddingRight: 10 }}>
+                            <Ionicons name="location-outline" size={16} color="white" style={{ marginTop: 1 }} />
+                            <AppText style={styles.marketTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
+                              {weatherLoading ? (language === "te" ? "వెతుకుతోంది..." : "Detecting...") : city}
+                            </AppText>
+                          </View>
+                          <View style={styles.marketSeeMore}>
+                            <AppText style={styles.openText} language={language}>{weatherError ? (language === "te" ? "మళ్లీ ప్రయత్నించు" : "Retry") : t.forecast}</AppText>
+                            {!weatherError && (
+                              <AnimatedReanimated.View style={[styles.swipeIcon, swipeAnimatedStyle]}>
+                                <Ionicons name="arrow-forward-outline" size={16} color="#ffffff"/>
+                              </AnimatedReanimated.View>
+                            )}
                           </View>
                         </View>
 
-                        {/* BOTTOM ROW */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 }}>
-                          <View style={{ height: 60, justifyContent: 'space-between' }}>
-                            <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 22, includeFontPadding: true, paddingBottom: 2 }} language={language}>{date} | {time}</AppText>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <Animated.Image source={getWeatherIcon()} style={{ width: 34, height: 34, marginRight: 6 }} />
-                              <AppText style={{ color:"white", fontSize: 16, lineHeight: 34, includeFontPadding: false }} language={language}>{weather}</AppText>
+                        {/* CONTENT ROW */}
+                        <View style={{ height: 60, marginTop: -8, justifyContent: 'center' }}>
+                          {weatherLoading ? (
+                            <View style={[styles.priceLoadingBox, { height: '100%', justifyContent: 'center', backgroundColor: 'transparent' }]}>
+                              <Animated.View><Ionicons name="sync-outline" size={24} color="white"/></Animated.View>
+                              <AppText style={[styles.priceLoadingText, { fontSize: 16 }]} language={language}>{language === "te" ? "వాతావరణం తీసుకుంటున్నాం..." : "Fetching Weather..."}</AppText>
                             </View>
-                          </View>
-                          <AppText style={{ color:"white", fontSize: 58, fontWeight: "bold", lineHeight: 60, includeFontPadding: false, marginRight: 0 }} language={language}>{temp ?? "--"}°C</AppText>
+                          ) : weatherError ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 10 }}>
+                              <Ionicons name="cloud-offline-outline" size={32} color="rgba(255,255,255,0.8)" />
+                              <AppText style={{ color: "rgba(255,255,255,0.9)", fontSize: 16, fontWeight: "500" }} language={language}>{language === "te" ? "డేటా అందుబాటులో లేదు" : "Weather Unavailable"}</AppText>
+                            </View>
+                          ) : (
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: '100%' }}>
+                              <View style={{ height: '100%', justifyContent: 'space-between' }}>
+                                <AppText style={{ color:"rgba(255,255,255,0.8)", fontSize: 14, lineHeight: 22, includeFontPadding: true, paddingBottom: 2 }} language={language}>{date} | {time}</AppText>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                  <Animated.Image source={getWeatherIcon()} style={{ width: 34, height: 34, marginRight: 6 }} />
+                                  <AppText style={{ color:"white", fontSize: 16, lineHeight: 34, includeFontPadding: false }} language={language}>{weather}</AppText>
+                                </View>
+                              </View>
+                              <AppText style={{ color:"white", fontSize: 58, fontWeight: "bold", lineHeight: 60, includeFontPadding: false, marginRight: 0 }} language={language}>{temp}°C</AppText>
+                            </View>
+                          )}
                         </View>
                       </TouchableOpacity>
                     </View>
@@ -1049,6 +1095,13 @@ export default function Dashboard() {
                 return(
                   <View style={{ width: width, paddingHorizontal: 20 }}>
                     <TouchableOpacity style={[styles.headerGlassCard,{flexDirection:"column"}]} onPress={()=>router.push("/farmer/market")} activeOpacity={0.9}>
+                      {/* Watermark */}
+                      {!priceLoading && prices.length > 0 && (
+                        <View style={{position: 'absolute', right: -20, bottom: -15, opacity: 0.12, transform: [{ rotate: "-20deg" }]}} pointerEvents="none">
+                          <Ionicons name="stats-chart" size={130} color="white" />
+                        </View>
+                      )}
+
                       <View style={styles.marketHeaderRow}>
                         <View style={styles.marketTitleRow}>
                           <Ionicons name="analytics-outline" size={16} color="white" style={{ marginTop: 1 }} />
@@ -1063,37 +1116,34 @@ export default function Dashboard() {
                           </AnimatedReanimated.View>
                         </View>
                       </View>
-                      <View style={{height:80,overflow:"hidden",marginTop:4}}>
-                        <AnimatedReanimated.View style={!priceLoading && prices.length > 0 ? priceAnimatedStyle : {}}>
-                          {priceLoading ? (
-                            <View style={styles.priceLoadingBox}>
-                              <Animated.View><Ionicons name="sync-outline" size={18} color="white"/></Animated.View>
-                              <AppText style={styles.priceLoadingText} language={language}>{language==="te" ? "ధరలు పొందుతున్నాం..." : "Fetching Prices..."}</AppText>
-                            </View>
-                          ) : (
-                            <>
-                              {prices.length === 0 && !priceLoading && (
-                                <AppText style={{ color: "white", textAlign: "center" }}>{language === "te" ? "డేటా లేదు" : "No data available"}</AppText>
-                              )}
-                              {prices.map((item:any,index:number)=>{
-                                const trend = getTrend(item.modal_price, item.prevPrice);
-                                return(
-                                  <View key={index} style={styles.marketRow}>
-                                    <View style={styles.marketLeft}>
-                                      <AppText style={styles.crop} language={language} numberOfLines={1} ellipsizeMode="tail">{(item.commodity || "").replace(/\(.*?\)/g,"")}</AppText>
-                                      <AppText style={styles.marketName} language={language} numberOfLines={1} ellipsizeMode="tail">{item.market} | {item.arrival_date?.slice(0,5) || ""}</AppText>
-                                    </View>
-                                    <View style={styles.marketRight}>
-                                      <AppText style={styles.price} language={language}>₹{Number(item.modal_price).toLocaleString("en-IN")}</AppText>
-                                      {trend==="up" && (<Ionicons name="arrow-up" size={16} color="#22c55e"/>)}
-                                      {trend==="down" && (<Ionicons name="arrow-down" size={16} color="#ef4444"/>)}
-                                    </View>
+                      <View style={{height:80,overflow:"hidden",marginTop:4, justifyContent: "center"}}>
+                        {priceLoading ? (
+                          <View style={[styles.priceLoadingBox, { marginTop: 0 }]}>
+                            <Animated.View><Ionicons name="sync-outline" size={18} color="white"/></Animated.View>
+                            <AppText style={styles.priceLoadingText} language={language}>{language==="te" ? "ధరలు పొందుతున్నాం..." : "Fetching Prices..."}</AppText>
+                          </View>
+                        ) : prices.length === 0 ? (
+                          <AppText style={{ color: "white", textAlign: "center" }}>{language === "te" ? "డేటా లేదు" : "No data available"}</AppText>
+                        ) : (
+                          <AnimatedReanimated.View style={priceAnimatedStyle}>
+                            {prices.map((item:any,index:number)=>{
+                              const trend = getTrend(item.modal_price, item.prevPrice);
+                              return(
+                                <View key={index} style={styles.marketRow}>
+                                  <View style={styles.marketLeft}>
+                                    <AppText style={styles.crop} language={language} numberOfLines={1} ellipsizeMode="tail">{getTranslatedCropName(item.commodity || "", language)}</AppText>
+                                    <AppText style={styles.marketName} language={language} numberOfLines={1} ellipsizeMode="tail">{item.market} | {item.arrival_date?.slice(0,5) || ""}</AppText>
                                   </View>
-                                )
-                              })}
-                            </>
-                          )}
-                        </AnimatedReanimated.View>
+                                  <View style={styles.marketRight}>
+                                    <AppText style={styles.price} language={language}>₹{Number(item.modal_price).toLocaleString("en-IN")}</AppText>
+                                    {trend==="up" && (<Ionicons name="arrow-up" size={16} color="#22c55e"/>)}
+                                    {trend==="down" && (<Ionicons name="arrow-down" size={16} color="#ef4444"/>)}
+                                  </View>
+                                </View>
+                              )
+                            })}
+                          </AnimatedReanimated.View>
+                        )}
                       </View>
                     </TouchableOpacity>
                   </View>
@@ -1281,12 +1331,12 @@ const styles = StyleSheet.create({
   stickyTop: { position: "absolute", top: 0, width: "100%", zIndex: 50, paddingTop: 45, paddingHorizontal: 20, paddingBottom: 5 },
   headerRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:5 },
   profileRow:{ flexDirection:"row", alignItems:"center", flexShrink: 1 },
-  profileImage:{ width:50, height:50, borderRadius:25, marginRight:10 },
+  profileImage:{ width:50, height:50, borderRadius:14, marginRight:10 },
   avatar:{ width:70, height:70, borderRadius:35, backgroundColor:"#16A34A", justifyContent:"center", alignItems:"center", elevation:5 },
   avatarText:{ color:"#fff", fontSize:26, fontWeight:"bold" },
   name:{ color:"white", fontSize:22, includeFontPadding:false, textAlignVertical:"center", flexShrink: 1 },
   notifyBtn:{ backgroundColor:"rgba(255,255,255,0.2)", padding:10, borderRadius:12 },
-  headerGlassCard:{ width:"100%", height:120, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, paddingVertical:16, paddingHorizontal:16, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)" },
+  headerGlassCard:{ width:"100%", height:120, backgroundColor:"rgba(255,255,255,0.22)", borderRadius:22, paddingTop:10, paddingBottom:16, paddingHorizontal:16, flexDirection:"row", justifyContent:"space-between", borderWidth:1, borderColor:"rgba(255,255,255,0.35)", overflow:"hidden" },
   drawerItem:{ flexDirection:"row", alignItems:"center", paddingVertical:14, borderBottomWidth:0.5, borderColor:"#E5E7EB", gap:12 },
   drawerText:{ fontSize:15, fontWeight:"600", color:"#1F2937" },
   openText:{ color:"white", fontSize:12, opacity:0.9 },
@@ -1310,16 +1360,16 @@ const styles = StyleSheet.create({
   headerDot:{ width:8, height:8, borderRadius:4, backgroundColor:"rgba(255,255,255,0.4)", marginHorizontal:4 },
   headerDotActive:{ backgroundColor:"white" },
   marketRow:{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", paddingVertical:8, borderBottomWidth:0.5, borderBottomColor:"rgba(255,255,255,0.15)" },
-  marketLeft:{ flex:1 },
-  marketHeaderRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:8, marginTop: -5 },
+  marketLeft:{ flex:1, paddingRight: 8 },
+  marketHeaderRow:{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:8, marginTop: -8 },
   marketTitleRow:{ flexDirection:"row", alignItems:"center", gap:6 },
   priceLoadingBox:{ flexDirection:"row", alignItems:"center", justifyContent:"center", gap:6, marginTop:10 },
   priceLoadingText:{ color:"white", fontSize:13, opacity:0.9 },
   marketTitle:{ color:"white", fontSize:16, fontWeight:"600", paddingTop: 2, paddingBottom: 4 },
-  marketSeeMore:{ flexDirection:"row", alignItems:"center", gap:4 },
-  marketRight:{ flexDirection:"row", alignItems:"center", justifyContent:"flex-end", minWidth:80, paddingLeft: 10 },
-  crop:{ color:"white", fontSize:15, fontWeight:"700", flexShrink: 1 },
-  marketName:{ color:"rgba(255,255,255,0.75)", fontSize:11, marginTop:2, flexShrink: 1 },
+  marketSeeMore:{ flexDirection:"row", alignItems:"center", gap:4, flexShrink: 0 },
+  marketRight:{ flexDirection:"row", alignItems:"center", justifyContent:"flex-end", minWidth:80, flexShrink: 0 },
+  crop:{ color:"white", fontSize:15, fontWeight:"500", flexShrink: 1 },
+  marketName:{ color:"rgba(255,255,255,0.8)", fontSize:12, marginTop:2, flexShrink: 1 },
   price:{ color:"white", fontSize:16, fontWeight:"bold", marginRight:6 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
   closeBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: "#E5E7EB", justifyContent: "center", alignItems: "center" },

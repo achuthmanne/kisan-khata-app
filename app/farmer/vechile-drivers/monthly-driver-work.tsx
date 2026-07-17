@@ -96,9 +96,9 @@ export default function MonthlyDriverHistory() {
   const initDriverWorksListener = useStore(state => state.initDriverWorksListener);
   const unsubDriverWorks = useStore(state => state.unsubDriverWorks);
 
-  const [cyclesLoaded, setCyclesLoaded] = useState(true); // Now we sync with store
-  const [entriesLoaded, setEntriesLoaded] = useState(true);
-  const [initialLoading, setInitialLoading] = useState(true); // Using this for Shimmer
+  const [cyclesLoaded, setCyclesLoaded] = useState(driverCyclesMap[`${vId as string}_${dId as string}`] !== undefined); 
+  const [entriesLoaded, setEntriesLoaded] = useState(driverWorksMap[`${vId as string}_${dId as string}`] !== undefined);
+  const [initialLoading, setInitialLoading] = useState(driverCyclesMap[`${vId as string}_${dId as string}`] === undefined || driverWorksMap[`${vId as string}_${dId as string}`] === undefined); 
   const loading = initialLoading;
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -930,12 +930,12 @@ export default function MonthlyDriverHistory() {
                             if (cycle.isCleared) {
                                 msg += `\n✔ *చెల్లింపు పూర్తయింది (Payment Cleared)*\n`;
                                 if (cycle.paymentMode) {
-                                    let pMode = cycle.paymentMode === "cash" ? "Cash" : cycle.paymentMode === "upi" ? "UPI" : "Cash + UPI";
+                                    let pMode = cycle.paymentMode === "cash" ? (language === "te" ? "క్యాష్" : "Cash") : cycle.paymentMode === "upi" ? (language === "te" ? "ఫోన్‌పే / యూపీఐ" : "PhonePe / UPI") : (language === "te" ? "క్యాష్ + ఫోన్‌పే / యూపీఐ" : "Cash + PhonePe / UPI");
                                     msg += `- చెల్లింపు విధానం: ${pMode}\n`;
-                                    if (cycle.paymentMode === "both") {
-                                        msg += `  • క్యాష్: ₹${cycle.splitCash || 0}\n`;
-                                        msg += `  • యూపీఐ: ₹${cycle.splitUpi || 0}\n`;
-                                    }
+                                      if (cycle.paymentMode === "both") {
+                                          msg += language === "te" ? `  • క్యాష్: ₹${cycle.splitCash || 0}\n` : `  • Cash: ₹${cycle.splitCash || 0}\n`;
+                                          msg += language === "te" ? `  • యూపీఐ: ₹${cycle.splitUpi || 0}\n` : `  • PhonePe / UPI: ₹${cycle.splitUpi || 0}\n`;
+                                      }
                                 }
                                 if (cycle.proofs && cycle.proofs.length > 0) {
                                     msg += `\n• *ఆధారాలు (Proofs):*\n`;
@@ -966,12 +966,12 @@ export default function MonthlyDriverHistory() {
                           flexDirection: "row",
                           alignItems: "center",
                           justifyContent: "center",
-                          backgroundColor: "#FEF2F2",
+                          backgroundColor: "#EFF6FF",
                           paddingVertical: 10,
                           borderRadius: 8,
                           marginTop: 15,
                           borderWidth: 1,
-                          borderColor: "#FECACA"
+                          borderColor: "#BFDBFE"
                         }}
                         onPress={() => {
                           router.push({
@@ -980,8 +980,8 @@ export default function MonthlyDriverHistory() {
                           });
                         }}
                       >
-                        <Ionicons name="calendar-outline" size={20} color="#DC2626" />
-                        <AppText style={{ color: "#DC2626", fontWeight: "600", marginLeft: 8 }}>
+                        <Ionicons name="calendar-outline" size={20} color="#2563EB" />
+                        <AppText style={{ color: "#2563EB", fontWeight: "600", marginLeft: 8 }}>
                           {language === "te" ? "ఒకేసారి ఎక్కువ సెలవులు నమోదు" : "Add Bulk Leaves"}
                         </AppText>
                       </TouchableOpacity>
@@ -1058,7 +1058,7 @@ export default function MonthlyDriverHistory() {
                                <View style={{ marginTop: 10, padding: 12, backgroundColor: "#F0FDF4", borderRadius: 8, borderWidth: 1, borderColor: "#DCFCE7" }}>
                                  {cycle.paymentMode && (
                                    <AppText style={{ color: "#16A34A", fontSize: 13, fontWeight: "600", marginBottom: cycle.paymentMode === "both" ? 2 : 6 }} language={language}>
-                                     {language === "te" ? "చెల్లింపు విధానం:" : "Payment Mode:"} {cycle.paymentMode === "cash" ? "Cash" : cycle.paymentMode === "upi" ? "UPI" : "Cash + UPI"}
+                                     {language === "te" ? "చెల్లింపు విధానం:" : "Payment Mode:"} {cycle.paymentMode === "cash" ? (language === "te" ? "క్యాష్" : "Cash") : cycle.paymentMode === "upi" ? (language === "te" ? "ఫోన్‌పే / యూపీఐ" : "PhonePe / UPI") : (language === "te" ? "క్యాష్ + ఫోన్‌పే / యూపీఐ" : "Cash + PhonePe / UPI")}
                                    </AppText>
                                  )}
                                  {cycle.paymentMode === "both" && (
@@ -1118,14 +1118,14 @@ export default function MonthlyDriverHistory() {
                            </View>
 
                            {isMissed && (
-                               <View style={{ backgroundColor: "#FEF2F2", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#FECACA", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                               <View style={{ backgroundColor: "#FEF3C7", borderRadius: 10, padding: 12, borderWidth: 1, borderColor: "#FDE68A", flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                                   <Ionicons name="warning" size={16} color="#7F1D1D" style={{ marginRight: 6 }} />
-                                   <AppText style={{ color: "#7F1D1D", fontWeight: "600", fontSize: 14 }}>{language === "te" ? "మిస్ అయ్యింది" : "Missed Entry"}</AppText>
+                                   <Ionicons name="warning" size={16} color="#D97706" style={{ marginRight: 6 }} />
+                                   <AppText style={{ color: "#D97706", fontWeight: "600", fontSize: 14 }}>{language === "te" ? "మిస్ అయ్యింది" : "Missed Entry"}</AppText>
                                  </View>
                                  {!cycle.isCleared && (
                                    <TouchableOpacity 
-                                      style={{ backgroundColor: "#DC2626", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
+                                      style={{ backgroundColor: "#F59E0B", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}
                                       onPress={() => router.push({
                                           pathname: "/farmer/vechile-drivers/add-monthly-driverwork",
                                           params: { vehicleId: vId, driverId: dId, cycleId: cycle.id, prefillDate: day.dateStr, prefillDateRaw: day.dateObj.toISOString(), balance: balance }
@@ -1452,10 +1452,10 @@ export default function MonthlyDriverHistory() {
       <Modal visible={showMissingDaysWarning} transparent animationType="fade">
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="warning-outline" size={36} color="#DC2626" />
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="warning-outline" size={36} color="#F59E0B" />
             </View>
-            <AppText style={[styles.modalTitleStandard, { color: "#DC2626" }]}>
+            <AppText style={[styles.modalTitleStandard, { color: "#F59E0B" }]}>
               {language === "te" ? "హాజరు పెండింగ్" : "Attendance Pending"}
             </AppText>
             <AppText style={styles.modalSubStandard}>
@@ -1464,7 +1464,7 @@ export default function MonthlyDriverHistory() {
                 : "Please mark attendance or leave for all missing days before locking."}
             </AppText>
             <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#DC2626", width: "100%" }]} onPress={() => setShowMissingDaysWarning(false)}>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#F59E0B", width: "100%" }]} onPress={() => setShowMissingDaysWarning(false)}>
                 <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "అర్థమైంది" : "Understood"}</AppText>
               </TouchableOpacity>
             </View>

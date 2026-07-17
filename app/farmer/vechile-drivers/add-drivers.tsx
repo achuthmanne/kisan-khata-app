@@ -529,7 +529,7 @@ export default function AddDriver() {
             onPress={() => setPaymentType("daily")}
           >
             <AppText style={[styles.pillText, { color: paymentType === "daily" ? "#fff" : "#4B5563" }]}>
-              {language === "te" ? "రోజువారీ (Daily)" : "Daily Worker"}
+              {language === "te" ? "రోజువారీ" : "Daily Worker"}
             </AppText>
           </TouchableOpacity>
           <TouchableOpacity activeOpacity={0.8}
@@ -537,7 +537,7 @@ export default function AddDriver() {
             onPress={() => setPaymentType("monthly")}
           >
             <AppText style={[styles.pillText, { color: paymentType === "monthly" ? "#fff" : "#4B5563" }]}>
-              {language === "te" ? "నెల జీతం (Monthly)" : "Monthly Salary"}
+              {language === "te" ? "నెల జీతం" : "Monthly Salary"}
             </AppText>
           </TouchableOpacity>
         </View>
@@ -690,10 +690,10 @@ export default function AddDriver() {
       <Modal visible={showLockInfo} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="lock-closed" size={36} color="#DC2626" />
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={[styles.modalTitleStandardInfo, { color: "#DC2626" }]} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
               {language === "te" ? "పేరు మార్చలేరు" : "Name Locked"}
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
@@ -701,13 +701,13 @@ export default function AddDriver() {
                 ? "ఈ డ్రైవర్ కి సంబంధించిన పని వివరాలు ఇప్పటికే రికార్డ్ అయినందున మీరు పేరును సవరించలేరు. కేవలం ఫోన్ నంబర్ మరియు గ్రామం మార్చుకోవచ్చు."
                 : "Since this driver has existing work records, you cannot change the name. You can only update the phone number and village."}
             </AppText>
-            <View style={styles.modalButtonsStandard}>
+            <View style={[styles.modalButtonsStandard, { justifyContent: "center" }]}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={[styles.modalInfoBtnStandard, { backgroundColor: "#DC2626" }]}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B", paddingVertical: 10, paddingHorizontal: 36, flex: 0 }]}
                 onPress={() => setShowLockInfo(false)}
               >
-                <AppText style={styles.modalInfoTextStandard} language={language}>
+                <AppText style={[styles.modalInfoTextStandard, { fontSize: 16 }]} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
                 </AppText>
               </TouchableOpacity>

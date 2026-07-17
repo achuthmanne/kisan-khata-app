@@ -99,7 +99,7 @@ export default function OwnersList() {
           .collection("users")
           .doc(phone)
           .collection("owners")
-          .where("session", "!=", session), true
+          .where("session", "!=", session), true, true
         );
             
         if (!pastSnap.empty) {

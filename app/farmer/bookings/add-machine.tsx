@@ -1,13 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
+import storage from "@react-native-firebase/storage";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,7 +18,8 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  Image
 } from "react-native";
 import MapView from "react-native-maps";
 
@@ -42,16 +44,15 @@ export default function AddMachine() {
   const [isListening, setIsListening] = useState(false);
   const [voiceTarget, setVoiceTarget] = useState<string | null>(null);
   
+  const [listingType, setListingType] = useState<"machine" | "labor">("machine");
   const [ownerName, setOwnerName] = useState("");
   const [phone, setPhone] = useState("");
-  const [equipment, setEquipment] = useState("");
-  const [operations, setOperations] = useState<string[]>([]);
-  // 🔥 SERVICE TYPE
+  const [listingName, setListingName] = useState("");
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploadRatio, setUploadRatio] = useState<number>(4/3);
   const [serviceType, setServiceType] = useState<"Rent" | "Work" | "Both" | "">("");
   
-  const [modalType1, setModalType1] = useState<"operations" | null>(null);
-  const [modalType, setModalType] = useState<"equipment" | null>(null);
-  const [searchText, setSearchText] = useState("");
+  const [showImageModal, setShowImageModal] = useState(false);
   
   const [statusModal, setStatusModal] = useState<{
     visible: boolean;
@@ -59,7 +60,6 @@ export default function AddMachine() {
     message: string;
   }>({ visible: false, type: "success", message: "" });
   const [successModal, setSuccessModal] = useState(false);
-  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   
   const [coords, setCoords] = useState<any>(null);
   const [locationText, setLocationText] = useState(
@@ -71,6 +71,7 @@ export default function AddMachine() {
 
   const nameRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
+  const listingNameRef = useRef<TextInput>(null);
 
   useEffect(() => {
     AsyncStorage.getItem("APP_LANG").then((l) => {
@@ -90,10 +91,11 @@ export default function AddMachine() {
       const doc = await executeOfflineSafeRead(firestore().collection("machines").doc(machineId as string), true);
       const data = doc.data(); 
       if (data) {
+        setListingType(data.listingType || "machine");
         setOwnerName(data.ownerName || "");
         setPhone(data.phone || "");
-        setEquipment(data.equipment || "");
-        setOperations(data.operations || []);
+        setListingName(data.listingName || data.equipment || "");
+        setImageUri(data.imageUri || data.image || null);
         setServiceType(data.serviceType || "");
         setLocationText(data.village || "");
         
@@ -229,8 +231,9 @@ export default function AddMachine() {
         setPhone(text.replace(/\D/g, "")); 
         if(errors.phone) setErrors({...errors, phone: ""});
         break;
-      case "operations": 
-        setSearchText(text); 
+      case "listingName": 
+        setListingName(text); 
+        if(errors.listingName) setErrors({...errors, listingName: ""});
         break;
     }
   });
@@ -244,134 +247,39 @@ export default function AddMachine() {
     return () => { ExpoSpeechRecognitionModule.stop(); };
   }, []);
 
-  const equipmentOptions = [
-    { en: "Tractor", te: "ట్రాక్టర్" },
-    { en: "Mini Tractor / Chota Tractor", te: "మినీ ట్రాక్టర్ / చిన్న ట్రాక్టర్" },
-    { en: "Power Tiller", te: "పవర్ టిల్లర్" },
-    { en: "Combine Harvester", te: "కంబైన్డ్ హార్వెస్టర్ (కోత మిషన్)" },
-    { en: "Paddy Transplanter", te: "వరి నాటు యంత్రం" },
-    { en: "Seed Drill", te: "విత్తన గొర్రు (సీడ్ డ్రిల్)" },
-    { en: "Tractor Mounted Sprayer / Machine Sprayer", te: "ట్రాక్టర్ స్ప్రేయర్ / యంత్రం స్ప్రేయర్" },
-    { en: "Drone Sprayer", te: "డ్రోన్ స్ప్రేయర్" },
-    { en: "Thresher", te: "నూర్పిడి యంత్రం (థ్రెషర్)" },
-    { en: "Baler", te: "గడ్డి కట్టల మిషన్ (బేలర్)" },
-    { en: "JCB / Backhoe", te: "జెసిబి (JCB)" },
-    { en: "Bulldozer / Crawler Dozer", te: "డొజర్ / బుల్‌డొజర్ (Dozer)" },
-    { en: "Chain Excavator / Poclain", te: "చెయిన్ ఎక్స్కవేటర్ / పొక్లెయిన్ (Poclain)" },
-    { en: "Auto Trolley / 3-Wheeler", te: "ఆటో ట్రాలీ / అప్పే ఆటో" },
-    { en: "TATA Ace / Mini Truck", te: "టాటా ఏస్ / చిన్న ఏనుగు (Mini Truck)" },
-    { en: "Digger / Post Hole Digger", te: "గుంతలు తీసే యంత్రం (డిగ్గర్)" },
-    { en: "Laser Land Leveler", te: "లేజర్ ల్యాండ్ లెవెలర్" },
-    { en: "Chaff Cutter", te: "గడ్డి కత్తిరించే యంత్రం (చాఫ్ కట్టర్)" },
-    { en: "Maize Sheller", te: "మొక్కజొన్న వొలిచే యంత్రం" },
-  ];
-  
-  const equipmentOperationsMap: Record<string, {en: string, te: string}[]> = {
-    "Tractor": [
-      { en: "Ploughing / Tilling", te: "దున్నడం (దుక్కి)" },
-      { en: "Rotavator Work", te: "రోటావేటర్ పని" },
-      { en: "Cultivation", te: "గుంటక / గొర్రు తోలడం" },
-      { en: "Loading & Transport", te: "లోడింగ్ మరియు రవాణా" },
-      { en: "Puddling", te: "దమ్ము చేయడం" }
-    ],
-    "Mini Tractor / Chota Tractor": [
-      { en: "Orchard Ploughing", te: "తోటల్లో దున్నడం" },
-      { en: "Spraying", te: "మందు పిచికారీ" },
-      { en: "Cultivation", te: "గుంటక తోలడం" },
-      { en: "Light Transport", te: "చిన్న సరుకుల రవాణా" }
-    ],
-    "Power Tiller": [
-      { en: "Puddling", te: "దమ్ము చేయడం" },
-      { en: "Weeding", te: "కలుపు తీయడం" },
-      { en: "Small Bed Preparation", te: "మడులు చేయడం" }
-    ],
-    "Combine Harvester": [
-      { en: "Paddy Harvesting", te: "వరి కోత" },
-      { en: "Maize Harvesting", te: "మొక్కజొన్న కోత" },
-      { en: "Wheat Harvesting", te: "గోధుమ కోత" }
-    ],
-    "Paddy Transplanter": [
-      { en: "Paddy Transplanting", te: "వరి నాట్లు వేయడం" }
-    ],
-    "Seed Drill": [
-      { en: "Sowing / Seeding", te: "విత్తనాలు వేయడం" },
-      { en: "Fertilizer Application", te: "ఎరువులు వేయడం" }
-    ],
-    "Tractor Mounted Sprayer / Machine Sprayer": [
-      { en: "Large Scale Spraying", te: "పెద్ద ఎత్తున మందు పిచికారీ" },
-      { en: "Pest & Disease Control", te: "పురుగులు & తెగుళ్ల నివారణ" }
-    ],
-    "Drone Sprayer": [
-      { en: "Nano Urea Spraying", te: "నానో యూరియా స్ప్రేయింగ్" },
-      { en: "Pesticide Spraying", te: "మందు పిచికారీ" }
-    ],
-    "Thresher": [
-      { en: "Paddy Threshing", te: "వరి నూర్పిడి" },
-      { en: "Maize Shelling", te: "మొక్కజొన్న వొలవడం" },
-      { en: "Pulse Threshing", te: "పప్పు దినుసుల నూర్పిడి" }
-    ],
-    "Baler": [
-      { en: "Straw Baling", te: "గడ్డి కట్టలు కట్టడం" },
-      { en: "Fodder Collection", te: "పశుగ్రాసం సేకరణ" }
-    ],
-    "JCB / Backhoe": [
-      { en: "Trenching / Digging", te: "కాలువలు / గుంతలు తీయడం" },
-      { en: "Bush & Forest Clearing", te: "పొదల శుభ్రత" },
-      { en: "Land Levelling", te: "సమతలీకరణ (లెవలింగ్)" },
-      { en: "Stump Removal", te: "మొద్దులు తొలగించడం" }
-    ],
-    "Bulldozer / Crawler Dozer": [
-      { en: "Land Clearing & Leveling", te: "భూమి చదును చేయడం" },
-      { en: "Pushing Soil & Debris", te: "మట్టి నెట్టడం" }
-    ],
-    "Chain Excavator / Poclain": [
-      { en: "Pond & Canal Digging", te: "చెరువులు/కాలువలు తవ్వడం" },
-      { en: "Large Stone Breaking", te: "రాళ్లను తొలగించడం" }
-    ],
-    "Auto Trolley / 3-Wheeler": [
-      { en: "Vegetable & Fruit Transport", te: "కూరగాయలు & పండ్ల రవాణా" },
-      { en: "Local Transport (Small Loads)", te: "స్థానిక రవాణా (చిన్న సరుకులు)" }
-    ],
-    "TATA Ace / Mini Truck": [
-      { en: "Crop Transport (Market)", te: "పంటను మార్కెట్‌కి తరలించడం" },
-      { en: "Fertilizer & Seed Transport", te: "ఎరువులు & విత్తనాల రవాణా" }
-    ],
-    "Digger / Post Hole Digger": [
-      { en: "Tree Plantation Digging", te: "మొక్కలు నాటడానికి గుంతలు" },
-      { en: "Fencing Pole Digging", te: "కంచె రాళ్ల కోసం గుంతలు" }
-    ],
-    "Laser Land Leveler": [
-      { en: "Precision Land Leveling", te: "ఖచ్చితమైన భూమి లెవలింగ్" }
-    ],
-    "Chaff Cutter": [
-      { en: "Grass Cutting", te: "గడ్డి కత్తిరించడం" },
-      { en: "Fodder Preparation", te: "పశుగ్రాసం తయారీ" }
-    ],
-    "Maize Sheller": [
-      { en: "Maize Shelling", te: "మొక్కజొన్న వొలవడం" }
-    ]
+  const handlePickImage = async (useCamera: boolean) => {
+    try {
+      setShowImageModal(false);
+      const options: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.2, 
+        base64: false, 
+      };
+      
+      let result;
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') return;
+        result = await ImagePicker.launchCameraAsync(options);
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') return;
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      }
+        
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImageUri(result.assets[0].uri);
+        if (result.assets[0].width && result.assets[0].height) {
+           setUploadRatio(result.assets[0].width / result.assets[0].height);
+        }
+        if (errors.image) setErrors({...errors, image: ""});
+      }
+    } catch (error) {
+      console.log("Image Pick Error:", error);
+    }
   };
 
-  const getMappedOperations = () => {
-    const eqObj = equipmentOptions.find(e => e.en === equipment || e.te === equipment);
-    if (!eqObj) return [];
-    return equipmentOperationsMap[eqObj.en] || [];
-  };
-
-  const baseOperations = getMappedOperations();
-  
-  const customOperations = operations
-    .filter(op => !baseOperations.some(b => b.en === op || b.te === op))
-    .map(op => ({ en: op, te: op, isCustom: true }));
-
-  const allAvailableOperations = [...baseOperations, ...customOperations];
-
-  const filteredOperations = allAvailableOperations.filter(item => {
-    const value = (language === "te" ? item.te : item.en).toLowerCase().trim();
-    return (value || "").includes(searchText.toLowerCase().trim());
-  });
-
-  const handleSave = async (bypassDuplicate = false) => {
+  const handleSave = async () => {
     if (loading) return;
 
     const newErrors: any = {};
@@ -383,11 +291,9 @@ export default function AddMachine() {
       newErrors.phone = language === "te" ? "సరైన ఫోన్ నంబర్ ఇవ్వండి*" : "Enter valid phone number*";
     }
 
-    if (!equipment) newErrors.equipment = language === "te" ? "యంత్రం ఎంచుకోండి*" : "Select equipment*";
-    if (operations.length === 0) newErrors.operations = language === "te" ? "కనీసం ఒక పని ఎంచుకోండి*" : "Select at least one operation*";
-    
-    if (!serviceType) newErrors.serviceType = language === "te" ? "అందుబాటు విధానాన్ని ఎంచుకోండి*" : "Select availability mode*";
-
+    if (!listingName.trim()) newErrors.listingName = language === "te" ? "వివరాలు నమోదు చేయండి*" : "Enter listing name*";
+    if (!imageUri) newErrors.image = language === "te" ? "ఒక ఫోటో ఎంచుకోండి*" : "Upload an image*";
+    if (listingType === "machine" && !serviceType) newErrors.serviceType = language === "te" ? "అందుబాటు విధానాన్ని ఎంచుకోండి*" : "Select availability mode*";
     if (!coords) newErrors.location = language === "te" ? "లొకేషన్ దొరకలేదు, దయచేసి మ్యాప్ లో ఎంచుకోండి*" : "Location not found, select on map*";
 
     if (Object.keys(newErrors).length > 0) {
@@ -402,12 +308,23 @@ export default function AddMachine() {
     setLoading(true);
 
     try {
+      let finalImageUri = imageUri;
+
+      // Upload image to Firebase Storage if it's a new local file
+      if (imageUri && !imageUri.startsWith("http")) {
+        const fileName = `machineImages/${userPhone}_${Date.now()}.jpg`;
+        const reference = storage().ref(fileName);
+        await reference.putFile(imageUri);
+        finalImageUri = await reference.getDownloadURL();
+      }
+
       const machineData = {
         ownerName: ownerName.trim(),
         phone: phone.trim(),
-        equipment,
-        operations,
-        serviceType, 
+        listingType,
+        listingName: listingName.trim(),
+        imageUri: finalImageUri,
+        serviceType: listingType === "labor" ? "Work" : serviceType, 
         latitude: coords.latitude,
         longitude: coords.longitude,
         village: locationText,
@@ -415,18 +332,6 @@ export default function AddMachine() {
       };
 
       const ref = firestore().collection("machines");
-
-      if (!isEditing && !bypassDuplicate) {
-        const duplicateCheck = await executeOfflineSafeRead(ref
-          .where("phone", "==", phone.trim())
-          .where("equipment", "==", equipment), true);
-
-        if (!duplicateCheck.empty) {
-          setLoading(false);
-          setShowDuplicateModal(true);
-          return;
-        }
-      }
 
       if (isEditing) {
         await executeOfflineSafeWrite(ref.doc(machineId as string).update(machineData));
@@ -450,12 +355,11 @@ export default function AddMachine() {
     }
   };
 
-  /* ---------------- UI ---------------- */
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" />
       <AppHeader
-        title={isEditing ? (language === "te" ? "వివరాలు సవరించండి" : "Edit Machine") : (language === "te" ? "యంత్రం జోడించండి" : "Add Machine")}
+        title={isEditing ? (language === "te" ? "వివరాలు సవరించండి" : "Edit Listing") : (language === "te" ? "వివరాలు జోడించండి" : "Add Listing")}
         subtitle={language === "te" ? "వివరాలు నమోదు చేయండి" : "Enter details"}
         language={language}
       />
@@ -464,22 +368,48 @@ export default function AddMachine() {
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
             
+            {/* 🔄 LISTING TYPE TOGGLE */}
+            <View style={styles.toggleContainer}>
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                onPress={() => setListingType("machine")}
+                style={[styles.toggleBtn, listingType === "machine" && styles.toggleActive]}
+              >
+                <MaterialCommunityIcons name="tractor" size={20} color={listingType === "machine" ? "#FFFFFF" : "#6B7280"} />
+                <AppText style={[styles.toggleText, listingType === "machine" && styles.toggleTextActive]}>
+                  {language === "te" ? "యంత్రం / వాహనం" : "Machine / Vehicle"}
+                </AppText>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                activeOpacity={0.8}
+                onPress={() => setListingType("labor")}
+                style={[styles.toggleBtn, listingType === "labor" && styles.toggleActive]}
+              >
+                <MaterialCommunityIcons name="account-hard-hat" size={20} color={listingType === "labor" ? "#FFFFFF" : "#6B7280"} />
+                <AppText style={[styles.toggleText, listingType === "labor" && styles.toggleTextActive]}>
+                  {language === "te" ? "కూలీ / ముఠా" : "Manual Labor"}
+                </AppText>
+              </TouchableOpacity>
+            </View>
+
             {/* 👤 NAME INPUT */}
             <TouchableOpacity
+              style={[styles.inputBox, activeInput === "name" && styles.inputFocused, errors.ownerName && styles.inputError]}
               activeOpacity={1}
               onPress={() => { setActiveInput("name"); nameRef.current?.focus(); }}
-              style={[styles.inputBox, activeInput === "name" && styles.inputFocused, errors.ownerName && styles.inputError]}
             >
               <Ionicons name="person-outline" size={20} color={ownerName || activeInput === "name" ? "#16A34A" : "#9CA3AF"} />
               <View style={styles.inputWrapper}>
                 {!ownerName && activeInput !== "name" && (
-                  <AppText style={{ color: "#9CA3AF", fontFamily: "Mandali" }}>{language === "te" ? "యజమాని పేరు*" : "Owner Name*"}</AppText>
+                  <AppText style={styles.placeholder}>
+                    {isListening && voiceTarget === "name" ? (language === "te" ? "వింటున్నాను..." : "Listening...") : (language === "te" ? "మీ పేరు*" : "Your Name*")}
+                  </AppText>
                 )}
                 <TextInput
                   ref={nameRef}
                   value={ownerName}
                   onChangeText={(txt) => { setOwnerName(txt); if (errors.ownerName) setErrors({ ...errors, ownerName: "" }); }}
-                  style={[styles.input, { display: (ownerName || activeInput === "name") ? "flex" : "none" }]}
+                  style={styles.input}
                   cursorColor={'#16A34A'}
                   selectionColor={'#16A34A40'}
                   onFocus={() => setActiveInput("name")}
@@ -487,11 +417,11 @@ export default function AddMachine() {
                 />
               </View>
               {ownerName && ownerName.trim().length > 0 ? (
-                <TouchableOpacity onPress={() => setOwnerName("")} style={styles.micBtn}>
+                <TouchableOpacity onPress={() => setOwnerName("")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <Ionicons name="close-circle" size={24} color="#9CA3AF" />
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity onPress={() => startVoice("name")} style={styles.micBtn}>
+                <TouchableOpacity onPress={() => startVoice("name")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <MaterialCommunityIcons name={isListening && voiceTarget === "name" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "name" ? "#EF4444" : (activeInput === "name" ? "#16A34A" : "#6B7280")} />
                 </TouchableOpacity>
               )}
@@ -500,14 +430,16 @@ export default function AddMachine() {
 
             {/* 📞 PHONE INPUT */}
             <TouchableOpacity
+              style={[styles.inputBox, activeInput === "phone" && styles.inputFocused, errors.phone && styles.inputError]}
               activeOpacity={1}
               onPress={() => { setActiveInput("phone"); phoneRef.current?.focus(); }}
-              style={[styles.inputBox, activeInput === "phone" && styles.inputFocused, errors.phone && styles.inputError]}
             >
               <Ionicons name="call-outline" size={20} color={phone || activeInput === "phone" ? "#16A34A" : "#9CA3AF"} />
               <View style={styles.inputWrapper}>
                 {!phone && activeInput !== "phone" && (
-                  <AppText style={{ color: "#9CA3AF", fontFamily: "Mandali" }}>{language === "te" ? "ఫోన్ నంబర్*" : "Phone Number*"}</AppText>
+                  <AppText style={styles.placeholder}>
+                    {isListening && voiceTarget === "phone" ? (language === "te" ? "వింటున్నాను..." : "Listening...") : (language === "te" ? "ఫోన్ నంబర్*" : "Phone Number*")}
+                  </AppText>
                 )}
                 <TextInput
                   ref={phoneRef}
@@ -517,142 +449,147 @@ export default function AddMachine() {
                   selectionColor={'#16A34A40'}
                   keyboardType="numeric"
                   maxLength={10}
-                  style={[styles.input, { display: (phone || activeInput === "phone") ? "flex" : "none" }]}
+                  style={styles.input}
                   onFocus={() => setActiveInput("phone")}
                   onBlur={() => setActiveInput(null)}
                 />
               </View>
               {phone && phone.trim().length > 0 ? (
-                <TouchableOpacity onPress={() => setPhone("")} style={styles.micBtn}>
+                <TouchableOpacity onPress={() => setPhone("")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <Ionicons name="close-circle" size={24} color="#9CA3AF" />
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity onPress={() => startVoice("phone")} style={styles.micBtn}>
+                <TouchableOpacity onPress={() => startVoice("phone")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                   <MaterialCommunityIcons name={isListening && voiceTarget === "phone" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "phone" ? "#EF4444" : (activeInput === "phone" ? "#16A34A" : "#6B7280")} />
                 </TouchableOpacity>
               )}
             </TouchableOpacity>
             {errors.phone && <AppText style={styles.errorText} language={language}>{errors.phone}</AppText>}
 
-            {/* 🚜 FIXED EQUIPMENT SELECT */}
+            {/* 📝 CUSTOM LISTING NAME INPUT */}
             <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.inputBox, modalType === "equipment" && styles.inputFocused, errors.equipment && styles.inputError]}
-              onPress={() => { setModalType("equipment"); setActiveInput("equipment"); if (errors.equipment) setErrors({ ...errors, equipment: "" }); }}
+              style={[styles.inputBox, activeInput === "listingName" && styles.inputFocused, errors.listingName && styles.inputError]}
+              activeOpacity={1}
+              onPress={() => { setActiveInput("listingName"); listingNameRef.current?.focus(); }}
             >
-              <MaterialCommunityIcons name="tractor-variant" size={22} color={equipment || modalType === "equipment" ? "#16A34A" : "#9CA3AF"} />
+              <MaterialCommunityIcons name={listingType === "machine" ? "tractor-variant" : "hammer-wrench"} size={20} color={listingName || activeInput === "listingName" ? "#16A34A" : "#9CA3AF"} />
               <View style={styles.inputWrapper}>
-                <AppText style={{ color: equipment ? "#1F2937" : "#9CA3AF", fontFamily: "Mandali" }}>
-                  {equipment || (language === "te" ? "యంత్రం ఎంచుకోండి*" : "Select Equipment*")}
-                </AppText>
+                {!listingName && activeInput !== "listingName" && (
+                  <AppText style={styles.placeholder}>
+                    {isListening && voiceTarget === "listingName" ? (language === "te" ? "వింటున్నాను..." : "Listening...") : (listingType === "machine" 
+                      ? (language === "te" ? "యంత్రం పేరు (ఉదా: ట్రాక్టర్)*" : "Machine Name (e.g. Tractor)*") 
+                      : (language === "te" ? "కూలీ / ముఠా పేరు (ఉదా: రాము గ్రూప్)*" : "Labor/Muta Name (e.g. Ramu Group)*"))}
+                  </AppText>
+                )}
+                <TextInput
+                  ref={listingNameRef}
+                  value={listingName}
+                  onChangeText={(txt) => { setListingName(txt); if (errors.listingName) setErrors({ ...errors, listingName: "" }); }}
+                  style={styles.input}
+                  cursorColor={'#16A34A'}
+                  selectionColor={'#16A34A40'}
+                  onFocus={() => setActiveInput("listingName")}
+                  onBlur={() => setActiveInput(null)}
+                />
               </View>
-              <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+              {listingName && listingName.trim().length > 0 ? (
+                <TouchableOpacity onPress={() => setListingName("")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => startVoice("listingName")} style={styles.micBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <MaterialCommunityIcons name={isListening && voiceTarget === "listingName" ? "microphone" : "microphone-outline"} size={24} color={isListening && voiceTarget === "listingName" ? "#EF4444" : (activeInput === "listingName" ? "#16A34A" : "#6B7280")} />
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
-            {errors.equipment && <AppText style={styles.errorText} language={language}>{errors.equipment}</AppText>}
+            {errors.listingName && <AppText style={styles.errorText} language={language}>{errors.listingName}</AppText>}
 
-            {/* ⚙️ DYNAMIC OPERATIONS */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.inputBox, modalType1 === "operations" && styles.inputFocused, errors.operations && styles.inputError]}
-              onPress={() => { 
-                if(!equipment) {
-                  setErrors({...errors, equipment: language === "te" ? "ముందుగా యంత్రాన్ని ఎంచుకోండి" : "Select equipment first"});
-                  return;
-                }
-                setModalType1("operations"); 
-                setActiveInput("operations"); 
-                if (errors.operations) setErrors({ ...errors, operations: "" }); 
-              }}
-            >
-              <Ionicons name="options-outline" size={20} color={operations.length || modalType1 === "operations" ? "#16A34A" : "#9CA3AF"} />
-              <View style={styles.inputWrapper}>
-                <AppText style={{ color: operations.length ? "#1F2937" : "#9CA3AF", fontFamily: "Mandali" }}>
-                  {operations.length ? `${operations.length} ${language === "te" ? "ఎంపిక చేయబడ్డాయి" : "Selected"}` : (language === "te" ? "పనులు ఎంచుకోండి*" : "Select Operations*")}
-                </AppText>
-              </View>
-              <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
-            </TouchableOpacity>
-            {errors.operations && <AppText style={styles.errorText} language={language}>{errors.operations}</AppText>}
-
-            {/* SELECTED CHIPS */}
-            {operations.length > 0 && (
-              <View style={{ marginBottom: 16 }}>
-                <AppText style={styles.selectedTitle}>{language === "te" ? "ఎంచుకున్న పనులు" : "Selected Operations"}</AppText>
-                <View style={styles.chipsContainer}>
-                  {operations.map((op, index) => (
-                    <View key={index} style={styles.chipBox}>
-                      <AppText style={styles.chipText}>{op}</AppText>
-                      <TouchableOpacity onPress={() => setOperations(prev => prev.filter(i => i !== op))}>
-                        <Ionicons name="close-circle" size={18} color="#166534" />
-                      </TouchableOpacity>
-                    </View>
-                  ))}
+            {/* 📸 IMAGE UPLOAD SECTION */}
+            <View style={{ marginBottom: 20 }}>
+              <AppText style={styles.selectedTitle}>{language === "te" ? "ఒక ఫోటో జోడించండి*" : "Upload an Image*"}</AppText>
+              
+              {imageUri ? (
+                <View style={[styles.uploadedImageBox, { aspectRatio: uploadRatio }]}>
+                  <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
+                  <TouchableOpacity style={styles.removeImageBtn} onPress={() => setImageUri(null)}>
+                    <Ionicons name="trash" size={20} color="white" />
+                  </TouchableOpacity>
                 </View>
+              ) : (
+                <TouchableOpacity activeOpacity={0.8} style={[styles.imageUploadBtn, errors.image && { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' }]} onPress={() => setShowImageModal(true)}>
+                  <Ionicons name="camera-outline" size={32} color={errors.image ? "#DC2626" : "#6B7280"} />
+                  <AppText style={{ color: errors.image ? "#DC2626" : "#6B7280", marginTop: 8, fontFamily: "Mandali" }}>
+                    {language === "te" ? "ఫోటో అప్‌లోడ్ చేయడానికి ఇక్కడ నొక్కండి" : "Tap here to upload a photo"}
+                  </AppText>
+                </TouchableOpacity>
+              )}
+              {errors.image && <AppText style={[styles.errorText, { marginTop: 4, marginLeft: 0 }]} language={language}>{errors.image}</AppText>}
+            </View>
+
+            {/* 🔥 NEW SECTION: RENT OR WORK (SERVICE TYPE) - ONLY FOR MACHINES */}
+            {listingType === "machine" && (
+              <View style={{ marginBottom: 20 }}>
+                <AppText style={styles.selectedTitle}>
+                  {language === "te" ? "అందుబాటు విధానం*" : "Availability Mode*"}
+                </AppText>
+                
+                <View style={styles.availRow}>
+                  {[
+                    { id: "Rent", en: "Rent Only", te: "అద్దెకు మాత్రమే", icon: "key-outline" },
+                    { id: "Work", en: "Provide Service", te: "పనులకు వెళ్తాం", icon: "cog-outline" },
+                    { id: "Both", en: "Rent & Service", te: "రెండింటికి", icon: "swap-horizontal-outline" }
+                  ].map((opt) => {
+                    const isActive = serviceType === opt.id;
+                    return (
+                      <TouchableOpacity
+                        key={opt.id}
+                        activeOpacity={0.7}
+                        style={[styles.availCard, isActive && styles.availCardActive]}
+                        onPress={() => {
+                          setServiceType(opt.id as any);
+                          if (errors.serviceType) setErrors({ ...errors, serviceType: "" });
+                        }}
+                      >
+                        <Ionicons name={opt.icon as any} size={20} color={isActive ? "#16A34A" : "#6B7280"} />
+                        <AppText style={[styles.availText, isActive && styles.availTextActive]}>
+                          {language === "te" ? opt.te : opt.en}
+                        </AppText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                {errors.serviceType && <AppText style={[styles.errorText, { marginTop: 8, marginLeft: 0 }]} language={language}>{errors.serviceType}</AppText>}
               </View>
             )}
-
-            {/* 🔥 NEW SECTION: RENT OR WORK (SERVICE TYPE) */}
-            <View style={{ marginBottom: 20 }}>
-              <AppText style={styles.selectedTitle}>
-                {language === "te" ? "అందుబాటు విధానం*" : "Availability Mode*"}
-              </AppText>
-              
-              <View style={styles.availRow}>
-                {[
-                  { id: "Rent", en: "Rent Only", te: "అద్దెకు మాత్రమే", icon: "key-outline" },
-                  { id: "Work", en: "Provide Service", te: "పనులకు వెళ్తాం", icon: "cog-outline" },
-                  { id: "Both", en: "Rent & Service", te: "రెండింటికి", icon: "swap-horizontal-outline" }
-                ].map((opt) => {
-                  const isActive = serviceType === opt.id;
-                  return (
-                    <TouchableOpacity
-                      key={opt.id}
-                      activeOpacity={0.7}
-                      style={[styles.availCard, isActive && styles.availCardActive]}
-                      onPress={() => {
-                        setServiceType(opt.id as any);
-                        if (errors.serviceType) setErrors({ ...errors, serviceType: "" });
-                      }}
-                    >
-                      <Ionicons name={opt.icon as any} size={20} color={isActive ? "#16A34A" : "#6B7280"} />
-                      <AppText style={[styles.availText, isActive && styles.availTextActive]}>
-                        {language === "te" ? opt.te : opt.en}
-                      </AppText>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {errors.serviceType && <AppText style={styles.errorText} language={language}>{errors.serviceType}</AppText>}
-            </View>
 
             {/* 📍 LOCATION */}
             <TouchableOpacity 
               activeOpacity={0.8}
               onPress={() => { setShowMapModal(true); if (errors.location) setErrors({ ...errors, location: "" }); }}
-              style={[styles.inputBox, !coords && { borderColor: '#FCA5A5' }, errors.location && styles.inputError]}
+              style={[styles.inputBox, { height: undefined, minHeight: 55, paddingVertical: 12, marginBottom: 8 }, !coords && { borderColor: '#FCA5A5' }, errors.location && styles.inputError]}
             >
               <Ionicons name="location" size={20} color={coords ? "#16A34A" : "#EF4444"} />
-              <View style={styles.inputWrapper}>
-                <AppText style={{ color: coords ? "#1F2937" : "#EF4444", fontSize: 14, fontFamily: "Mandali" }} numberOfLines={1}>{locationText}</AppText>
+              <View style={[styles.inputWrapper, { paddingRight: 8 }]}>
+                <AppText style={{ color: coords ? "#1F2937" : "#EF4444", fontSize: 14, fontFamily: "Mandali", lineHeight: 22 }}>{locationText}</AppText>
               </View>
               <View style={styles.blueMapBtn}>
                 <MaterialCommunityIcons name="map-marker-radius" size={20} color="#2563EB" />
               </View>
             </TouchableOpacity>
-            {errors.location && <AppText style={styles.errorText} language={language}>{errors.location}</AppText>}
+            {errors.location && <AppText style={[styles.errorText, { marginTop: -4, marginBottom: 8 }]} language={language}>{errors.location}</AppText>}
 
             {/* ⚠️ LOCATION WARNING */}
             <View style={styles.locationNoteBox}>
               <Ionicons name="information-circle-outline" size={16} color="#B91C1C" />
               <AppText style={styles.locationNoteText}>
-                {language === "te" ? `గమనిక: ${equipment ? equipment : "మెషీన్"} ఉన్న చోట నుండి మాత్రమే వివరాలను నమోదు చేయండి. లొకేషన్ మార్చుకోవడానికి పైనున్న బ్లూ బటన్ ని నొక్కండి.` : `Note: Add details only when you are at the ${equipment ? equipment : "machine"}'s location. Click the blue map icon above to adjust your location.`}
+                {language === "te" ? `గమనిక: యంత్రం/కూలీలు ఉన్న చోట నుండి మాత్రమే వివరాలను నమోదు చేయండి. లొకేషన్ మార్చుకోవడానికి పైనున్న బ్లూ బటన్ ని నొక్కండి.` : `Note: Add details only when you are at the correct location. Click the blue map icon above to adjust your location.`}
               </AppText>
             </View>
 
             {/* SAVE BUTTON */}
-            <TouchableOpacity activeOpacity={0.8} style={styles.saveBtn} onPress={() => handleSave(false)}>
+            <TouchableOpacity activeOpacity={0.8} style={styles.saveBtn} onPress={() => handleSave()}>
               <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.saveGradient}>
-                <AppText style={styles.saveText}>{isEditing ? (language === "te" ? "సవరించండి" : "Update Machine") : (language === "te" ? "భద్రపరచండి" : "Save Machine")}</AppText>
+                <AppText style={styles.saveText}>{isEditing ? (language === "te" ? "సవరించండి" : "Update Listing") : (language === "te" ? "నమోదు చేయండి" : "Register")}</AppText>
               </LinearGradient>
             </TouchableOpacity>
 
@@ -678,11 +615,11 @@ export default function AddMachine() {
             <Ionicons name="location-sharp" size={46} color="#DC2626" />
           </View>
 
-          <SafeAreaView style={styles.mapTopArea}>
+          <View style={styles.mapTopArea}>
             <TouchableOpacity activeOpacity={0.8} onPress={() => setShowMapModal(false)} style={styles.simpleBackBtn}>
               <Ionicons name="chevron-back" size={24} color="#111827" />
             </TouchableOpacity>
-          </SafeAreaView>
+          </View>
 
           <View style={styles.bottomContainer}>
             <TouchableOpacity activeOpacity={0.8} style={styles.simpleLocateBtn} onPress={fetchLocation}>
@@ -691,8 +628,8 @@ export default function AddMachine() {
 
             <View style={styles.minimalBottomCard}>
               <View style={styles.addressRow}>
-                <Ionicons name="location" size={24} color="#16A34A" />
-                <AppText style={styles.minimalAddress} numberOfLines={2}>{locationText}</AppText>
+                <Ionicons name="location" size={24} color="#16A34A" style={{ marginTop: 2 }} />
+                <AppText style={styles.minimalAddress}>{locationText}</AppText>
               </View>
               <TouchableOpacity activeOpacity={0.85} onPress={() => setShowMapModal(false)}>
                 <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.minimalConfirmBtn}>
@@ -704,304 +641,227 @@ export default function AddMachine() {
         </View>
       </Modal>
 
-      {/* 🚜 EQUIPMENT MODAL (Search Bar Removed, Fixed List) */}
-      <Modal visible={modalType === "equipment"} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <AppText style={styles.modalTitleText}>{language === "te" ? "యంత్రం ఎంచుకోండి" : "Select Equipment"}</AppText>
-              <TouchableOpacity onPress={() => { setModalType(null); setActiveInput(null); }}>
-                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+      {/* 📸 IMAGE UPLOAD MODAL */}
+      <Modal visible={showImageModal} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowImageModal(false)}>
+          <View style={styles.imageActionSheet}>
+            <View style={styles.sheetHandle} />
+            
+            <View style={styles.sheetHeaderRow}>
+              <AppText style={styles.sheetTitle}>{language === "te" ? "ఫోటో ఎంచుకోండి" : "Select Photo"}</AppText>
+              <TouchableOpacity onPress={() => setShowImageModal(false)} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                <Ionicons name="close-circle" size={26} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
             
-            <FlatList
-              data={equipmentOptions}
-              keyExtractor={(item, i) => i.toString()}
-              renderItem={({ item }) => {
-                const label = language === "te" ? item.te : item.en;
-                const isSelected = equipment === label;
-                return (
-                  <TouchableOpacity
-                    style={styles.categoryItem}
-                    onPress={() => { 
-                      const newEq = label;
-                      if(equipment !== newEq) setOperations([]); // Reset operations if equipment changes
-                      setEquipment(newEq); 
-                      setModalType(null); 
-                      setActiveInput(null); 
-                    }}
-                  >
-                    <AppText style={{ color: isSelected ? "#16A34A" : "#1F2937", fontWeight: isSelected ? "600" : "400" }}>{label}</AppText>
-                    {isSelected && <Ionicons name="checkmark-circle" size={22} color="#16A34A" />}
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </View>
-      </Modal>
-
-      {/* ⚙️ OPERATIONS MODAL (Dynamic based on Equipment) */}
-      <Modal visible={modalType1 === "operations"} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <AppText style={styles.modalTitleText}>{language === "te" ? "పనులు ఎంచుకోండి" : "Select Operations"}</AppText>
-              <TouchableOpacity onPress={() => { setModalType1(null); setActiveInput(null); }}>
-                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-            
-            {/* SEARCH BAR WITH CUSTOM ADD BTN (+) */}
-            <View style={[styles.searchBar, { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 12, marginTop: 10 }]}>
-              <TextInput
-                autoFocus
-                placeholder={language === "te" ? "టైప్ చేయండి..." : "Type operation..."}
-                value={searchText}
-                placeholderTextColor="#9CA3AF"
-                cursorColor="#16A34A"
-                onChangeText={(text) => setSearchText(text)}
-                style={[styles.searchInput, { fontFamily: "Mandali", color: "#1F2937" }]}
-              />
-              
-              {/* 🔥 NEW GREEN (+) BUTTON FOR CUSTOM ADD */}
-              {searchText.trim().length > 0 && (
-                <TouchableOpacity 
-                  onPress={() => {
-                    const newOp = searchText.trim();
-                    if (!operations.includes(newOp)) setOperations(prev => [...prev, newOp]);
-                    setSearchText("");
-                  }} 
-                  style={styles.addCustomBtn}
-                >
-                  <Ionicons name="add" size={20} color="#fff" />
-                </TouchableOpacity>
-              )}
-
-              {searchText && searchText.trim().length > 0 ? (
-                <TouchableOpacity onPress={() => setSearchText("")} style={styles.voiceBtnSearch}>
-                  <Ionicons name="close-circle" size={24} color="#9CA3AF" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={() => startVoice("operations")} style={styles.voiceBtnSearch}>
-                  <MaterialCommunityIcons name={isListening && voiceTarget === "operations" ? "microphone" : "microphone-outline"} size={20} color={isListening && voiceTarget === "operations" ? "#EF4444" : "#16A34A"} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <FlatList
-              data={filteredOperations}
-              keyExtractor={(item, i) => i.toString()}
-              ListEmptyComponent={() => (
-                <View style={{ padding: 20, alignItems: 'center' }}>
-                  <AppText style={{ color: '#9CA3AF' }}>{language === "te" ? "పైన టైప్ చేసి + నొక్కండి" : "Type above and press +"}</AppText>
-                </View>
-              )}
-              renderItem={({ item }) => {
-                const label = language === "te" ? item.te : item.en;
-                const selected = operations.includes(label);
-                return (
-                  <TouchableOpacity
-                    style={styles.categoryItem}
-                    onPress={() => setOperations(prev => selected ? prev.filter(i => i !== label) : [...prev, label])}
-                  >
-                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
-                      <AppText>{label}</AppText>
-                      {(item as any).isCustom && <AppText style={{fontSize: 10, color: '#2563EB', marginLeft: 8}}>(Custom)</AppText>}
-                    </View>
-                    <Ionicons name={selected ? "checkbox" : "square-outline"} size={22} color={selected ? "#16A34A" : "#9CA3AF"} />
-                  </TouchableOpacity>
-                );
-              }}
-            />
-            
-            {operations.length > 0 && (
-              <View style={styles.modalFooter}>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => { setModalType1(null); setSearchText(""); setActiveInput(null); }}>
-                  <LinearGradient colors={["#2E7D32", "#1B5E20"]} style={styles.modalDoneBtn}>
-                    <AppText style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>{language === "te" ? "పూర్తయింది" : "Done"}</AppText>
-                  </LinearGradient>
-                </TouchableOpacity>
+            <TouchableOpacity style={styles.sheetBtn} onPress={() => handlePickImage(true)}>
+              <View style={[styles.sheetIconBox, { backgroundColor: "#DBEAFE" }]}>
+                <Ionicons name="camera" size={24} color="#2563EB" />
               </View>
-            )}
-
+              <AppText style={styles.sheetBtnText}>{language === "te" ? "కెమెరా తెరవండి" : "Take Photo"}</AppText>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.sheetBtn} onPress={() => handlePickImage(false)}>
+              <View style={[styles.sheetIconBox, { backgroundColor: "#D1FAE5" }]}>
+                <Ionicons name="images" size={24} color="#059669" />
+              </View>
+              <AppText style={styles.sheetBtnText}>{language === "te" ? "గ్యాలరీ నుండి ఎంచుకోండి" : "Choose from Gallery"}</AppText>
+            </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
 
-      {/* STATUS & SUCCESS MODALS */}
-      <Modal visible={statusModal.visible} transparent animationType="fade">
-        <View style={styles.statusOverlay}>
-          <View style={styles.statusContent}>
-            <View style={[styles.iconCircle, { backgroundColor: statusModal.type === "warning" ? "#FFFBEB" : "#F0FDF4" }]}>
-              <Ionicons name={statusModal.type === "warning" ? "alert-circle" : "checkmark-circle"} size={50} color={statusModal.type === "warning" ? "#F59E0B" : "#16A34A"} />
+      {/* SUCCESS MODAL */}
+      <Modal visible={successModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.successModalContent, { width: "85%", paddingVertical: 32, elevation: 15, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 20 }]}>
+            <View style={[styles.successIconCircle, { width: 80, height: 80, borderRadius: 40, marginBottom: 20, backgroundColor: "#DCFCE7", borderWidth: 3, borderColor: "#16A34A" }]}>
+              <Ionicons name="checkmark-done" size={44} color="#16A34A" />
             </View>
-            <AppText style={styles.statusTitle}>{statusModal.type === "warning" ? (language === "te" ? "గమనిక!" : "Attention!") : (language === "te" ? "విజయం!" : "Success!") }</AppText>
-            <AppText style={styles.statusDescription}>{statusModal.message}</AppText>
-            <TouchableOpacity activeOpacity={0.8} style={[styles.statusActionBtn, { backgroundColor: statusModal.type === "warning" ? "#F59E0B" : "#16A34A" }]} onPress={() => setStatusModal({ ...statusModal, visible: false })}>
-              <AppText style={styles.statusActionText}>{language === "te" ? "సరే, అర్థమైంది" : "OK, Got it"}</AppText>
+            <AppText style={[styles.successTitleText, { fontSize: 22, color: "#16A34A", textAlign: "center" }]}>
+              {language === "te" ? "అభినందనలు! 🎉" : "Congratulations! 🎉"}
+            </AppText>
+            <AppText style={[styles.successSubText, { fontSize: 16, lineHeight: 24, marginTop: 10, marginBottom: 30, color: "#4B5563" }]}>
+              {language === "te" 
+                ? `మీ ${listingType === "labor" ? "కూలీల బృందం" : "యంత్రం"} కిసాన్ ఖాతాలో విజయవంతంగా నమోదైంది. మాతో చేరినందుకు ధన్యవాదాలు!` 
+                : `Your ${listingType === "labor" ? "labour group" : "machine"} has been successfully registered on Kisan Khata. Thank you for joining us!`}
+            </AppText>
+            <TouchableOpacity activeOpacity={0.8} style={[styles.saveBtn, { width: "100%", marginTop: 10 }]} onPress={() => { setSuccessModal(false); router.back(); }}>
+              <LinearGradient colors={["#16A34A", "#15803D"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveGradient}>
+                <AppText style={styles.saveText}>{language === "te" ? "కొనసాగించండి" : "Continue"}</AppText>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* 🔥 DYNAMIC SUCCESS MODAL BASED ON SERVICE TYPE */}
-      <Modal visible={successModal} transparent animationType="fade">
-        <View style={styles.successOverlay}>
-          <View style={styles.successBox}>
-            <View style={styles.successIcon}><Ionicons name="checkmark-done-circle" size={60} color="#16A34A" /></View>
-            <AppText style={styles.successTitle}>{language === "te" ? "విజయం!" : "Success!"}</AppText>
-           <AppText style={styles.successMsg}>
-              {isEditing 
-                ? (language === "te" 
-                    ? "మీ యంత్ర వివరాలు విజయవంతంగా అప్‌డేట్ అయ్యాయి!" 
-                    : "Your machine details have been updated successfully!") 
-                : (language === "te" 
-                    ? "అగ్రి కనెక్ట్ లో మీ యంత్రాన్ని జోడించినందుకు ధన్యవాదాలు! ఇకపై అవసరం ఉన్న రైతులు నేరుగా మీకు ఫోన్ చేసి మాట్లాడతారు." 
-                    : "Thank you for adding your machine to AgriConnect! Farmers in need will now call and contact you directly.")
-              }
-            </AppText>
-            <View style={{ width: "100%" }}>
-              <TouchableOpacity activeOpacity={0.8} style={[styles.successBtn, { backgroundColor: "#0a7130" }]} onPress={() => { setSuccessModal(false); router.replace("/farmer/bookings"); }}>
-                <AppText style={styles.successBtnText}>{language === "te" ? "పూర్తయింది" : "Done"}</AppText>
-              </TouchableOpacity>
+      {/* STATUS MODAL (ERRORS) */}
+      <Modal visible={statusModal.visible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.successModalContent}>
+            <View style={[styles.successIconCircle, { backgroundColor: statusModal.type === "error" ? "#EF4444" : "#F59E0B" }]}>
+              <Ionicons name={statusModal.type === "error" ? "close" : "warning"} size={40} color="white" />
             </View>
+            <AppText style={styles.successTitleText}>{statusModal.type === "error" ? (language === "te" ? "లోపం" : "Error") : "Warning"}</AppText>
+            <AppText style={styles.successSubText}>{statusModal.message}</AppText>
+            <TouchableOpacity style={[styles.successOkBtn, { backgroundColor: statusModal.type === "error" ? "#EF4444" : "#F59E0B" }]} onPress={() => setStatusModal({ ...statusModal, visible: false })}>
+              <AppText style={styles.successOkText}>{language === "te" ? "సరే" : "OK"}</AppText>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* 🔥 DUPLICATE ENTRY WARNING MODAL */}
-      <Modal visible={showDuplicateModal} transparent animationType="fade" statusBarTranslucent>
-        <View style={styles.modalOverlayStandard}>
-          <View style={styles.modalContentStandard}>
-            <View style={styles.modalIconBgStandardInfo}>
-              <Ionicons name="copy-outline" size={36} color="#3B82F6" />
-            </View>
-            <AppText style={styles.modalTitleStandardInfo}>
-              {language === "te" ? "ఇప్పటికే నమోదు అయి ఉంది!" : "Duplicate Entry!"}
-            </AppText>
-            <AppText style={styles.modalSubStandard}>
-              {language === "te" ? "సరిగ్గా ఇదే మెషీన్ మరియు ఫోన్ నంబర్ తో వివరాలు ఇప్పటికే ఉన్నాయి.\n\nమీరు ఖచ్చితంగా మళ్లీ జతచేయాలనుకుంటున్నారా?" : "An exact machine and phone number entry already exists.\n\nAre you sure you want to add this duplicate entry?"}
-            </AppText>
-            <View style={styles.modalButtonsStandard}>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setShowDuplicateModal(false)}>
-                <AppText style={styles.modalCancelTextStandard}>{language === 'te' ? "వద్దు" : "Cancel"}</AppText>
-              </TouchableOpacity>
-              <TouchableOpacity activeOpacity={0.8} style={styles.modalInfoBtnStandard}
-                onPress={() => { setShowDuplicateModal(false); handleSave(true); }}
-              >
-                <AppText style={styles.modalInfoTextStandard}>{language === 'te' ? "అవును, సేవ్ చేయి" : "Yes, Save"}</AppText>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <AgriLoader visible={loading} type="saving" language={language} />
+      <AgriLoader visible={loading} />
     </SafeAreaView>
   );
 }
 
-/* ---------------- STYLES ---------------- */
-
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F6F7F6" },
-  scrollContainer: { paddingBottom: 150 },
-  container: { padding: 20 },
+  safe: { flex: 1, backgroundColor: "#F9FAFB" },
+  scrollContainer: { paddingBottom: 40 },
+  container: { padding: 16 },
   
-  inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 12, paddingHorizontal: 15, height: 55, marginBottom: 16, borderWidth: 1, borderColor: "#D1D5DB" },
-  inputFocused: { borderColor: "#16A34A", backgroundColor: "#FFFFFF", shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  inputError: { borderColor: "#EF4444" },
-  errorText: { color: "#EF4444", fontSize: 12, fontFamily: "Mandali", marginTop: -10, marginBottom: 10, marginLeft: 4 },
-  inputWrapper: { flex: 1, justifyContent: "center", marginLeft: 10 },
-  input: { flex: 1, fontSize: 16, fontFamily: "Mandali", textAlignVertical: "center", includeFontPadding: false },
-  
-  micBtn: { marginLeft: 10, padding: 4 },
-  blueMapBtn: { backgroundColor: '#EFF6FF', padding: 8, borderRadius: 10, marginLeft: 10 },
-  
-  addCustomBtn: { marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#16A34A", justifyContent: "center", alignItems: "center" },
-  voiceBtnSearch: { marginLeft: 10, padding: 6, borderRadius: 10, backgroundColor: "#E5E7EB" },
-
-  // 🔥 NEW AVAILABILITY CARDS
-  availRow: { flexDirection: "row", gap: 8, marginBottom: 10 },
-  availCard: { flex: 1, paddingVertical: 12, alignItems: "center", borderRadius: 12, borderWidth: 1, borderColor: "#D1D5DB", backgroundColor: "#F9FAFB" },
-  availCardActive: { borderColor: "#16A34A", backgroundColor: "#F0FDF4" },
-  availText: { fontSize: 13, color: "#4B5563", marginTop: 6, fontFamily: "Mandali", textAlign: "center" },
-  availTextActive: { color: "#166534", fontWeight: "600" },
-
-  saveBtn: { marginTop: 10, borderRadius: 18, overflow: "hidden" },
-  saveGradient: { height: 56, justifyContent: "center", alignItems: "center" },
-  saveText: { color: "#fff", fontSize: 16, fontWeight: "600" },
-
-  selectedTitle: { fontSize: 13, color: "#6B7280", marginBottom: 6, marginLeft: 4 },
-  chipsContainer: { flexDirection: "row", flexWrap: "wrap" },
-  chipBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#DCFCE7", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginRight: 8, marginBottom: 8 },
-  chipText: { fontSize: 13, color: "#166534", marginRight: 6 },
-  
-  categoryItem: { padding: 18, flexDirection: "row", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
-
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", padding: 20, alignItems: "center" },
-  modalTitleText: { fontSize: 18, fontWeight: "600" },
-  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#F3F4F6", margin: 20, borderRadius: 18, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
-  searchInput: { flex: 1, height: 50 },
-  
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#fff", height: "65%", borderTopLeftRadius: 25, borderTopRightRadius: 25 },
-  
-  modalFooter: { padding: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6', backgroundColor: '#fff' },
-  modalDoneBtn: { height: 50, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-
-  locationNoteBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 10, borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#FEE2E2', marginHorizontal: 4 },
-  locationNoteText: { fontSize: 12, color: '#B91C1C', marginLeft: 6, flex: 1, fontFamily: "Mandali" },
-
-  centerPinWrapper: { position: 'absolute', top: '50%', left: '50%', marginTop: -40, marginLeft: -23, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 5 },
-  mapTopArea: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 50, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  simpleBackBtn: { width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  bottomContainer: { position: 'absolute', bottom: 0, width: '100%' },
-  simpleLocateBtn: { position: 'absolute', bottom: "100%", right: 20, marginBottom: 15, width: 44, height: 44, backgroundColor: '#fff', borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
-  
-  minimalBottomCard: { width: '100%', backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: Platform.OS === 'ios' ? 35 : 20, elevation: 15, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
-  addressRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 12 },
-  minimalAddress: { flex: 1, fontSize: 13, color: '#4B5563', lineHeight: 18, fontFamily: "Mandali" },
-  minimalConfirmBtn: { 
-    paddingVertical: 10, 
-    borderRadius: 10, 
-    alignItems: 'center', 
-    justifyContent: 'center',
-    elevation: 3, 
-    shadowColor: '#16A34A', 
-    shadowOffset: { width: 0, height: 3 }, 
-    shadowOpacity: 0.25, 
-    shadowRadius: 5 
+  toggleContainer: {
+    flexDirection: "row",
+    backgroundColor: "#E5E7EB",
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 15,
   },
-  minimalConfirmText: { color: '#fff', fontSize: 14, fontWeight: '600', fontFamily: "Mandali" },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 6,
+  },
+  toggleActive: {
+    backgroundColor: "#1B5E20",
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280"
+  },
+  toggleTextActive: {
+    color: "#ffffff",
+    fontWeight: "600"
+  },
 
-  statusOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 20 },
-  statusContent: { width: "100%", maxWidth: 340, backgroundColor: "#fff", borderRadius: 30, padding: 25, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
-  iconCircle: { width: 90, height: 90, borderRadius: 45, justifyContent: "center", alignItems: "center", marginBottom: 20 },
-  statusTitle: { fontSize: 22, fontWeight: "600", color: "#1F2937", marginBottom: 10, fontFamily: "Mandali" },
-  statusDescription: { fontSize: 16, textAlign: "center", color: "#6B7280", lineHeight: 24, marginBottom: 25, fontFamily: "Mandali", paddingHorizontal: 10 },
-  statusActionBtn: { width: "100%", height: 55, borderRadius: 18, justifyContent: "center", alignItems: "center" },
-  statusActionText: { color: "#fff", fontSize: 17, fontWeight: "600", fontFamily: "Mandali" },
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 55,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#D1D5DB"
+  },
+  inputFocused: {
+    borderColor: "#16A34A",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputError: { borderColor: "#EF4444" },
+  inputWrapper: { flex: 1, marginLeft: 12, justifyContent: 'center' },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: "#1F2937",
+    fontFamily: "Mandali",
+    textAlignVertical: "center",
+    includeFontPadding: false,
+  },
+  placeholder: {
+    position: "absolute",
+    fontSize: 16,
+    color: "#9CA3AF",
+    fontFamily: "Mandali"
+  },
+  micBtn: { marginLeft: 10, padding: 4 },
+  errorText: { color: "#EF4444", fontSize: 12, fontFamily: "Mandali", marginTop: -12, marginBottom: 12, marginLeft: 5 },
+
+  imageUploadBtn: {
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1.5,
+    borderColor: "#D1D5DB",
+    borderStyle: "dashed",
+    borderRadius: 12,
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  uploadedImageBox: { width: "100%", borderRadius: 16, overflow: "hidden", position: "relative", borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" },
+  uploadedImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  removeImageBtn: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+
+  selectedTitle: { fontSize: 15, fontWeight: "600", color: "#374151", marginBottom: 10 },
   
-  successOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 20 },
-  successBox: { width: "100%", maxWidth: 340, backgroundColor: "#fff", borderRadius: 28, padding: 25, alignItems: "center" },
-  successIcon: { marginBottom: 15 },
-  successTitle: { fontSize: 22, fontWeight: "600", marginBottom: 8 },
-  successMsg: { textAlign: "center", color: "#6B7280", marginBottom: 20, lineHeight: 22 },
-  successBtn: { height: 50, borderRadius: 14, justifyContent: "center", alignItems: "center" },
-  successBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
+  availRow: { flexDirection: "row", gap: 10 },
+  availCard: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 12,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  availCardActive: { backgroundColor: "#F0FDF4", borderColor: "#16A34A" },
+  availText: { fontSize: 12, color: "#4B5563", marginTop: 4, textAlign: "center" },
+  availTextActive: { color: "#16A34A", fontWeight: "600" },
 
-  // UNIFIED PREMIUM MODAL CLASSES (DUPLICATE BLUE INFO THEME & RED VALIDATION)
-  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
-  modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
-  modalSubStandard: { textAlign: "center", color: "#64748B", marginTop: 8, marginBottom: 25, fontSize: 14, lineHeight: 22 },
-  modalButtonsStandard: { flexDirection: "row", gap: 12, width: '100%' },
-  modalIconBgStandardInfo: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#DBEAFE", justifyContent: "center", alignItems: "center", marginBottom: 12 },
-  modalTitleStandardInfo: { fontSize: 20, fontWeight: "600", color: "#2563EB", marginTop: 10, textAlign: "center" },
-  modalInfoBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#3B82F6", alignItems: "center", justifyContent: "center" },
-  modalInfoTextStandard: { color: "white", fontWeight: "600" },
-  modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
-  modalCancelTextStandard: { color: "#4B5563", fontWeight: "600" }
+  blueMapBtn: { backgroundColor: "#EFF6FF", padding: 8, borderRadius: 8, marginLeft: 8 },
+
+  locationNoteBox: { flexDirection: "row", backgroundColor: "#FEF2F2", padding: 12, borderRadius: 12, borderWidth: 1, borderColor: "#FCA5A5", marginTop: 0, marginBottom: 15, alignItems: "center" },
+  locationNoteText: { fontSize: 12, color: "#991B1B", fontFamily: "Mandali", marginLeft: 8, flex: 1, lineHeight: 18 },
+
+  saveBtn: { marginTop: 5, borderRadius: 18, overflow: "hidden" },
+  saveGradient: { height: 52, justifyContent: "center", alignItems: "center" },
+  saveText: { color: "white", fontSize: 15, fontWeight: "600" },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  imageActionSheet: { backgroundColor: "white", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === "ios" ? 40 : 24 },
+  sheetHandle: { width: 40, height: 4, backgroundColor: "#D1D5DB", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  sheetHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
+  sheetTitle: { fontSize: 18, fontWeight: "600", color: "#1F2937" },
+  sheetBtn: { flexDirection: "row", alignItems: "center", marginBottom: 16, backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12 },
+  sheetIconBox: { width: 40, height: 40, borderRadius: 20, justifyContent: "center", alignItems: "center", marginRight: 16 },
+  sheetBtnText: { fontSize: 16, color: "#1F2937", fontWeight: "500" },
+
+  successModalContent: { backgroundColor: "white", margin: 30, borderRadius: 20, padding: 24, alignItems: "center", alignSelf: "center", width: "80%" },
+  successIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#16A34A", justifyContent: "center", alignItems: "center", marginBottom: 16 },
+  successTitleText: { fontSize: 20, fontWeight: "600", color: "#1F2937", marginBottom: 8 },
+  successSubText: { fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 24, fontFamily: "Mandali" },
+  successOkBtn: { backgroundColor: "#16A34A", paddingVertical: 12, paddingHorizontal: 40, borderRadius: 25 },
+  successOkText: { color: "white", fontSize: 16, fontWeight: "600" },
+
+  centerPinWrapper: { position: "absolute", top: "50%", left: "50%", marginLeft: -23, marginTop: -46, zIndex: 10 },
+  mapTopArea: { position: "absolute", top: Platform.OS === "ios" ? 55 : (StatusBar.currentHeight || 24) + 15, left: 16, zIndex: 10 },
+  simpleBackBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: "white", justifyContent: "center", alignItems: "center", elevation: 5, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 5, shadowOffset: { width: 0, height: 2 } },
+  bottomContainer: { position: "absolute", bottom: 0, width: "100%", padding: 16, paddingBottom: Platform.OS === "ios" ? 30 : 16, zIndex: 10 },
+  simpleLocateBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: "white", justifyContent: "center", alignItems: "center", alignSelf: "flex-end", marginBottom: 16, elevation: 4, shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
+  minimalBottomCard: { backgroundColor: "white", borderRadius: 16, padding: 12, elevation: 10, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 10, shadowOffset: { width: 0, height: -4 } },
+  addressRow: { flexDirection: "row", alignItems: "flex-start", marginBottom: 16 },
+  minimalAddress: { flex: 1, fontSize: 14, color: "#1F2937", marginLeft: 10, fontFamily: "Mandali", lineHeight: 22 },
+  minimalConfirmBtn: { paddingVertical: 10, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  minimalConfirmText: { color: "white", fontSize: 14, fontWeight: "600" },
 });

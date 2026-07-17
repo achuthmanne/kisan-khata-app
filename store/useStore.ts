@@ -263,19 +263,7 @@ export const useStore = create<AppState>((set, get) => ({
           } else set({ reminders: [] });
         }, err => console.log("Reminders err", err));
 
-      // 7. Schemes Fetch
-      firestore().collection("schemes").where("isActive", "==", true).get()
-        .then(snap => {
-           if (!snap.empty) {
-             const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-             list.sort((a: any, b: any) => {
-               const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-               const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-               return tB - tA;
-             });
-             set({ schemes: list });
-           }
-        }).catch(e => console.log("Schemes err", e));
+      // 7. Schemes Fetch (Moved to component level for read optimization)
 
       // 8. Expenses Listener
       unsubExpenses = firestore()

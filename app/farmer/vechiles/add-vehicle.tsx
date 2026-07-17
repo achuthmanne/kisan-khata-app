@@ -171,13 +171,7 @@ export default function AddVehicle() {
     const loadSession = async () => {
       const session = await AsyncStorage.getItem("ACTIVE_SESSION");
       if (session) {
-        if (typeof isMounted !== 'undefined' && isMounted && !isMounted.current) {
-           setActiveSession(session);
-        } else if (typeof isMounted !== 'undefined' && isMounted.current) {
-           setActiveSession(session);
-        } else {
-           setActiveSession(session);
-        }
+        if (isMountedLocal) setActiveSession(session);
       } else {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (phone) {
@@ -516,10 +510,10 @@ export default function AddVehicle() {
       <Modal visible={showLockInfo} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="lock-closed" size={36} color="#DC2626" />
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={[styles.modalTitleStandardInfo, { color: "#DC2626" }]} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
               {language === "te" ? "పేరు మార్చలేరు" : "Name Locked"}
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
@@ -527,13 +521,13 @@ export default function AddVehicle() {
                 ? "ఈ వాహనానికి సంబంధించి రైతులు లేదా డ్రైవర్ల వివరాలు ఇప్పటికే నమోదు అయ్యాయి. కావున వాహనం పేరును మార్చడం కుదరదు."
                 : "Since this vehicle has associated farmers or drivers, you cannot change its name."}
             </AppText>
-            <View style={styles.modalButtonsStandard}>
+            <View style={[styles.modalButtonsStandard, { justifyContent: "center" }]}>
               <TouchableOpacity
                 activeOpacity={0.8}
-                style={[styles.modalInfoBtnStandard, { backgroundColor: "#DC2626" }]}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B", paddingVertical: 10, paddingHorizontal: 36, flex: 0 }]}
                 onPress={() => setShowLockInfo(false)}
               >
-                <AppText style={styles.modalInfoTextStandard} language={language}>
+                <AppText style={[styles.modalInfoTextStandard, { fontSize: 16 }]} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
                 </AppText>
               </TouchableOpacity>

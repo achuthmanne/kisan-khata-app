@@ -629,10 +629,10 @@ export default function AddOwner() {
       <Modal visible={showLockInfo} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlayStandard}>
           <View style={styles.modalContentStandard}>
-            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEE2E2" }]}>
-              <Ionicons name="lock-closed" size={36} color="#DC2626" />
+            <View style={[styles.modalIconBgStandardInfo, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={[styles.modalTitleStandardInfo, { color: "#DC2626" }]} language={language}>
+            <AppText style={[styles.modalTitleStandardInfo, { color: "#F59E0B" }]} language={language}>
               {language === "te" ? "పేరు మార్చలేరు" : "Name Locked"}
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
@@ -640,12 +640,12 @@ export default function AddOwner() {
                 ? "ఈ యజమానికి సంబంధించిన పని వివరాలు ఇప్పటికే రికార్డ్ అయినందున మీరు పేరును సవరించలేరు. కేవలం ఫోన్ నంబర్ మరియు గ్రామం మార్చుకోవచ్చు."
                 : "Since this owner has existing work records, you cannot change the name. You can only update the phone number and village."}
             </AppText>
-            <View style={styles.modalButtonsStandard}>
+            <View style={[styles.modalButtonsStandard, { justifyContent: "center" }]}>
               <TouchableOpacity activeOpacity={0.8}
-                style={[styles.modalInfoBtnStandard, { backgroundColor: "#DC2626" }]}
+                style={[styles.modalInfoBtnStandard, { backgroundColor: "#F59E0B", paddingVertical: 10, paddingHorizontal: 36, flex: 0 }]}
                 onPress={() => setShowLockInfo(false)}
               >
-                <AppText style={styles.modalInfoTextStandard} language={language}>
+                <AppText style={[styles.modalInfoTextStandard, { fontSize: 16 }]} language={language}>
                   {language === "te" ? "అర్థమైంది" : "Got It"}
                 </AppText>
               </TouchableOpacity>

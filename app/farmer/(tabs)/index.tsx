@@ -133,15 +133,15 @@ const PromoBanners = ({ language, router }: { language: string, router: any }) =
       />
       
       {/* Pagination Dots */}
-      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12, gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 12, gap: 8 }}>
         {banners.map((_, index) => (
           <View 
             key={index} 
             style={{ 
-              width: currentIndex === index ? 20 : 6, 
-              height: 6, 
-              borderRadius: 3, 
-              backgroundColor: currentIndex === index ? '#16A34A' : '#D1D5DB' 
+              width: 8, 
+              height: 8, 
+              borderRadius: 4, 
+              backgroundColor: currentIndex === index ? '#1B5E20' : '#D1D5DB' 
             }} 
           />
         ))}

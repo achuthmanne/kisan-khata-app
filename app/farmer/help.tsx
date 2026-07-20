@@ -50,10 +50,10 @@ export default function HelpSupport() {
     // WhatsApp Section
     waTitle: language === "te" ? "మాతో చాట్ చేయండి" : "Chat with us",
     waDesc: language === "te" ? "మీకు ఏమైనా సందేహాలు ఉంటే నేరుగా మాకు వాట్సాప్ చేయండి." : "If you have any doubts, message us directly on WhatsApp.",
-    waBtn: language === "te" ? "వాట్సాప్ (WhatsApp)" : "WhatsApp",
+    waBtn: language === "te" ? "వాట్సాప్" : "WhatsApp",
     
     // FAQ Section
-    faqTitle: language === "te" ? "తరచుగా అడిగే ప్రశ్నలు (FAQs)" : "Frequently Asked Questions",
+    faqTitle: language === "te" ? "తరచుగా అడిగే ప్రశ్నలు" : "Frequently Asked Questions",
   };
 
  // 🔥 FAQs DATA (6 ACCURATE & PRACTICAL QUESTIONS)
@@ -69,7 +69,7 @@ export default function HelpSupport() {
       id: "2",
       q: language === "te" ? "ఇంటర్నెట్ లేకపోయినా యాప్ పనిచేస్తుందా?" : "Does the app work without the internet?",
       a: language === "te" 
-        ? "అవును, పనిచేస్తుంది! ఇంటర్నెట్ లేనప్పుడు కూడా మీరు లెక్కలు నమోదు చేసుకోవచ్చు. అవి మీ ఫోన్ లో భద్రంగా ఉంటాయి. నెట్ ఆన్ చేయగానే ఆటోమాటిక్ గా క్లౌడ్ (Cloud) లోకి సింక్ అవుతాయి." 
+        ? "అవును, పనిచేస్తుంది! ఇంటర్నెట్ లేనప్పుడు కూడా మీరు లెక్కలు నమోదు చేసుకోవచ్చు. అవి మీ ఫోన్ లో భద్రంగా ఉంటాయి. నెట్ ఆన్ చేయగానే ఆటోమాటిక్ గా క్లౌడ్ లోకి సింక్ అవుతాయి." 
         : "Yes, it works! You can enter your records even without the internet. They are saved securely on your phone and automatically synced to the cloud when you connect to the internet."
     },
     {
@@ -84,14 +84,14 @@ export default function HelpSupport() {
   id: "4",
   q: language === "te" ? "పంట లాభనష్టాలు ఎలా తెలుసుకోవాలి?" : "How to check crop profit and loss?",
   a: language === "te" 
-    ? "మీరు నమోదు చేసే 'పెట్టుబడి ఖర్చులు' మరియు 'పంట అమ్మకాలు' ఆధారంగా, మీ లాభనష్టాల వివరాలను 'వ్యవసాయ నివేదిక' (Farm Report) సెక్షన్ లో చార్ట్ రూపంలో క్లియర్ గా చూడవచ్చు." 
+    ? "మీరు నమోదు చేసే పెట్టుబడి ఖర్చులు మరియు పంట అమ్మకాలు ఆధారంగా, మీ లాభనష్టాల వివరాలను 'వ్యవసాయ నివేదిక' సెక్షన్ లో చార్ట్ రూపంలో క్లియర్ గా చూడవచ్చు." 
     : "Based on the 'Expenses' and 'Crop Sales' you enter, you can clearly check your profit or loss details in the 'Farm Report' section via visual charts."
 },
 {
   id: "5",
-  q: language === "te" ? "రిపోర్ట్స్ పీడీఎఫ్ (PDF) లో డౌన్‌లోడ్ చేయవచ్చా?" : "Can I download reports in PDF format?",
+  q: language === "te" ? "రిపోర్ట్స్ డౌన్‌లోడ్ చేయవచ్చా?" : "Can I download reports in PDF format?",
   a: language === "te" 
-    ? "అవును, 'వ్యవసాయ నివేదిక' (Farm Report) లోనే మీ లాభనష్టాలు మరియు ఇతర డేటాను PDF రూపంలో డౌన్‌లోడ్ చేసుకొని షేర్ చేయవచ్చు లేదా ప్రింట్ తీసుకోవచ్చు." 
+    ? "అవును, 'వ్యవసాయ నివేదిక' లోనే మీ లాభనష్టాలు మరియు ఇతర డేటాను డాక్యుమెంట్ రూపంలో డౌన్‌లోడ్ చేసుకొని షేర్ చేయవచ్చు లేదా ప్రింట్ తీసుకోవచ్చు." 
     : "Yes, within the 'Farm Report' section, you can download your profit/loss and all other data in PDF format to share or print."
 },
 
@@ -122,12 +122,6 @@ export default function HelpSupport() {
     }).catch(err => console.error("An error occurred", err));
   };
 
-  const openYouTubeVideo = () => {
-    // 🔥 ఇక్కడ నువ్వు వీడియో చేసిన తర్వాత నీ యూట్యూబ్ లింక్ పెట్టుకో
-    const url = "https://www.youtube.com"; 
-    Linking.openURL(url);
-  };
-
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor="#1B5E20" />
@@ -140,21 +134,6 @@ export default function HelpSupport() {
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         
-        {/* 🎥 VIDEO TUTORIAL SECTION */}
-        <TouchableOpacity style={styles.videoCard} activeOpacity={0.9} onPress={openYouTubeVideo}>
-          <View style={styles.videoThumbnail}>
-            <Ionicons name="logo-youtube" size={48} color="#FF0000" />
-          </View>
-          <View style={styles.videoInfo}>
-            <AppText style={styles.videoTitle} language={language}>{t.videoTitle}</AppText>
-            <AppText style={styles.videoDesc} language={language}>{t.videoDesc}</AppText>
-            <View style={styles.watchBtnRow}>
-              <AppText style={styles.watchBtnText} language={language}>{t.watchBtn}</AppText>
-              <Ionicons name="arrow-forward" size={16} color="#16A34A" />
-            </View>
-          </View>
-        </TouchableOpacity>
-
         {/* 💬 WHATSAPP SUPPORT SECTION */}
         <LinearGradient colors={["#DCFCE7", "#F0FDF4"]} style={styles.waCard}>
           <View style={styles.waIconBox}>

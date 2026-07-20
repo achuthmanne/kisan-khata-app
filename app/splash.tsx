@@ -108,7 +108,12 @@ export default function SplashScreen() {
       };
 
       if (!phone || !role) {
-        goNext("/login");
+        const hasSeenOnboarding = await AsyncStorage.getItem("HAS_SEEN_ONBOARDING");
+        if (hasSeenOnboarding === "true") {
+          goNext("/login");
+        } else {
+          goNext("/onboarding");
+        }
         return;
       }
 

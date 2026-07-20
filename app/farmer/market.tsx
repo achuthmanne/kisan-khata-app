@@ -17,6 +17,7 @@ import {
 } from "react-native";
 
 import AppHeader from "@/components/AppHeader";
+import AppText from "@/components/AppText";
 import { getTranslatedCropName } from '@/utils/cropTranslations';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";

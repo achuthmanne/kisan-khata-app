@@ -65,6 +65,15 @@ export default function LoginScreen() {
     return subscriber; 
   }, [step]);
 
+  // Load selected language from Onboarding
+  useEffect(() => {
+    const loadLang = async () => {
+      const storedLang = await AsyncStorage.getItem("APP_LANG");
+      if (storedLang) setLanguage(storedLang as "te" | "en");
+    };
+    loadLang();
+  }, []);
+
   // Resend Timer
   useEffect(() => {
     let interval: any;
@@ -235,27 +244,26 @@ export default function LoginScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
         <View style={styles.container}>
           
-          {/* Top Language Toggle */}
-          <View style={styles.langRow}>
-            <Pressable 
-              onPress={() => setLanguage("te")} 
-              disabled={loading}
-              style={[styles.langTab, language === "te" && styles.langTabActive]}
-            >
-              <AppText style={[styles.lang, language === "te" && styles.active]} language={language}>తెలుగు</AppText>
-            </Pressable>
-            <Pressable 
-              onPress={() => setLanguage("en")} 
-              disabled={loading}
-              style={[styles.langTab, language === "en" && styles.langTabActive]}
-            >
-              <AppText style={[styles.lang, language === "en" && styles.active]} language={language}>English</AppText>
-            </Pressable>
-          </View>
-
           {step === 1 ? (
             // --- STEP 1: PHONE INPUT ---
             <Animated.View entering={FadeInLeft} exiting={FadeOutLeft} style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 20 }}>
+                <TouchableOpacity 
+                  activeOpacity={0.7}
+                  style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}
+                  onPress={async () => {
+                    const newLang = language === 'te' ? 'en' : 'te';
+                    setLanguage(newLang);
+                    await AsyncStorage.setItem("APP_LANG", newLang);
+                  }}
+                >
+                  <Ionicons name="language-outline" size={16} color="#4B5563" style={{ marginRight: 6 }} />
+                  <AppText style={{ color: "#4B5563", fontSize: 14, fontWeight: "600" }} language={language}>
+                    {language === "te" ? "English" : "తెలుగు"}
+                  </AppText>
+                </TouchableOpacity>
+              </View>
+
               <AppText style={styles.title} language={language}>{language === "te" ? "కిసాన్ ఖాతా" : "Kisan Khata"}</AppText>
               <AppText style={styles.tagline} language={language}>
               {language === "te" 

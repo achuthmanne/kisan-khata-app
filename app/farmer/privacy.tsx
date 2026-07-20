@@ -9,7 +9,8 @@ import {
   StatusBar,
   StyleSheet,
   View,
-  TouchableOpacity
+  TouchableOpacity,
+  Linking
 } from "react-native";
 
 import AppHeader from "@/components/AppHeader";
@@ -130,14 +131,30 @@ export default function PrivacyPolicy() {
           ))}
         </View>
 
-        {/* 📞 FOOTER INFO */}
         <View style={styles.footerSection}>
+          <TouchableOpacity 
+            style={[styles.contactBtn, { marginBottom: 20, backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0" }]} 
+            activeOpacity={0.8}
+            onPress={() => Linking.openURL("https://sites.google.com/view/kisankhata-terms")}
+          >
+            <Ionicons name="document-text" size={18} color="#16A34A" />
+            <View style={{ borderBottomWidth: 1, borderBottomColor: "#16A34A" }}>
+              <AppText style={[styles.contactBtnText, { color: "#16A34A" }]} language={language}>
+                {language === "te" ? "పూర్తి న్యాయపరమైన విధానం చూడండి" : "Read Full Legal Privacy Policy"}
+              </AppText>
+            </View>
+          </TouchableOpacity>
+
           <AppText style={styles.lastUpdatedText} language={language}>{t.lastUpdated}</AppText>
           
-          <TouchableOpacity style={styles.contactBtn} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={styles.contactBtn} 
+            activeOpacity={0.8}
+            onPress={() => Linking.openURL("mailto:kisankhata.support@gmail.com")}
+          >
             <Ionicons name="mail-outline" size={18} color="#4B5563" />
             <AppText style={styles.contactBtnText} language={language}>
-              Kisan Khata.support@gmail.com
+              kisankhata.support@gmail.com
             </AppText>
           </TouchableOpacity>
         </View>

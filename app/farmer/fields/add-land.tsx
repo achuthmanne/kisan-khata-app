@@ -506,9 +506,9 @@ const styles = StyleSheet.create({
   activePill: { backgroundColor: "#1B5E20", borderColor: "#1B5E20" },
   pillText: { fontSize: 15, fontWeight: "600", fontFamily: "Mandali" },
 
-  saveBtn: { marginTop: 10, borderRadius: 14, overflow: 'hidden' },
-  saveGradient: { paddingVertical: 10, alignItems: "center" },
-  saveText: { color: "#fff", fontSize: 18, fontWeight: "600", fontFamily: "Mandali", letterSpacing: 0.5 },
+  saveBtn: { marginTop: 25, borderRadius: 18, overflow: 'hidden', elevation: 4 },
+  saveGradient: { height: 52, justifyContent: "center", alignItems: "center" },
+  saveText: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Mandali" },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
   modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, height: "75%" },

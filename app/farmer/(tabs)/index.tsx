@@ -2,7 +2,7 @@
 
 import { setDrawer } from "@/assets/stores/drawerStore";
 import { useLanguage } from "@/context/LanguageContext";
-import { executeOfflineSafeFetch, executeOfflineSafeRead, executeOfflineSafeWrite, isOnline } from "@/utils/offlineHelper";
+import { executeOfflineSafeFetch, executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
@@ -953,7 +953,7 @@ export default function Dashboard() {
       <StatusBar barStyle="light-content" />
 
       {/* BODY */}
-     <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={[styles.stickyTop, { paddingTop: Math.max(insets.top + 10, 45) }]}>
+     <LinearGradient colors={["#1B5E20", "#1B5E20"]} style={[styles.stickyTop, { paddingTop: Math.max(insets.top + 5, 20) }]}>
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.profileRow} onPress={() => setDrawer(true)} activeOpacity={0.8}>
             
@@ -961,7 +961,7 @@ export default function Dashboard() {
             <View style={{ width: 50, height: 50, borderRadius: 14, overflow: 'hidden', marginRight: 10, backgroundColor: "#E2E8F0" }}>
               <Image 
                 source={profilePic ? { uri: profilePic } : getDefaultAvatar()} 
-                style={[{ width: "100%", height: "100%" }, !profilePic && { transform: [{ scale: 1.25 }] }]} 
+                style={{ width: "100%", height: "100%" }} 
                 contentFit="cover" 
               />
             </View>
@@ -991,14 +991,14 @@ export default function Dashboard() {
       onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingTop: Math.max(insets.top + 10, 45) + 50 }}
+      contentContainerStyle={{ paddingTop: Math.max(insets.top + 5, 20) + 50 }}
       refreshControl={ 
         <RefreshControl 
           refreshing={refreshing} 
           onRefresh={onRefresh} 
           colors={["#2E7D32"]} 
           tintColor="#2E7D32" 
-          progressViewOffset={Math.max(insets.top + 10, 45) + 50} 
+          progressViewOffset={Math.max(insets.top + 5, 20) + 50} 
         /> 
       }
     >

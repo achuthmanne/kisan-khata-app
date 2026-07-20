@@ -364,7 +364,7 @@ export default function FarmerLayout() {
                     >
                       <Image 
                         source={profileImage ? { uri: profileImage } : getDefaultImage()} 
-                        style={[{ width: "100%", height: "100%" }, !profileImage && { transform: [{ scale: 1.25 }] }]} 
+                        style={{ width: "100%", height: "100%" }} 
                         contentFit="cover"
                       />
                     </View>

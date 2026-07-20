@@ -326,8 +326,7 @@ export default function ProfileScreen() {
 
       {/* 🏛️ MODERN HEADER (AppHeader) */}
       <AppHeader 
-        title={language === "te" ? "ప్రొఫైల్" : "My Profile"} 
-        subtitle={language === "te" ? "మీ వ్యక్తిగత వివరాలు" : "Your Personal Details"}
+        title={language === "te" ? "నా ప్రొఫైల్" : "My Profile"} 
         language={language}
       />
 

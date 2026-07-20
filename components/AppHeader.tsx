@@ -23,32 +23,27 @@ export default function AppHeader({ title, subtitle, language, onDownload, right
           onPress={() => onBackPress ? onBackPress() : router.back()} 
           style={styles.iconBtn}
         >
-          <Ionicons name="arrow-back" size={20} color="white" />
+          <Ionicons name="arrow-back" size={18} color="white" />
         </TouchableOpacity>
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', marginHorizontal: 10 }}>
           <AppText style={styles.title} language={language}>
             {title}
           </AppText>
-          {/* SUBTITLE */}
-          {subtitle && (
-            <AppText style={styles.subtitle} language={language}>
-              {subtitle}
-            </AppText>
-          )}
+          {/* SUBTITLE (Removed to save space on smaller screens) */}
         </View>
 
         {/* 📥 DOWNLOAD OR CUSTOM RIGHT BUTTON */}
         {onDownload ? (
           <TouchableOpacity onPress={onDownload} style={styles.iconBtn}>
-            <Ionicons name="cloud-download-outline" size={20} color="white" />
+            <Ionicons name="cloud-download-outline" size={18} color="white" />
           </TouchableOpacity>
         ) : rightIcon && onRightPress ? (
           <TouchableOpacity onPress={onRightPress} style={styles.iconBtn}>
-            <Ionicons name={rightIcon} size={20} color="white" />
+            <Ionicons name={rightIcon} size={18} color="white" />
           </TouchableOpacity>
         ) : (
-          <View style={{ width: 32 }} /> // Space maintainer
+          <View style={{ width: 30 }} /> // Space maintainer
         )}
       </View>
     </LinearGradient>
@@ -68,8 +63,8 @@ const styles = StyleSheet.create({
   },
 
   iconBtn: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.15)", // నీ పాత స్టైల్ నే వాడాను బ్రో
     justifyContent: "center",
@@ -78,7 +73,7 @@ const styles = StyleSheet.create({
 
   title: {
     color: "white",
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "600",
     textAlign: "center",
     includeFontPadding: false,

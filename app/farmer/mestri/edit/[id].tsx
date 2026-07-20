@@ -98,7 +98,7 @@ export default function EditMestri() {
     const loadSession = async () => {
       const session = await AsyncStorage.getItem("ACTIVE_SESSION");
       if (session) {
-        if (isMountedLocal) setActiveSession(session);
+        if (isMounted.current) setActiveSession(session);
       } else {
         const phone = await AsyncStorage.getItem("USER_PHONE");
         if (phone) {

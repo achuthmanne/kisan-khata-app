@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   },
   slideImage: {
     width: width,
-    height: width * 0.8,
+    height: width * 0.65,
     marginBottom: 20,
   },
   slideTitle: {
@@ -341,8 +341,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#4B5563",
     textAlign: "center",
-    lineHeight: 24,
+    lineHeight: 26,
     paddingHorizontal: 20,
+    paddingBottom: 5,
   },
   dotsContainer: {
     flexDirection: "row",

@@ -223,7 +223,9 @@ export default function AddDriverWork() {
 
   const getWorkTimes = () => {
     if (!startTime || !endTime) return { gross: "", break: "", net: "" };
-    let diffMs = endTime.getTime() - startTime.getTime();
+    const baseStart = new Date(1970, 0, 1, startTime.getHours(), startTime.getMinutes());
+    const baseEnd = new Date(1970, 0, 1, endTime.getHours(), endTime.getMinutes());
+    let diffMs = baseEnd.getTime() - baseStart.getTime();
     if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000; // Overnight
     
     const formatMs = (ms: number) => {
@@ -248,7 +250,9 @@ export default function AddDriverWork() {
 
       let totalBreakMs = 0;
       for (const b of validBreaks) {
-        let breakDiff = b.endTime!.getTime() - b.startTime!.getTime();
+        const bStart = new Date(1970, 0, 1, b.startTime!.getHours(), b.startTime!.getMinutes());
+        const bEnd = new Date(1970, 0, 1, b.endTime!.getHours(), b.endTime!.getMinutes());
+        let breakDiff = bEnd.getTime() - bStart.getTime();
         if (breakDiff < 0) breakDiff += 24 * 60 * 60 * 1000;
         totalBreakMs += breakDiff;
       }

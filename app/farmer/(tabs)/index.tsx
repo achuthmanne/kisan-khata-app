@@ -26,6 +26,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  ToastAndroid,
   TouchableOpacity,
   View
 } from "react-native";
@@ -312,13 +313,26 @@ export default function Dashboard() {
   const swipeShared = useSharedValue(0);
   const priceShared = useSharedValue(0);
 
+  const backPressCount = useRef(0);
+
   /* ---------------- BACK BUTTON BLOCKER ---------------- */
   useFocusEffect(
     React.useCallback(() => {
-      const onBackPress = () => true; 
+      const onBackPress = () => {
+        if (backPressCount.current > 0) {
+          BackHandler.exitApp();
+          return true;
+        }
+        backPressCount.current = 1;
+        ToastAndroid.show(language === "te" ? "Kisan Khata నుండి బయటకు రావడానికి మళ్ళీ నొక్కండి" : "Press again to exit Kisan Khata", ToastAndroid.SHORT);
+        setTimeout(() => {
+          backPressCount.current = 0;
+        }, 2000);
+        return true;
+      }; 
       const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => backHandler.remove();
-    }, [])
+    }, [language])
   );
 
   useEffect(() => {

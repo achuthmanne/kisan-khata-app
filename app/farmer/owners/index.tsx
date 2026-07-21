@@ -199,35 +199,38 @@ export default function OwnersList() {
 
   const handleImportPastOwners = async () => {
     if (selectedPastOwners.length === 0) return;
-    setImporting(true);
-    try {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession) return;
-      const batch = firestore().batch();
-      const ownerRef = firestore().collection("users").doc(phone).collection("owners");
-      
-      selectedPastOwners.forEach(id => {
-        const o = pastOwners.find(x => x.id === id);
-        if (o) {
-          const newRef = ownerRef.doc();
-          batch.set(newRef, {
-            ownerName: o.ownerName || "",
-            phone: o.phone || "",
-            village: o.village || "",
-            session: activeSession,
-            createdAt: firestore.FieldValue.serverTimestamp()
-          });
-        }
-      });
-      
-      await executeOfflineSafeWrite(batch.commit());
-      setShowImportModal(false);
-      setSelectedPastOwners([]);
-    } catch (e) {
-      console.log("Import Error", e);
-    } finally {
-      setImporting(false);
-    }
+    
+    // Close modal first for a buttery smooth slide-down animation
+    setShowImportModal(false);
+    
+    // Wait for animation to finish before blocking JS thread with heavy writes and re-renders
+    setTimeout(async () => {
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone || !activeSession) return;
+        const batch = firestore().batch();
+        const ownerRef = firestore().collection("users").doc(phone).collection("owners");
+        
+        selectedPastOwners.forEach(id => {
+          const o = pastOwners.find(x => x.id === id);
+          if (o) {
+            const newRef = ownerRef.doc();
+            batch.set(newRef, {
+              ownerName: o.ownerName || "",
+              phone: o.phone || "",
+              village: o.village || "",
+              session: activeSession,
+              createdAt: firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+        
+        await executeOfflineSafeWrite(batch.commit());
+        setSelectedPastOwners([]);
+      } catch (e) {
+        console.log("Import Error", e);
+      }
+    }, 400);
   };
 
   const confirmDelete = async () => {

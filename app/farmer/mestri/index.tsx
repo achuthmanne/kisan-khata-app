@@ -222,37 +222,40 @@ export default function AttendanceScreen() {
 
   const handleImportPastMestris = async () => {
     if (selectedPastMestris.length === 0) return;
-    setImporting(true);
-    try {
-      const userPhone = await AsyncStorage.getItem("USER_PHONE");
-      if (!userPhone || !activeSession) return;
-      const batch = firestore().batch();
-      const mestriRef = firestore().collection("users").doc(userPhone).collection("mestris");
-      
-      selectedPastMestris.forEach(id => {
-        const m = pastMestris.find(x => x.id === id);
-        if (m) {
-          const newRef = mestriRef.doc();
-          batch.set(newRef, {
-            name: m.name || "",
-            phone: m.phone || "",
-            village: m.village || "",
-            session: activeSession,
-            createdAt: firestore.FieldValue.serverTimestamp()
-          });
-        }
-      });
-      
-      await executeOfflineSafeWrite(batch.commit());
-      setShowImportModal(false);
-      setSelectedPastMestris([]);
-    } catch (e) {
-      console.log("Import Error", e);
-      setErrorMsg(language === "te" ? "దిగుమతి విఫలమైంది!" : "Import Failed!");
-      setShowErrorModal(true);
-    } finally {
-      setImporting(false);
-    }
+    
+    // Close modal first for a buttery smooth slide-down animation
+    setShowImportModal(false);
+    
+    // Wait for animation to finish before blocking JS thread with heavy writes and re-renders
+    setTimeout(async () => {
+      try {
+        const userPhone = await AsyncStorage.getItem("USER_PHONE");
+        if (!userPhone || !activeSession) return;
+        const batch = firestore().batch();
+        const mestriRef = firestore().collection("users").doc(userPhone).collection("mestris");
+        
+        selectedPastMestris.forEach(id => {
+          const m = pastMestris.find(x => x.id === id);
+          if (m) {
+            const newRef = mestriRef.doc();
+            batch.set(newRef, {
+              name: m.name || "",
+              phone: m.phone || "",
+              village: m.village || "",
+              session: activeSession,
+              createdAt: firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+        
+        await executeOfflineSafeWrite(batch.commit());
+        setSelectedPastMestris([]);
+      } catch (e) {
+        console.log("Import Error", e);
+        setErrorMsg(language === "te" ? "దిగుమతి విఫలమైంది!" : "Import Failed!");
+        setShowErrorModal(true);
+      }
+    }, 400);
   };
 
   const confirmDelete = async () => {
@@ -414,44 +417,46 @@ export default function AttendanceScreen() {
             filteredMestris.length === 0 && { flexGrow: 1, justifyContent: 'center' }
           ]}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            (search.trim().length === 0 && pastMestris.length > 0) ? (
-              <View style={styles.importSuggestionCard}>
-                <View style={styles.importIconBg}>
-                  <Ionicons name="time-outline" size={28} color="#D97706" />
-                </View>
-                <AppText style={styles.importTitle} language={language}>
-                  {language === "te" ? "పాత సాగు సంవత్సరాల మేస్త్రీలు" : "Past Seasons Mestris"}
-                </AppText>
-                <AppText style={styles.importSub} language={language}>
-                  {language === "te" 
-                    ? "మీరు గతంలో పని చేసిన మేస్త్రీలను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
-                    : "Do you want to reuse the mestris you worked with in previous seasons?"}
-                </AppText>
-                <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
-                  <AppText style={styles.importBtnText} language={language}>
-                    {language === "te" ? "పాత మేస్త్రీలను ఎంచుకోండి" : "Select Past Mestris"}
-                  </AppText>
-                </TouchableOpacity>
-              </View>
-            ) : null
-          }
           ListEmptyComponent={
-            <AppEmptyState
-              iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
-              title={
-                search.trim().length > 0
-                  ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
-                  : language === "te" ? "కొత్త మేస్త్రీలు లేరు" : "No New Mestris"
-              }
-              subtitle={
-                search.trim().length > 0
-                  ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
-                  : language === "te" ? "+ బటన్ నొక్కి కొత్త మేస్త్రీలను చేర్చండి" : "Tap + button to add new mestris"
-              }
-              language={language}
-              marginTop={mestris.length === 0 && pastMestris.length === 0 ? 60 : 20} 
-            />
+            <View>
+              {(search.trim().length === 0 && pastMestris.length > 0) && (
+                <View style={styles.importSuggestionCard}>
+                  <View style={styles.importIconBg}>
+                    <Ionicons name="time-outline" size={28} color="#D97706" />
+                  </View>
+                  <AppText style={styles.importTitle} language={language}>
+                    {language === "te" ? "పాత సాగు సంవత్సరాల మేస్త్రీలు" : "Past Seasons Mestris"}
+                  </AppText>
+                  <AppText style={styles.importSub} language={language}>
+                    {language === "te" 
+                      ? "మీరు గతంలో పని చేసిన మేస్త్రీలను మళ్ళీ ఈ సంవత్సరానికి వాడుకోవాలనుకుంటున్నారా?" 
+                      : "Do you want to reuse the mestris you worked with in previous seasons?"}
+                  </AppText>
+                  <TouchableOpacity activeOpacity={0.8} style={styles.importBtn} onPress={() => setShowImportModal(true)}>
+                    <AppText style={styles.importBtnText} language={language}>
+                      {language === "te" ? "పాత మేస్త్రీలను ఎంచుకోండి" : "Select Past Mestris"}
+                    </AppText>
+                  </TouchableOpacity>
+                </View>
+              )}
+              <View style={{ marginTop: search.trim().length === 0 ? 10 : 40 }}>
+                <AppEmptyState
+                  iconName={search.trim().length > 0 ? "search-outline" : "people-outline"}
+                  title={
+                    search.trim().length > 0
+                      ? language === "te" ? "ఏమి దొరకలేదు" : "Not Found"
+                      : language === "te" ? "కొత్త మేస్త్రీలు లేరు" : "No New Mestris"
+                  }
+                  subtitle={
+                    search.trim().length > 0
+                      ? language === "te" ? "మీ శోధనకు సరిపడే ఫలితాలు లేవు" : "No results match your search"
+                      : language === "te" ? "+ బటన్ నొక్కి కొత్త మేస్త్రీలను చేర్చండి" : "Tap + button to add new mestris"
+                  }
+                  language={language}
+                  marginTop={mestris.length === 0 && pastMestris.length === 0 ? 60 : 20} 
+                />
+              </View>
+            </View>
           }
           renderItem={({ item }) => (
             <View style={styles.row}>

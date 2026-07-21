@@ -161,35 +161,38 @@ export default function VehiclesScreen() {
 
   const handleImportPastVehicles = async () => {
     if (selectedPastVehicles.length === 0) return;
-    setImporting(true);
-    try {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession) return;
-      const batch = firestore().batch();
-      const vehicleRef = firestore().collection("users").doc(phone).collection("vehicles");
-      
-      selectedPastVehicles.forEach(id => {
-        const v = pastVehicles.find(x => x.id === id);
-        if (v) {
-          const newRef = vehicleRef.doc();
-          batch.set(newRef, {
-            nickname: v.nickname || "",
-            type: v.type || "Others",
-            number: v.number || "",
-            session: activeSession,
-            createdAt: firestore.FieldValue.serverTimestamp()
-          });
-        }
-      });
-      
-      await executeOfflineSafeWrite(batch.commit());
-      setShowImportModal(false);
-      setSelectedPastVehicles([]);
-    } catch (e) {
-      console.log("Import Error", e);
-    } finally {
-      setImporting(false);
-    }
+    
+    // Close modal first for a buttery smooth slide-down animation
+    setShowImportModal(false);
+    
+    // Wait for animation to finish before blocking JS thread with heavy writes and re-renders
+    setTimeout(async () => {
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone || !activeSession) return;
+        const batch = firestore().batch();
+        const vehicleRef = firestore().collection("users").doc(phone).collection("vehicles");
+        
+        selectedPastVehicles.forEach(id => {
+          const v = pastVehicles.find(x => x.id === id);
+          if (v) {
+            const newRef = vehicleRef.doc();
+            batch.set(newRef, {
+              nickname: v.nickname || "",
+              type: v.type || "Others",
+              number: v.number || "",
+              session: activeSession,
+              createdAt: firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+        
+        await executeOfflineSafeWrite(batch.commit());
+        setSelectedPastVehicles([]);
+      } catch (e) {
+        console.log("Import Error", e);
+      }
+    }, 400);
   };
 
   // 🔥 CORE LOGIC: CHECK IF VEHICLE HAS FARMERS OR DRIVERS

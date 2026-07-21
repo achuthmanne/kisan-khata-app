@@ -216,35 +216,38 @@ export default function VehicleDetails() {
 
   const handleImportPastFarmers = async () => {
     if (selectedPastFarmers.length === 0) return;
-    setImporting(true);
-    try {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession || !id) return;
-      const batch = firestore().batch();
-      const farmerRef = firestore().collection("users").doc(phone).collection("vehicles").doc(id as string).collection("farmers");
-      
-      selectedPastFarmers.forEach((fid: any) => {
-        const f = pastFarmers.find(x => x.id === fid);
-        if (f) {
-          const newRef = farmerRef.doc();
-          batch.set(newRef, {
-            farmerName: f.farmerName || "",
-            phone: f.phone || "",
-            village: f.village || "",
-            session: activeSession,
-            createdAt: firestore.FieldValue.serverTimestamp()
-          });
-        }
-      });
-      
-      await executeOfflineSafeWrite(batch.commit());
-      setShowImportModal(false);
-      setSelectedPastFarmers([]);
-    } catch (e) {
-      console.log("Import Error", e);
-    } finally {
-      setImporting(false);
-    }
+    
+    // Close modal first for a buttery smooth slide-down animation
+    setShowImportModal(false);
+    
+    // Wait for animation to finish before blocking JS thread with heavy writes and re-renders
+    setTimeout(async () => {
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone || !activeSession || !id) return;
+        const batch = firestore().batch();
+        const farmerRef = firestore().collection("users").doc(phone).collection("vehicles").doc(id as string).collection("farmers");
+        
+        selectedPastFarmers.forEach((fid: any) => {
+          const f = pastFarmers.find(x => x.id === fid);
+          if (f) {
+            const newRef = farmerRef.doc();
+            batch.set(newRef, {
+              farmerName: f.farmerName || "",
+              phone: f.phone || "",
+              village: f.village || "",
+              session: activeSession,
+              createdAt: firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+        
+        await executeOfflineSafeWrite(batch.commit());
+        setSelectedPastFarmers([]);
+      } catch (e) {
+        console.log("Import Error", e);
+      }
+    }, 400);
   };
 
   /* ---------------- CALL ---------------- */

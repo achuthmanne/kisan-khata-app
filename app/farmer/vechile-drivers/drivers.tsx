@@ -212,38 +212,41 @@ export default function VehicleDetails() {
 
   const handleImportPastDrivers = async () => {
     if (selectedPastDrivers.length === 0) return;
-    setImporting(true);
-    try {
-      const phone = await AsyncStorage.getItem("USER_PHONE");
-      if (!phone || !activeSession || !vId) return;
-      const batch = firestore().batch();
-      const driverRef = firestore().collection("users").doc(phone).collection("vehicles").doc(vId as string).collection("drivers");
-      
-      selectedPastDrivers.forEach((did: any) => {
-        const d = pastDrivers.find(x => x.id === did);
-        if (d) {
-          const newRef = driverRef.doc();
-          batch.set(newRef, {
-            driverName: d.driverName || "",
-            phone: d.phone || "",
-            village: d.village || "",
-            paymentType: d.paymentType || "daily",
-            monthlySalary: d.monthlySalary || 0,
-            salaryHistory: d.salaryHistory || [],
-            session: activeSession,
-            createdAt: firestore.FieldValue.serverTimestamp()
-          });
-        }
-      });
-      
-      await executeOfflineSafeWrite(batch.commit());
-      setShowImportModal(false);
-      setSelectedPastDrivers([]);
-    } catch (e) {
-      console.log("Import Error", e);
-    } finally {
-      setImporting(false);
-    }
+    
+    // Close modal first for a buttery smooth slide-down animation
+    setShowImportModal(false);
+    
+    // Wait for animation to finish before blocking JS thread with heavy writes and re-renders
+    setTimeout(async () => {
+      try {
+        const phone = await AsyncStorage.getItem("USER_PHONE");
+        if (!phone || !activeSession || !vId) return;
+        const batch = firestore().batch();
+        const driverRef = firestore().collection("users").doc(phone).collection("vehicles").doc(vId as string).collection("drivers");
+        
+        selectedPastDrivers.forEach((did: any) => {
+          const d = pastDrivers.find(x => x.id === did);
+          if (d) {
+            const newRef = driverRef.doc();
+            batch.set(newRef, {
+              driverName: d.driverName || "",
+              phone: d.phone || "",
+              village: d.village || "",
+              paymentType: d.paymentType || "daily",
+              monthlySalary: d.monthlySalary || 0,
+              salaryHistory: d.salaryHistory || [],
+              session: activeSession,
+              createdAt: firestore.FieldValue.serverTimestamp()
+            });
+          }
+        });
+        
+        await executeOfflineSafeWrite(batch.commit());
+        setSelectedPastDrivers([]);
+      } catch (e) {
+        console.log("Import Error", e);
+      }
+    }, 400);
   };
 
   /* ---------------- CALL ---------------- */

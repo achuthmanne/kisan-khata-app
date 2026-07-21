@@ -31,6 +31,7 @@ import {
 import { WebView } from "react-native-webview";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
 import ShimmerPlaceHolder from "react-native-shimmer-placeholder";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
 import { useStore } from "@/store/useStore";
 
 type CycleItem = {
@@ -1540,68 +1541,66 @@ export default function MonthlyDriverHistory() {
 
     
       {/* PHOTO UPLOAD MODAL */}
-      <Modal visible={photoModal} transparent animationType="slide" statusBarTranslucent>
-        <TouchableOpacity style={styles.bottomSheetOverlay} activeOpacity={1} onPress={() => setPhotoModal(false)}>
-          <View style={styles.bottomSheetContent}>
-            <View style={styles.bsHeader}>
-              <View style={styles.bsHeaderLeft}>
-                <View style={styles.bsIconBg}>
-                  <Ionicons name="cloud-upload" size={22} color="#2563EB" />
-                </View>
-                <AppText style={styles.bsTitle} language={language}>
-                  {language === "te" ? "ఆధారం అప్లోడ్ చేయండి" : "Upload Proof"}
-                </AppText>
+      <SmoothBottomSheet visible={photoModal} onClose={() => setPhotoModal(false)}>
+        <View style={{ padding: 20 }}>
+          <View style={styles.bsHeader}>
+            <View style={styles.bsHeaderLeft}>
+              <View style={styles.bsIconBg}>
+                <Ionicons name="cloud-upload" size={22} color="#2563EB" />
               </View>
-              <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
-                <Ionicons name="close" size={26} color="#9CA3AF" />
-              </TouchableOpacity>
+              <AppText style={styles.bsTitle} language={language}>
+                {language === "te" ? "ఆధారం అప్లోడ్ చేయండి" : "Upload Proof"}
+              </AppText>
             </View>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
-              setPhotoModal(false);
-              if (proofs.length >= 2) return;
-              const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.2 });
-              if (!result.canceled) setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "image" }]);
-            }}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
-              setPhotoModal(false);
-              if (proofs.length >= 2) return;
-              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.2 });
-              if (!result.canceled) setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "image" }]);
-            }}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
-              setPhotoModal(false);
-              if (proofs.length >= 2) return;
-              try {
-                const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
-                if (!result.canceled && result.assets && result.assets.length > 0) {
-                  setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "pdf", name: result.assets[0].name }]);
-                }
-              } catch(e){}
-            }}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#FEF2F2" }]}><Ionicons name="document-text" size={24} color="#DC2626" /></View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "PDF డాక్యుమెంట్" : "PDF Document"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "రసీదు ఫైల్ ఎంచుకోండి" : "Upload a receipt file"}</AppText>
-              </View>
+            <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+              <Ionicons name="close" size={26} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+            setPhotoModal(false);
+            if (proofs.length >= 2) return;
+            const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.2 });
+            if (!result.canceled) setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "image" }]);
+          }}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+            setPhotoModal(false);
+            if (proofs.length >= 2) return;
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.2 });
+            if (!result.canceled) setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "image" }]);
+          }}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+            setPhotoModal(false);
+            if (proofs.length >= 2) return;
+            try {
+              const result = await DocumentPicker.getDocumentAsync({ type: "application/pdf", copyToCacheDirectory: true });
+              if (!result.canceled && result.assets && result.assets.length > 0) {
+                setProofs(prev => [...prev, { uri: result.assets[0].uri, type: "pdf", name: result.assets[0].name }]);
+              }
+            } catch(e){}
+          }}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#FEF2F2" }]}><Ionicons name="document-text" size={24} color="#DC2626" /></View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "PDF డాక్యుమెంట్" : "PDF Document"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "రసీదు ఫైల్ ఎంచుకోండి" : "Upload a receipt file"}</AppText>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </SmoothBottomSheet>
 
       {/* EARLY SETTLEMENT MODAL */}
       <Modal visible={earlySettlementModal} transparent animationType="fade" statusBarTranslucent>

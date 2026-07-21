@@ -16,6 +16,7 @@ import AppText from "@/components/AppText";
 import AppHeader from "@/components/AppHeader";
 import AgriLoader from "@/components/AgriLoader";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
 
 const translations = {
   te: {
@@ -527,47 +528,45 @@ export default function AddLockerScreen() {
       </KeyboardAvoidingView>
 
       {/* PREMIUM PHOTO UPLOAD MODAL */}
-      <Modal visible={photoModalVisible} transparent animationType="slide" statusBarTranslucent>
-        <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" }} activeOpacity={1} onPress={() => setPhotoModalVisible(false)}>
-          <View style={{ backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginRight: 12 }}>
-                  <Ionicons name="cloud-upload" size={22} color="#2563EB" />
-                </View>
-                <AppText style={{ fontSize: 18, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>
-                  {language === "te" ? "ఫోటో అప్లోడ్ చేయండి" : "Upload Photo"}
-                </AppText>
+      <SmoothBottomSheet visible={photoModalVisible} onClose={() => setPhotoModalVisible(false)}>
+        <View style={{ padding: 24, paddingBottom: 0 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center", marginRight: 12 }}>
+                <Ionicons name="cloud-upload" size={22} color="#2563EB" />
               </View>
-              <TouchableOpacity onPress={() => setPhotoModalVisible(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
-                <Ionicons name="close" size={26} color="#9CA3AF" />
-              </TouchableOpacity>
+              <AppText style={{ fontSize: 18, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>
+                {language === "te" ? "ఫోటో అప్లోడ్ చేయండి" : "Upload Photo"}
+              </AppText>
             </View>
-
-            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
-              setPhotoModalVisible(false);
-              setTimeout(() => pickImage("camera"), 500);
-            }}>
-              <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
-              <View>
-                <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
-                <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
-              setPhotoModalVisible(false);
-              setTimeout(() => pickImage("gallery"), 500);
-            }}>
-              <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
-              <View>
-                <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
-                <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
-              </View>
+            <TouchableOpacity onPress={() => setPhotoModalVisible(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+              <Ionicons name="close" size={26} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
+
+          <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
+            setPhotoModalVisible(false);
+            setTimeout(() => pickImage("camera"), 500);
+          }}>
+            <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
+            <View>
+              <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+              <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" }} activeOpacity={0.8} onPress={async () => {
+            setPhotoModalVisible(false);
+            setTimeout(() => pickImage("gallery"), 500);
+          }}>
+            <View style={[{ width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center", marginRight: 16 }, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
+            <View>
+              <AppText style={{ fontSize: 16, fontWeight: "600", color: "#1F2937", fontFamily: "Mandali" }}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+              <AppText style={{ fontSize: 13, color: "#6B7280", marginTop: 2, fontFamily: "Mandali" }}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </SmoothBottomSheet>
 
       {/* CATEGORY MODAL */}
       <Modal visible={showCatModal} transparent animationType="fade">

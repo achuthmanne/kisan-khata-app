@@ -31,6 +31,7 @@ import {
   Dimensions
 } from "react-native";
 import ShimmerPlaceholder from "react-native-shimmer-placeholder";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
 
 export default function PaymentSummary() {
   const { ids, crop, work, id, name, village } = useLocalSearchParams();
@@ -571,62 +572,59 @@ export default function PaymentSummary() {
       </Modal>
 
       {/* 🔥 NEW BOTTOM SHEET FOR UPLOADS */}
-      <Modal visible={photoModal} transparent animationType="slide" statusBarTranslucent>
-        <TouchableOpacity style={styles.bottomSheetOverlay} activeOpacity={1} onPress={() => setPhotoModal(false)}>
-          <View style={styles.bottomSheetContent}>
-            
-            {/* Header */}
-            <View style={styles.bsHeader}>
-              <View style={styles.bsHeaderLeft}>
-                <View style={styles.bsIconBg}>
-                  <Ionicons name="cloud-upload" size={22} color={workColor} />
-                </View>
-                <AppText style={styles.bsTitle} language={language}>
-                  {language === "te" ? "ఆధారం అప్లోడ్ చేయండి" : "Upload Proof"}
-                </AppText>
+      <SmoothBottomSheet visible={photoModal} onClose={() => setPhotoModal(false)}>
+        <View style={{ padding: 20 }}>
+          
+          {/* Header */}
+          <View style={styles.bsHeader}>
+            <View style={styles.bsHeaderLeft}>
+              <View style={styles.bsIconBg}>
+                <Ionicons name="cloud-upload" size={22} color={workColor} />
               </View>
-              <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
-                <Ionicons name="close" size={26} color="#9CA3AF" />
-              </TouchableOpacity>
+              <AppText style={styles.bsTitle} language={language}>
+                {language === "te" ? "ఆధారం అప్లోడ్ చేయండి" : "Upload Proof"}
+              </AppText>
             </View>
-
-            {/* Options */}
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={handleCamera}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}>
-                <Ionicons name="camera" size={24} color="#3B82F6" />
-              </View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" style={{ marginLeft: "auto" }} />
+            <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+              <Ionicons name="close" size={26} color="#9CA3AF" />
             </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={handleGallery}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}>
-                <Ionicons name="images" size={24} color="#16A34A" />
-              </View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" style={{ marginLeft: "auto" }} />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={handlePDF}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#FEF2F2" }]}>
-                <Ionicons name="document-text" size={24} color="#DC2626" />
-              </View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "PDF డాక్యుమెంట్" : "PDF Document"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "రసీదు ఫైల్ ఎంచుకోండి" : "Upload a receipt file"}</AppText>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color="#D1D5DB" style={{ marginLeft: "auto" }} />
-            </TouchableOpacity>
-
           </View>
-        </TouchableOpacity>
-      </Modal>
+
+          {/* Options */}
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={handleCamera}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}>
+              <Ionicons name="camera" size={24} color="#3B82F6" />
+            </View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" style={{ marginLeft: "auto" }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={handleGallery}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}>
+              <Ionicons name="images" size={24} color="#16A34A" />
+            </View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" style={{ marginLeft: "auto" }} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={handlePDF}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#FEF2F2" }]}>
+              <Ionicons name="document-text" size={24} color="#DC2626" />
+            </View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "PDF డాక్యుమెంట్" : "PDF Document"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "రసీదు ఫైల్ ఎంచుకోండి" : "Upload a receipt file"}</AppText>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#D1D5DB" style={{ marginLeft: "auto" }} />
+          </TouchableOpacity>
+        </View>
+      </SmoothBottomSheet>
 
       {/* SUCCESS CONFIRM MODAL */}
       <Modal visible={showModal} transparent animationType="fade" statusBarTranslucent>

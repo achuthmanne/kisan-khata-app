@@ -62,6 +62,7 @@ export default function LockerScreen() {
 
   const [activeTab, setActiveTab] = useState<"seed" | "fertilizer" | "pesticide" | "other">("seed");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -238,7 +239,7 @@ export default function LockerScreen() {
         </View>
         
         <View style={styles.cardActions}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => deleteItem(item.id)}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setDeleteItemId(item.id)}>
             <Ionicons name="trash-outline" size={18} color="#EF4444" />
             <AppText style={[styles.actionText, { color: "#EF4444" }]} language={language}>{t.delete}</AppText>
           </TouchableOpacity>
@@ -277,23 +278,22 @@ export default function LockerScreen() {
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => {}} language={language} />
         </View>
-      ) : filteredItems.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <AppEmptyState 
-            iconName="shield-checkmark-outline" 
-            title={t.noData} 
-            subtitle={t.emptySubtitle} 
-            language={language} 
-          />
-        </View>
       ) : (
         <FlatList
           data={filteredItems}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, filteredItems.length === 0 && { flexGrow: 1, justifyContent: "center" }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#16A34A"]} />}
+          ListEmptyComponent={
+            <AppEmptyState 
+              iconName="shield-checkmark-outline" 
+              title={t.noData} 
+              subtitle={t.emptySubtitle} 
+              language={language} 
+            />
+          }
         />
       )}
 
@@ -313,6 +313,31 @@ export default function LockerScreen() {
           {selectedImage && (
             <Image source={{ uri: selectedImage }} style={styles.fullScreenImage} contentFit="contain" />
           )}
+        </View>
+      </Modal>
+
+      {/* DELETE ENTRY MODAL */}
+      <Modal visible={!!deleteItemId} transparent animationType="fade" statusBarTranslucent>
+        <View style={styles.modalOverlayStandard}>
+          <View style={styles.modalContentStandard}>
+            <View style={[styles.modalIconBgStandard, { backgroundColor: "#FEE2E2" }]}>
+              <Ionicons name="trash-outline" size={36} color="#DC2626" />
+            </View>
+            <AppText style={styles.modalTitleStandard}>{language === "te" ? "తొలగించాలా?" : "Delete Entry?"}</AppText>
+            <AppText style={styles.modalSubStandard}>
+              {language === "te" 
+                ? "ఈ వివరాలను మీరు శాశ్వతంగా తొలగించాలనుకుంటున్నారా?" 
+                : "Are you sure you want to permanently delete these details?"}
+            </AppText>
+            <View style={styles.modalButtonsStandard}>
+              <TouchableOpacity activeOpacity={0.8} style={styles.modalCancelBtnStandard} onPress={() => setDeleteItemId(null)}>
+                <AppText style={styles.modalCancelTextStandard}>{language === "te" ? "వద్దు" : "Cancel"}</AppText>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} style={[styles.modalConfirmBtnStandard, { backgroundColor: "#DC2626" }]} onPress={() => { if(deleteItemId) { deleteItem(deleteItemId); setDeleteItemId(null); } }}>
+                <AppText style={styles.modalConfirmTextStandard}>{language === "te" ? "తొలగించు" : "Delete"}</AppText>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
     </SafeAreaView>
@@ -353,4 +378,15 @@ const styles = StyleSheet.create({
   fullScreenModal: { flex: 1, backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center" },
   fullScreenImage: { width: "100%", height: "80%" },
   closeModalBtn: { position: "absolute", top: 40, right: 20, zIndex: 10, padding: 8, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 20 },
+  
+  modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", padding: 20 },
+  modalContentStandard: { width: "100%", backgroundColor: "#fff", borderRadius: 20, padding: 24, alignItems: "center" },
+  modalIconBgStandard: { width: 64, height: 64, borderRadius: 32, justifyContent: "center", alignItems: "center", marginBottom: 16 },
+  modalTitleStandard: { fontSize: 20, fontWeight: "600", color: "#1F2937", marginBottom: 8, fontFamily: "Mandali" },
+  modalSubStandard: { fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 24, fontFamily: "Mandali" },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, width: "100%" },
+  modalCancelBtnStandard: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center" },
+  modalCancelTextStandard: { color: "#4B5563", fontSize: 16, fontWeight: "600", fontFamily: "Mandali" },
+  modalConfirmBtnStandard: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: "center" },
+  modalConfirmTextStandard: { color: "#fff", fontSize: 16, fontWeight: "600", fontFamily: "Mandali" },
 });

@@ -526,7 +526,7 @@ export default function OwnersList() {
             <View style={styles.modalIconBgStandardWarning}>
               <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
-            <AppText style={styles.modalTitleStandardWarning} language={language}>{language === "te" ? "తొలగించడం కుదరదు" : "Cannot Delete"}</AppText>
+            <AppText style={styles.modalTitleStandardWarning} language={language}>{language === "te" ? "తొలగించడం కుదరదు!" : "Cannot Delete!"}</AppText>
             <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
                 ? "ఈ ఓనర్ కు సంబంధించి పనుల వివరాలు ఇప్పటికే మీ అకౌంట్లో రికార్డ్ అయ్యాయి. కావున వీరిని తొలగించడం కుదరదు."
@@ -584,14 +584,14 @@ const styles = StyleSheet.create({
   modalOverlayStandard: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center", position: "absolute", top: 0, bottom: 0, left: 0, right: 0, zIndex: 999 },
   modalContentStandard: { width: "85%", backgroundColor: "white", borderRadius: 24, padding: 24, alignItems: "center", shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 15 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25, fontSize: 14, lineHeight: 22 },
-  modalButtonsStandard: { flexDirection: "row", gap: 12 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, justifyContent: "center", width: "100%" },
   modalCancelBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
   modalConfirmBtn: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
   modalCancelText: { color: "#64748B", fontWeight: "500" },
   modalConfirmText: { color: "white", fontWeight: "500" },
   modalIconBg: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   modalTitleStandardWarning: { fontSize: 20, fontWeight: "500", color: "#F59E0B", marginVertical: 10, textAlign: "center" },
-  modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
+  modalWarningBtnStandard: { paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 20, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },

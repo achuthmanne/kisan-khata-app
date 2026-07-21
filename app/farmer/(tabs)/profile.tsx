@@ -33,6 +33,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import AppText from "@/components/AppText";
 import AgriLoader from "../../../components/AgriLoader";
 import AppHeader from "../../../components/AppHeader";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
 
 const { width } = Dimensions.get("window");
 
@@ -625,53 +626,51 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* PHOTO UPLOAD MODAL */}
-      <Modal visible={photoModal} transparent animationType="slide" statusBarTranslucent>
-        <TouchableOpacity style={styles.bottomSheetOverlay} activeOpacity={1} onPress={() => setPhotoModal(false)}>
-          <View style={styles.bottomSheetContent}>
-            <View style={styles.bsHeader}>
-              <View style={styles.bsHeaderLeft}>
-                <View style={styles.bsIconBg}>
-                  <Ionicons name="camera-outline" size={22} color="#1B5E20" />
-                </View>
-                <AppText style={styles.bsTitle} language={language}>
-                  {language === "te" ? "ప్రొఫైల్ ఫోటో అప్డేట్" : "Update Profile Photo"}
-                </AppText>
+      <SmoothBottomSheet visible={photoModal} onClose={() => setPhotoModal(false)}>
+        <View style={{ padding: 20 }}>
+          <View style={styles.bsHeader}>
+            <View style={styles.bsHeaderLeft}>
+              <View style={styles.bsIconBg}>
+                <Ionicons name="camera-outline" size={22} color="#1B5E20" />
               </View>
-              <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
-                <Ionicons name="close" size={26} color="#9CA3AF" />
-              </TouchableOpacity>
+              <AppText style={styles.bsTitle} language={language}>
+                {language === "te" ? "ప్రొఫైల్ ఫోటో అప్డేట్" : "Update Profile Photo"}
+              </AppText>
             </View>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
-              setPhotoModal(false);
-              const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.2 });
-              if (!result.canceled && result.assets[0].uri) {
-                processPhotoUpload(result.assets[0].uri);
-              }
-            }}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
-              setPhotoModal(false);
-              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.2 });
-              if (!result.canceled && result.assets[0].uri) {
-                processPhotoUpload(result.assets[0].uri);
-              }
-            }}>
-              <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
-              <View>
-                <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
-                <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
-              </View>
+            <TouchableOpacity onPress={() => setPhotoModal(false)} hitSlop={{top:10, bottom:10, left:10, right:10}}>
+              <Ionicons name="close" size={26} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </Modal>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+            setPhotoModal(false);
+            const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.2 });
+            if (!result.canceled && result.assets[0].uri) {
+              processPhotoUpload(result.assets[0].uri);
+            }
+          }}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#EFF6FF" }]}><Ionicons name="camera" size={24} color="#3B82F6" /></View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "కెమెరా ద్వారా" : "Take Photo"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "ఇప్పుడే ఫోటో తీయండి" : "Capture a live photo"}</AppText>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bsOption} activeOpacity={0.8} onPress={async () => {
+            setPhotoModal(false);
+            const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.2 });
+            if (!result.canceled && result.assets[0].uri) {
+              processPhotoUpload(result.assets[0].uri);
+            }
+          }}>
+            <View style={[styles.bsOptionIcon, { backgroundColor: "#F0FDF4" }]}><Ionicons name="images" size={24} color="#16A34A" /></View>
+            <View>
+              <AppText style={styles.bsOptionTitle} language={language}>{language === "te" ? "గ్యాలరీ నుండి" : "Gallery"}</AppText>
+              <AppText style={styles.bsOptionSub} language={language}>{language === "te" ? "పాత ఫోటో ఎంచుకోండి" : "Choose an existing photo"}</AppText>
+            </View>
+          </TouchableOpacity>
+        </View>
+      </SmoothBottomSheet>
 
       <AgriLoader visible={loading} type={loaderType} language={language} />
     </SafeAreaView>

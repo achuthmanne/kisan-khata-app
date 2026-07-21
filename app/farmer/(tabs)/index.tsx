@@ -37,6 +37,8 @@ import Svg, { Path } from 'react-native-svg';
 
 import { getTranslatedCropName } from '@/utils/cropTranslations';
 import AppText from "../../../components/AppText";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
+
 const { width } = Dimensions.get("window");
 
 /* ---------------- TRANSLATIONS ---------------- */
@@ -1248,29 +1250,27 @@ export default function Dashboard() {
       ))}
     </View>
 
-    <Modal visible={sessionModal} transparent animationType="slide">
-      <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.4)", justifyContent:"flex-end" }}>
-        <View style={{ backgroundColor:"#fff", padding:20, borderTopLeftRadius:20, borderTopRightRadius:20 }}>
-          <View style={styles.modalHeader}>
-            <AppText style={styles.sectionTitle}>{language === "te" ? "సంవత్సరం ఎంచుకోండి" : "Select Season"}</AppText>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setSessionModal(false)}>
-              <Ionicons name="close" size={16} color="#1F2937" />
-            </TouchableOpacity>
-          </View>
-          {sessions.map((s)=>(
-            <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor: activeSession === s ? "#DCFCE7" : "#F3F4F6", marginBottom:10 }} onPress={async ()=>{
-                const phone = await AsyncStorage.getItem("USER_PHONE");
-                await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
-                await AsyncStorage.setItem("ACTIVE_SESSION", s);
-                setActiveSession(s);
-                setSessionModal(false);
-              }}>
-              <AppText style={{fontSize:16,fontWeight:"600"}}>{s}</AppText>
-            </TouchableOpacity>
-          ))}
+    <SmoothBottomSheet visible={sessionModal} onClose={() => setSessionModal(false)}>
+      <View style={{ padding: 20 }}>
+        <View style={styles.modalHeader}>
+          <AppText style={styles.sectionTitle}>{language === "te" ? "సంవత్సరం ఎంచుకోండి" : "Select Season"}</AppText>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => setSessionModal(false)}>
+            <Ionicons name="close" size={16} color="#1F2937" />
+          </TouchableOpacity>
         </View>
+        {sessions.map((s)=>(
+          <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor: activeSession === s ? "#DCFCE7" : "#F3F4F6", marginBottom:10 }} onPress={async ()=>{
+              const phone = await AsyncStorage.getItem("USER_PHONE");
+              await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
+              await AsyncStorage.setItem("ACTIVE_SESSION", s);
+              setActiveSession(s);
+              setSessionModal(false);
+            }}>
+            <AppText style={{fontSize:16,fontWeight:"600"}}>{s}</AppText>
+          </TouchableOpacity>
+        ))}
       </View>
-    </Modal>
+    </SmoothBottomSheet>
 
     </Animated.ScrollView>
   </SafeAreaView>

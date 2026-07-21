@@ -721,7 +721,7 @@ export default function VehicleDetails() {
               <Ionicons name="lock-closed" size={36} color="#F59E0B" />
             </View>
             <AppText style={styles.modalTitleStandardWarning} language={language}>
-              {language === "te" ? "తొలగించడం కుదరదు" : "Cannot Delete"}
+              {language === "te" ? "తొలగించడం కుదరదు!" : "Cannot Delete!"}
             </AppText>
             <AppText style={styles.modalSubStandard} language={language}>
               {language === "te"
@@ -788,14 +788,14 @@ const styles = StyleSheet.create({
   modalContentStandard: { width: "80%", backgroundColor: "white", borderRadius: 25, padding: 25, alignItems: "center" },
   modalTitleStandard: { fontSize: 20, fontWeight: "500", color: "#e2431f", marginVertical: 10 },
   modalSubStandard: { textAlign: "center", color: "#64748B", marginBottom: 25 },
-  modalButtonsStandard: { flexDirection: "row", gap: 10 },
+  modalButtonsStandard: { flexDirection: "row", gap: 12, justifyContent: "center", width: "100%" },
   modalCancelBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F1F5F9", alignItems: "center" },
   modalConfirmBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center" },
   modalCancelTextStandard: { color: "#64748B", fontWeight: "500" },
   modalConfirmTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandard: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#f5e8e8", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   modalTitleStandardWarning: { fontSize: 20, fontWeight: "500", color: "#F59E0B", marginVertical: 10, textAlign: "center" },
-  modalWarningBtnStandard: { flex: 1, padding: 12, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
+  modalWarningBtnStandard: { paddingVertical: 12, paddingHorizontal: 32, borderRadius: 12, backgroundColor: "#F59E0B", alignItems: "center" },
   modalWarningTextStandard: { color: "white", fontWeight: "500" },
   modalIconBgStandardWarning: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF3C7", justifyContent: "center", alignItems: "center", marginBottom: 10 },
   importSuggestionCard: { backgroundColor: "#FEF3C7", marginHorizontal: 16, borderRadius: 16, padding: 20, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FDE68A", elevation: 2, shadowColor: "#D97706", shadowOpacity: 0.1, shadowRadius: 8 },

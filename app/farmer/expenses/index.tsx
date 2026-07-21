@@ -377,7 +377,7 @@ export default function ExpensesScreen() {
                       onPress={() => setDeleteVisible(false)}
                     >
                       <AppText style={styles.cancelText} language={language}>
-                        {language === "te" ? "වద్దు" : "Cancel"}
+                        {language === "te" ? "వద్దు" : "Cancel"}
                       </AppText>
                     </TouchableOpacity>
                     <TouchableOpacity

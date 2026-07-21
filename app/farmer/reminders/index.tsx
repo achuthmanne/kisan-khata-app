@@ -228,23 +228,22 @@ export default function RemindersScreen() {
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <AppEmptyState iconName="cloud-offline-outline" title={t.errorText} onRetry={() => {}} language={language} />
         </View>
-      ) : filteredReminders.length === 0 ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <AppEmptyState 
-            iconName={activeTab === "COMPLETED" ? "checkmark-done-circle-outline" : (activeTab === "PENDING" ? "time-outline" : "alarm-outline")} 
-            title={activeTab === "COMPLETED" ? t.noCompletedData : (activeTab === "PENDING" ? t.noPendingData : t.noData)} 
-            subtitle={activeTab === "COMPLETED" ? t.completedSubtitle : (activeTab === "PENDING" ? t.pendingSubtitle : t.emptySubtitle)} 
-            language={language} 
-          />
-        </View>
       ) : (
         <FlatList
           data={filteredReminders}
           keyExtractor={(item) => item.id}
           renderItem={renderReminder}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, filteredReminders.length === 0 && { flexGrow: 1, justifyContent: "center" }]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#2E7D32"]} />}
+          ListEmptyComponent={
+            <AppEmptyState 
+              iconName={activeTab === "COMPLETED" ? "checkmark-done-circle-outline" : (activeTab === "PENDING" ? "time-outline" : "alarm-outline")} 
+              title={activeTab === "COMPLETED" ? t.noCompletedData : (activeTab === "PENDING" ? t.noPendingData : t.noData)} 
+              subtitle={activeTab === "COMPLETED" ? t.completedSubtitle : (activeTab === "PENDING" ? t.pendingSubtitle : t.emptySubtitle)} 
+              language={language} 
+            />
+          }
         />
       )}
 

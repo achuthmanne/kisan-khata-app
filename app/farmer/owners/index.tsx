@@ -1,4 +1,5 @@
 import AppEmptyState from "@/components/AppEmptyState";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
  
 import AppHeader from "@/components/AppHeader";
@@ -441,17 +442,16 @@ export default function OwnersList() {
       </TouchableOpacity>
 
       {/* 🔄 IMPORT PAST OWNERS MODAL */}
-      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
-            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
-              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
-                {language === "te" ? "పాత ఓనర్లను ఎంచుకోండి" : "Select Past Owners"}
-              </AppText>
-              <TouchableOpacity onPress={() => setShowImportModal(false)}>
-                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
+      <SmoothBottomSheet visible={showImportModal} onClose={() => setShowImportModal(false)}>
+        <View style={{ maxHeight: 600, width: '100%', padding: 0 }}>
+          <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+              {language === "te" ? "పాత ఓనర్లను ఎంచుకోండి" : "Select Past Owners"}
+            </AppText>
+            <TouchableOpacity onPress={() => setShowImportModal(false)}>
+              <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
             
             <FlatList
               data={pastOwners}
@@ -485,20 +485,21 @@ export default function OwnersList() {
               }}
             />
 
-            <TouchableOpacity 
-              style={[styles.importSubmitBtn, selectedPastOwners.length === 0 && { opacity: 0.5 }]} 
-              disabled={selectedPastOwners.length === 0 || importing}
-              onPress={handleImportPastOwners}
-            >
-              {importing ? <ActivityIndicator color="#fff" /> : (
-                <AppText style={styles.importSubmitBtnText} language={language}>
-                  {language === "te" ? `ఎంచుకున్న ${selectedPastOwners.length} మందిని జతచేయి` : `Import ${selectedPastOwners.length} Selected`}
-                </AppText>
-              )}
-            </TouchableOpacity>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 10, paddingTop: 10, backgroundColor: "#fff" }}>
+              <TouchableOpacity 
+                style={[styles.importSubmitBtn, selectedPastOwners.length === 0 && { opacity: 0.5 }]} 
+                disabled={selectedPastOwners.length === 0 || importing}
+                onPress={handleImportPastOwners}
+              >
+                {importing ? <ActivityIndicator color="#fff" /> : (
+                  <AppText style={styles.importSubmitBtnText} language={language}>
+                    {language === "te" ? `ఎంచుకున్న ${selectedPastOwners.length} ఓనర్లను జతచేయి` : `Import ${selectedPastOwners.length} Selected`}
+                  </AppText>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+      </SmoothBottomSheet>
 
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.modalOverlay}>
@@ -603,6 +604,6 @@ const styles = StyleSheet.create({
   importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB' },
   importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
   importRowLeft: { flexDirection: 'row', alignItems: 'center' },
-  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '100%', alignSelf: 'center', paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

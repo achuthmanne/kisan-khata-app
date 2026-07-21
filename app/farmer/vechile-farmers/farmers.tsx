@@ -1,5 +1,6 @@
 //vechile farmer
 import AppEmptyState from "@/components/AppEmptyState";
+import SmoothBottomSheet from "@/components/ui/SmoothBottomSheet";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
 
 import AppHeader from "@/components/AppHeader";
@@ -564,17 +565,16 @@ export default function VehicleDetails() {
       </TouchableOpacity>
 
       {/* 🔄 IMPORT PAST FARMERS MODAL */}
-      <Modal visible={showImportModal} transparent animationType="slide" statusBarTranslucent>
-        <View style={styles.modalOverlayStandard}>
-          <View style={[styles.modalContentStandard, { height: '80%', width: '90%', padding: 0, paddingBottom: 20 }]}>
-            <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 25, borderTopRightRadius: 25 }}>
-              <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
-                {language === "te" ? "పాత రైతులను ఎంచుకోండి" : "Select Past Farmers"}
-              </AppText>
-              <TouchableOpacity onPress={() => setShowImportModal(false)}>
-                <Ionicons name="close-circle" size={28} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
+      <SmoothBottomSheet visible={showImportModal} onClose={() => setShowImportModal(false)}>
+        <View style={{ maxHeight: 600, width: '100%', padding: 0 }}>
+          <View style={{ padding: 20, paddingBottom: 15, borderBottomWidth: 1, borderColor: "#E5E7EB", width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F9FAFB', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}>
+            <AppText style={{ fontSize: 18, fontWeight: '600', color: '#111827' }} language={language}>
+              {language === "te" ? "పాత రైతులను ఎంచుకోండి" : "Select Past Farmers"}
+            </AppText>
+            <TouchableOpacity onPress={() => setShowImportModal(false)}>
+              <Ionicons name="close-circle" size={28} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
             
             <FlatList
               data={pastFarmers}
@@ -608,20 +608,21 @@ export default function VehicleDetails() {
               }}
             />
 
-            <TouchableOpacity 
-              style={[styles.importSubmitBtn, selectedPastFarmers.length === 0 && { opacity: 0.5 }]} 
-              disabled={selectedPastFarmers.length === 0 || importing}
-              onPress={handleImportPastFarmers}
-            >
-              {importing ? <ActivityIndicator color="#fff" /> : (
-                <AppText style={styles.importSubmitBtnText} language={language}>
-                  {language === "te" ? `ఎంచుకున్న ${selectedPastFarmers.length} రైతులను జతచేయి` : `Import ${selectedPastFarmers.length} Selected`}
-                </AppText>
-              )}
-            </TouchableOpacity>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 10, paddingTop: 10, backgroundColor: "#fff" }}>
+              <TouchableOpacity 
+                style={[styles.importSubmitBtn, selectedPastFarmers.length === 0 && { opacity: 0.5 }]} 
+                disabled={selectedPastFarmers.length === 0 || importing}
+                onPress={handleImportPastFarmers}
+              >
+                {importing ? <ActivityIndicator color="#fff" /> : (
+                  <AppText style={styles.importSubmitBtnText} language={language}>
+                    {language === "te" ? `ఎంచుకున్న ${selectedPastFarmers.length} రైతులను జతచేయి` : `Import ${selectedPastFarmers.length} Selected`}
+                  </AppText>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
+      </SmoothBottomSheet>
 
       {/* 🔴 STANDARD DELETE MODAL */}
       <Modal visible={showDeleteModal} transparent animationType="fade" statusBarTranslucent>
@@ -744,6 +745,6 @@ const styles = StyleSheet.create({
   importRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, paddingLeft: 0, borderRadius: 12, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 10, backgroundColor: '#F9FAFB', overflow: 'hidden' },
   importRowSelected: { borderColor: '#16A34A', backgroundColor: '#F0FDF4' },
   importRowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  importSubmitBtn: { backgroundColor: '#16A34A', width: '90%', alignSelf: 'center', paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  importSubmitBtn: { backgroundColor: '#16A34A', width: '100%', alignSelf: 'center', paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   importSubmitBtnText: { color: 'white', fontWeight: '600', fontSize: 15, fontFamily: "Mandali" },
 });

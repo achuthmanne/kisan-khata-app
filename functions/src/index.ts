@@ -29,9 +29,13 @@ const sendMulticastInBatches = async (tokens: string[], payload: any) => {
         
         // పాత టోకెన్స్ ని ఫైర్‌స్టోర్ నుంచి తీసేయడం (ఇది రేపు బిల్ల్ తగ్గించడానికి హెల్ప్ అవుతుంది)
         if (failedTokens.length > 0) {
-           const usersSnap = await admin.firestore().collection("users").where("fcmToken", "in", failedTokens).get();
            const batch = admin.firestore().batch();
-           usersSnap.docs.forEach(doc => batch.update(doc.ref, { fcmToken: admin.firestore.FieldValue.delete() }));
+           // Firestore 'in' queries have a limit of 30
+           for (let j = 0; j < failedTokens.length; j += 30) {
+             const chunkTokens = failedTokens.slice(j, j + 30);
+             const usersSnap = await admin.firestore().collection("users").where("fcmToken", "in", chunkTokens).get();
+             usersSnap.docs.forEach(doc => batch.update(doc.ref, { fcmToken: admin.firestore.FieldValue.delete() }));
+           }
            await batch.commit();
         }
       }

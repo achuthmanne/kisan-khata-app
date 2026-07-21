@@ -35,6 +35,12 @@ export default function EditMestri() {
   const isLocked = hasRecords === "true"; 
 
   const [activeSession, setActiveSession] = useState("");
+
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [village, setVillage] = useState("");

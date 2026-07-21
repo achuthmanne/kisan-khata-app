@@ -36,6 +36,12 @@ export default function MestriAttendance() {
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(20);
 
+  const isMounted = useRef(true);
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   const mestris = useStore((state) => state.mestris);
   
   const currentMestri = mestris.find(m => m.id === id);

@@ -317,6 +317,7 @@ export const useStore = create<AppState>((set, get) => ({
       // 10. Locker Listener
       unsubLocker = firestore()
         .collection("users").doc(phone).collection("locker")
+        .where("session", "==", session)
         .onSnapshot((snap) => {
           if (snap) {
             const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));

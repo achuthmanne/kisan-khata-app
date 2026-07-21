@@ -277,8 +277,7 @@ export default function Dashboard() {
   const ADMIN_PHONE = "8121648629"; 
   const [isAdmin, setIsAdmin] = useState(false);
   const [sessionModal, setSessionModal] = useState(false);
-  const [oldSessionModal, setOldSessionModal] = useState(false);
-  const [allSessions, setAllSessions] = useState<string[]>([]);
+
   const t = translations[language as "te" | "en"];
   
   const CACHE_KEY = "WEATHER_CACHE";
@@ -567,7 +566,7 @@ export default function Dashboard() {
          setIsAdmin(true);
       }
       
-      await fetchAllSessions(phone);
+      
       const doc = await executeOfflineSafeRead(firestore().collection("users").doc(phone), true);
       const data = doc.data();
 
@@ -659,18 +658,6 @@ export default function Dashboard() {
 
   const sessions = getSessionList();
   const oldestSession = sessions[0]; 
-  const oldSessions = allSessions.filter(s => parseInt(s.split("-")[0]) < parseInt(oldestSession.split("-")[0]));
-
-  const fetchAllSessions = async (phone:string) => {
-    const snap = await executeOfflineSafeRead(firestore().collection("users").doc(phone).collection("fields"), true);
-    const sessionsSet = new Set<string>();
-    snap.forEach((doc: any) => {
-      const data = doc.data();
-      if (data.session) sessionsSet.add(data.session);
-    });
-    const sorted = Array.from(sessionsSet).sort((a, b) => parseInt(b.split("-")[0]) - parseInt(a.split("-")[0]));
-    setAllSessions(sorted);
-  };
 
   /* ---------------- WEATHER ---------------- */
   const formatWeather = (raw: string, language: string) => {
@@ -1281,38 +1268,6 @@ export default function Dashboard() {
               <AppText style={{fontSize:16,fontWeight:"600"}}>{s}</AppText>
             </TouchableOpacity>
           ))}
-          {oldSessions.length > 0 && (
-            <TouchableOpacity style={{ padding:14, borderRadius:12, backgroundColor:"#E0F2FE", marginTop:10 }} onPress={() => { setSessionModal(false); setOldSessionModal(true); }}>
-              <AppText style={{textAlign:"center",fontWeight:"600"}}>{language === "te" ? "పాత డేటా చూడండి" : "View Old Data"}</AppText>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-    </Modal>
-
-    <Modal visible={oldSessionModal} transparent animationType="slide">
-      <View style={{ flex:1, backgroundColor:"rgba(0,0,0,0.4)", justifyContent:"flex-end" }}>
-        <View style={{ backgroundColor:"#fff", padding:20, borderTopLeftRadius:20, borderTopRightRadius:20 }}>
-          <View style={styles.modalHeader}>
-            <AppText style={styles.sectionTitle}>{language === "te" ? "పాత సీజన్లు" : "Old Sessions"}</AppText>
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setOldSessionModal(false)}>
-              <Ionicons name="close" size={16} color="#1F2937" />
-            </TouchableOpacity>
-          </View>
-          {/* 🔥 PRO FIX 3: ScrollView for many old sessions preventing off-screen modal issues */}
-          <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
-            {oldSessions.map((s)=>(
-              <TouchableOpacity key={s} style={{ padding:14, borderRadius:12, backgroundColor:"#F3F4F6", marginBottom:10 }} onPress={async ()=>{
-                  const phone = await AsyncStorage.getItem("USER_PHONE");
-                  await executeOfflineSafeWrite(firestore().collection("users").doc(phone!).update({ activeSession: s }));
-                  await AsyncStorage.setItem("ACTIVE_SESSION", s);
-                  setActiveSession(s);
-                  setOldSessionModal(false);
-                }}>
-                <AppText style={{fontSize:16,fontWeight:"600"}}>{s}</AppText>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
         </View>
       </View>
     </Modal>

@@ -396,15 +396,31 @@ export default function DriverHistory() {
                               </View>
                               
                               {work.hasBreak && (
-                                <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
-                                  <Ionicons name="cafe-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
-                                  <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#EF4444" }}>
-                                    {language === "te" ? "బ్రేక్ సమయం (-): " : "Break Time (-): "}
-                                    <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
-                                      {work.breakStartTimeRaw ? new Date(work.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {work.breakEndTimeRaw ? new Date(work.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
-                                    </AppText>
-                                  </AppText>
-                                </View>
+                                <>
+                                  {work.breaksRaw && work.breaksRaw.length > 0 ? (
+                                    work.breaksRaw.map((b: any, idx: number) => (
+                                      <View key={idx} style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 2 }}>
+                                        <Ionicons name="cafe-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                                        <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#EF4444" }}>
+                                          {language === "te" ? (work.breaksRaw.length > 1 ? `బ్రేక్ ${idx+1} (-): ` : "బ్రేక్ సమయం (-): ") : (work.breaksRaw.length > 1 ? `Break ${idx+1} (-): ` : "Break Time (-): ")}
+                                          <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
+                                            {b.startTimeRaw ? new Date(b.startTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {b.endTimeRaw ? new Date(b.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                                          </AppText>
+                                        </AppText>
+                                      </View>
+                                    ))
+                                  ) : (
+                                    <View style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap", marginTop: 2 }}>
+                                      <Ionicons name="cafe-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                                      <AppText style={{ fontFamily: "Mandali", fontSize: 14, color: "#EF4444" }}>
+                                        {language === "te" ? "బ్రేక్ సమయం (-): " : "Break Time (-): "}
+                                        <AppText style={{ fontWeight: "600", color: "#EF4444" }}>
+                                          {work.breakStartTimeRaw ? new Date(work.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"} - {work.breakEndTimeRaw ? new Date(work.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}
+                                        </AppText>
+                                      </AppText>
+                                    </View>
+                                  )}
+                                </>
                               )}
 
                               <View style={{ height: 1, backgroundColor: "#E5E7EB", marginVertical: 4 }} />
@@ -574,9 +590,17 @@ export default function DriverHistory() {
                                 const et = work.endTimeRaw ? new Date(work.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                 msg += `⏰ *సమయం:* ${st} - ${et}\n`;
                                 if (work.hasBreak) {
+                                  if (work.breaksRaw && work.breaksRaw.length > 0) {
+                                    work.breaksRaw.forEach((b: any, idx: number) => {
+                                      const bs = b.startTimeRaw ? new Date(b.startTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+                                      const be = b.endTimeRaw ? new Date(b.endTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
+                                      msg += `☕ *${work.breaksRaw.length > 1 ? `బ్రేక్ ${idx+1}` : "బ్రేక్ సమయం"} (-):* ${bs} - ${be}\n`;
+                                    });
+                                  } else {
                                     const bs = work.breakStartTimeRaw ? new Date(work.breakStartTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                     const be = work.breakEndTimeRaw ? new Date(work.breakEndTimeRaw).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--";
                                     msg += `☕ *బ్రేక్ సమయం (-):* ${bs} - ${be}\n`;
+                                  }
                                 }
                                 msg += `⏱️ *అసలు పని (గంటలు):* ${work.totalHoursStr || '0'}\n`;
                               } else {

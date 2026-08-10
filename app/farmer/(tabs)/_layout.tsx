@@ -362,11 +362,15 @@ export default function FarmerLayout() {
                         alignItems: "center"
                       }}
                     >
-                      <Image 
-                        source={profileImage ? { uri: profileImage } : getDefaultImage()} 
-                        style={{ width: "100%", height: "100%" }} 
-                        contentFit="cover"
-                      />
+                      {profileImage ? (
+                        <Image 
+                          source={{ uri: profileImage }} 
+                          style={{ width: "100%", height: "100%" }} 
+                          contentFit="cover"
+                        />
+                      ) : (
+                        <Ionicons name="person" size={40} color="#FFFFFF" />
+                      )}
                     </View>
                 
                     <AppText style={{ fontSize: 18, marginTop: 10, color: "#fff", fontWeight: "600" }}>

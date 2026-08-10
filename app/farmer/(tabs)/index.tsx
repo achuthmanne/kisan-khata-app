@@ -961,12 +961,16 @@ export default function Dashboard() {
           <TouchableOpacity style={styles.profileRow} onPress={() => setDrawer(true)} activeOpacity={0.8}>
             
             {/* 🔥 PROFILE IMAGE LOGIC APPLIED HERE */}
-            <View style={{ width: 50, height: 50, borderRadius: 14, overflow: 'hidden', marginRight: 10, backgroundColor: "#E2E8F0" }}>
-              <Image 
-                source={profilePic ? { uri: profilePic } : getDefaultAvatar()} 
-                style={{ width: "100%", height: "100%" }} 
-                contentFit="cover" 
-              />
+            <View style={{ width: 50, height: 50, borderRadius: 14, overflow: 'hidden', marginRight: 10, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", justifyContent: 'center', alignItems: 'center' }}>
+              {profilePic ? (
+                <Image 
+                  source={{ uri: profilePic }} 
+                  style={{ width: "100%", height: "100%" }} 
+                  contentFit="cover" 
+                />
+              ) : (
+                <Ionicons name="person" size={26} color="#FFFFFF" />
+              )}
             </View>
 
             <View>
@@ -1053,7 +1057,7 @@ export default function Dashboard() {
                         <View style={styles.marketHeaderRow}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, paddingRight: 10 }}>
                             <Ionicons name="location-outline" size={16} color="white" style={{ marginTop: 1 }} />
-                            <AppText style={styles.marketTitle} language={language} numberOfLines={1} ellipsizeMode="tail">
+                            <AppText style={[styles.marketTitle, { flexShrink: 1 }]} language={language} numberOfLines={1} ellipsizeMode="tail">
                               {weatherLoading ? (language === "te" ? "వెతుకుతోంది..." : "Detecting...") : city}
                             </AppText>
                           </View>

@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import firestore from "@react-native-firebase/firestore";
 import storage from "@react-native-firebase/storage";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { syncTrackingEvent } from "@/services/trackingService";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -341,6 +342,14 @@ export default function AddMachine() {
           userId: userPhone,
           createdAt: firestore.FieldValue.serverTimestamp(),
         }));
+
+        // Track AgriConnect usage for new listings
+        await syncTrackingEvent("AGRICONNECT_USAGE", {
+          action: "ADD_LISTING",
+          listingType,
+          listingName: machineData.listingName,
+          villageName: machineData.village
+        });
       }
 
       setLoading(false);

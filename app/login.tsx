@@ -4,6 +4,8 @@ import firestore from "@react-native-firebase/firestore";
 
 import { useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
+import { syncTrackingEvent } from "../services/trackingService";
+import { API_URLS } from "@/constants/apiConfig";
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -35,12 +37,20 @@ export default function LoginScreen() {
   const router = useRouter();
 
   // Screen State
-  const [step, setStep] = useState<1 | 2>(1); // 1 = Phone, 2 = OTP
+  const [step, setStep] = useState<1 | 2 | 3>(1); // 1 = Phone, 2 = OTP, 3 = Referral Setup
   const [language, setLanguage] = useState<"te" | "en">("te");
   const [loading, setLoading] = useState(false);
   const [loaderType, setLoaderType] = useState<"loading" | "sending_otp" | "verifying_otp">("loading");
   const [error, setError] = useState("");
   
+  // Referral State
+  const [village, setVillage] = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [villageError, setVillageError] = useState("");
+  const [referralError, setReferralError] = useState("");
+  const focusVillage = useSharedValue(0);
+  const focusReferral = useSharedValue(0);
+
   // Phone State
   const [phone, setPhone] = useState("");
   const focusPhone = useSharedValue(0);
@@ -53,6 +63,7 @@ export default function LoginScreen() {
   
   const otpInputs = useRef<Array<TextInput | null>>([]);
   const shake = useSharedValue(0);
+  const authHandled = useRef(false);
 
   // Auto-Read OTP listener
   useEffect(() => {
@@ -89,6 +100,16 @@ export default function LoginScreen() {
   const phoneBorderStyle = useAnimatedStyle(() => ({
     borderColor: focusPhone.value ? "#1B5E20" : "#E5E7EB",
     borderWidth: focusPhone.value ? 1 : 0.5,
+  }));
+
+  const villageBorderStyle = useAnimatedStyle(() => ({
+    borderColor: focusVillage.value ? "#1B5E20" : "#E5E7EB",
+    borderWidth: focusVillage.value ? 1 : 0.5,
+  }));
+
+  const referralBorderStyle = useAnimatedStyle(() => ({
+    borderColor: focusReferral.value ? "#1B5E20" : "#E5E7EB",
+    borderWidth: focusReferral.value ? 1 : 0.5,
   }));
 
   const handleSendOTP = async () => {
@@ -188,6 +209,9 @@ export default function LoginScreen() {
   };
 
   const handleSuccessfulAuth = async (userPhone: string) => {
+    if (authHandled.current) return;
+    authHandled.current = true;
+    
     try {
       const doc = await firestore().collection("users").doc(userPhone).get();
       const data = doc.data();
@@ -204,6 +228,14 @@ export default function LoginScreen() {
           createdAt: firestore.FieldValue.serverTimestamp(),
           updatedAt: firestore.FieldValue.serverTimestamp()
         });
+        
+        await AsyncStorage.setItem("USER_PHONE", userPhone);
+        await AsyncStorage.setItem("USER_ROLE", roleToSave);
+        await AsyncStorage.setItem("APP_LANG", language);
+        
+        setLoading(false);
+        setStep(3); // Go to Profile Setup
+        return;
       } else {
         // Just update language and ensure role is farmer
         await firestore().collection("users").doc(userPhone).update({
@@ -234,6 +266,68 @@ export default function LoginScreen() {
       console.log("DB Save Error:", err);
       setLoading(false);
       setError(language === "te" ? "సర్వర్ లోపం, మళ్ళీ ప్రయత్నించండి" : "Server error, please try again");
+    }
+  };
+
+  const handleCompleteOnboarding = async (isSkipped = false) => {
+    setVillageError("");
+    setReferralError("");
+    setError("");
+
+    try {
+      if (!isSkipped) {
+        let hasError = false;
+        
+        if (village.trim().length < 3) {
+          setVillageError(language === "te" ? "దయచేసి మీ ఊరు పేరు సరిగ్గా ఇవ్వండి" : "Please enter a valid village name");
+          hasError = true;
+        }
+        
+        if (!referralCode.trim()) {
+          setReferralError(language === "te" ? "దయచేసి రిఫరల్ కోడ్ ఇవ్వండి" : "Please enter the referral code");
+          hasError = true;
+        }
+
+        if (hasError) return;
+        
+        setLoading(true);
+
+        // Check if referral code exists in MongoDB (Next.js backend)
+        try {
+          const response = await fetch(`${API_URLS.VALIDATE_INTERN}?code=${referralCode.trim().toUpperCase()}`);
+          const data = await response.json();
+          if (!response.ok || !data.valid) {
+            setLoading(false);
+            setReferralError(language === "te" ? "తప్పు రిఫరల్ కోడ్, మళ్ళీ చెక్ చేయండి" : "Invalid referral code. Please check again.");
+            return;
+          }
+        } catch (apiErr) {
+          console.log("Validation API Error:", apiErr);
+          setLoading(false);
+          setReferralError(language === "te" ? "సర్వర్ ప్రాబ్లమ్, దయచేసి మళ్ళీ ప్రయత్నించండి" : "Server error, please try again.");
+          return;
+        }
+
+        await AsyncStorage.setItem("INTERN_REFERRAL_CODE", referralCode.trim().toUpperCase());
+        
+        await firestore().collection("users").doc(phone).update({
+          village: village.trim(),
+          updatedAt: firestore.FieldValue.serverTimestamp()
+        });
+        
+        await syncTrackingEvent("FARMER_ONBOARDED", { villageName: village.trim() });
+      } else {
+        setLoading(true);
+      }
+      
+      Keyboard.dismiss();
+      setTimeout(() => {
+        router.replace("/farmer/(tabs)");
+      }, 300);
+    } catch(err) {
+      console.log("Error in step 3", err);
+      setLoading(false);
+      setError(language === "te" ? "సెటప్ చేయడంలో లోపం" : "Error completing setup");
     }
   };
 
@@ -306,7 +400,7 @@ export default function LoginScreen() {
                 </AppText>
               </TouchableOpacity>
             </Animated.View>
-          ) : (
+          ) : step === 2 ? (
             // --- STEP 2: OTP INPUT ---
             <Animated.View entering={FadeInRight} exiting={FadeOutRight} style={{ flex: 1 }}>
               
@@ -360,6 +454,82 @@ export default function LoginScreen() {
                 )}
               </View>
 
+            </Animated.View>
+          ) : (
+            // --- STEP 3: REFERRAL CODE ---
+            <Animated.View entering={FadeInRight} exiting={FadeOutRight} style={{ flex: 1 }}>
+              <AppText style={styles.title} language={language}>
+                {language === "te" ? "మీ వివరాలు" : "Almost Done"}
+              </AppText>
+              <AppText style={styles.tagline} language={language}>
+                {language === "te" 
+                  ? "మీ ఊరు పేరు మరియు ఎవరైనా ఇంటర్న్ రిఫర్ చేస్తే వారి కోడ్ ఇవ్వండి." 
+                  : "Enter your village name and referral code if you have one."}
+              </AppText>
+
+              <AppText style={{ color: "#4B5563", fontWeight: "600", marginBottom: 8 }} language={language}>
+                {language === "te" ? "మీ ఊరు పేరు *" : "Village Name *"}
+              </AppText>
+              <Animated.View style={[styles.inputBox, villageBorderStyle]}>
+                <Ionicons name="location-outline" size={20} color={focusVillage.value || village ? "#1B5E20" : "#9CA3AF"} style={{ marginRight: 12 }} />
+                <TextInput
+                  style={[styles.input, { fontFamily: "Mandali" }]}
+                  value={village}
+                  cursorColor="#1B5E20"
+                  selectionColor="#16A34A40"
+                  placeholder={language === "te" ? "ఉదాహరణ: గొల్లపూడి" : "e.g. Gollapudi"}
+                  placeholderTextColor="#9CA3AF"
+                  onChangeText={(t) => { setVillage(t); setVillageError(""); setError(""); }}
+                  onFocus={() => (focusVillage.value = withTiming(1))}
+                  onBlur={() => (focusVillage.value = withTiming(0))}
+                  editable={!loading}
+                />
+              </Animated.View>
+              {villageError !== "" && <AppText style={styles.error} language={language}>{villageError}</AppText>}
+
+              <AppText style={{ color: "#4B5563", fontWeight: "600", marginBottom: 8, marginTop: 10 }} language={language}>
+                {language === "te" ? "రిఫరల్ కోడ్ *" : "Referral Code *"}
+              </AppText>
+              <Animated.View style={[styles.inputBox, referralBorderStyle]}>
+                <Ionicons name="ticket-outline" size={20} color={focusReferral.value || referralCode ? "#1B5E20" : "#9CA3AF"} style={{ marginRight: 12 }} />
+                <TextInput
+                  style={[styles.input, { fontFamily: "Mandali" }]}
+                  value={referralCode}
+                  cursorColor="#1B5E20"
+                  selectionColor="#16A34A40"
+                  placeholder="KK-XXX-1234"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="characters"
+                  onChangeText={(t) => { setReferralCode(t); setReferralError(""); setError(""); }}
+                  onFocus={() => (focusReferral.value = withTiming(1))}
+                  onBlur={() => (focusReferral.value = withTiming(0))}
+                  editable={!loading}
+                />
+              </Animated.View>
+              {referralError !== "" && <AppText style={styles.error} language={language}>{referralError}</AppText>}
+
+              {error !== "" && <AppText style={styles.error} language={language}>{error}</AppText>}
+
+              <TouchableOpacity 
+                activeOpacity={0.8} 
+                style={[styles.button, (!village.trim() || !referralCode.trim()) && styles.disabledBtn]} 
+                disabled={(!village.trim() || !referralCode.trim()) || loading} 
+                onPress={() => handleCompleteOnboarding(false)}
+              >
+                <AppText style={styles.buttonText} language={language}>
+                  {language === "te" ? "పూర్తి చేయండి" : "Complete Setup"}
+                </AppText>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                activeOpacity={0.7} 
+                style={{ marginTop: 24, alignItems: "center" }}
+                onPress={() => handleCompleteOnboarding(true)}
+              >
+                <AppText style={{ color: "#9CA3AF", fontSize: 15, fontWeight: "600" }} language={language}>
+                  {language === "te" ? "స్కిప్ చేయండి (Skip)" : "Skip for now"}
+                </AppText>
+              </TouchableOpacity>
             </Animated.View>
           )}
 

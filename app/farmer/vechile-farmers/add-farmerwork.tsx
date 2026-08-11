@@ -8,6 +8,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { syncTrackingEvent } from "@/services/trackingService";
 import { useIsFocused } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -293,6 +294,8 @@ export default function AddFarmerWork() {
         session: activeSession,
         createdAt: firestore.FieldValue.serverTimestamp()
       }));
+
+    await syncTrackingEvent("VEHICLE_ADDED");
 
     setTimeout(() => {
       if (isMounted.current) {

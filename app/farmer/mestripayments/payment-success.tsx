@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
 import { executeOfflineSafeRead, executeOfflineSafeWrite } from "@/utils/offlineHelper";
+import { syncTrackingEvent } from "@/services/trackingService";
 import storage from "@react-native-firebase/storage";
 import * as FileSystem from "expo-file-system";
 import { Image } from "expo-image";
@@ -179,6 +180,7 @@ export default function PaymentSuccess() {
       });
 
       await executeOfflineSafeWrite(batch.commit());
+      await syncTrackingEvent("PAYMENT_TRACKED");
 
       setStatus("success");
 

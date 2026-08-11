@@ -211,7 +211,7 @@ export default function OnboardingScreen() {
             activeOpacity={0.7}
           >
             <View style={[styles.checkbox, agreed && styles.checkboxActive]}>
-              {agreed && <Ionicons name="checkmark" size={16} color="white" />}
+              {agreed && <Ionicons name="checkmark" size={14} color="white" />}
             </View>
             <View style={styles.termsTextContainer}>
               <AppText style={styles.termsText} language={language}>
@@ -219,7 +219,7 @@ export default function OnboardingScreen() {
               </AppText>
               <TouchableOpacity onPress={openTerms} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
                 <AppText style={styles.termsLink} language={language}>
-                  {language === "te" ? "నియమ నిబంధనలు & గోప్యతా విధానానికి" : "Terms & Privacy Policy"}
+                  {language === "te" ? "కిసాన్ ఖాతా నియమ నిబంధనలకు" : "Kisan Khata Terms & Policy"}
                 </AppText>
               </TouchableOpacity>
             </View>
@@ -372,14 +372,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 20,
+    height: 20,
+    borderRadius: 5,
     borderWidth: 2,
     borderColor: "#D1D5DB",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 8,
     backgroundColor: "#fff",
   },
   checkboxActive: {

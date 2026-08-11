@@ -3,6 +3,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
 import { useStore } from "@/store/useStore";
+import { syncTrackingEvent } from "@/services/trackingService";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
@@ -307,6 +308,8 @@ export default function MestriAttendance() {
         .collection("mestris")
         .doc(id as string)
         .set({ attendanceSessions: { [activeSession]: true } }, { merge: true }));
+        
+      await syncTrackingEvent("LABOR_LOG");
         
       setLoading(false);
       setShowSuccess(true);

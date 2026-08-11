@@ -2,8 +2,8 @@
 
 import AgriLoader from "@/components/AgriLoader";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
-
 import AppHeader from "@/components/AppHeader";
+import { syncTrackingEvent } from "@/services/trackingService";
 import AppText from "@/components/AppText";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -374,6 +374,8 @@ const workOptions = [
           session: activeSession,
           createdAt: firestore.FieldValue.serverTimestamp()
         }));
+
+      await syncTrackingEvent("MACHINE_LOG");
 
       setTimeout(() => {
         if (isMounted.current) {

@@ -459,12 +459,12 @@ export default function LoginScreen() {
             // --- STEP 3: REFERRAL CODE ---
             <Animated.View entering={FadeInRight} exiting={FadeOutRight} style={{ flex: 1 }}>
               <AppText style={styles.title} language={language}>
-                {language === "te" ? "మీ వివరాలు" : "Almost Done"}
+                {language === "te" ? "కిసాన్ ఖాతా ఇంటర్న్ షిప్" : "Kisan Khata Internship"}
               </AppText>
               <AppText style={styles.tagline} language={language}>
                 {language === "te" 
-                  ? "మీ ఊరు పేరు మరియు ఎవరైనా ఇంటర్న్ రిఫర్ చేస్తే వారి కోడ్ ఇవ్వండి." 
-                  : "Enter your village name and referral code if you have one."}
+                  ? "మిమ్మల్ని ఎవరైనా ఇంటర్న్ జాయిన్ చేపిస్తున్నారా? అయితే మీ ఊరు పేరు మరియు వాళ్ళ రిఫరల్ కోడ్ ఎంటర్ చేయండి." 
+                  : "Are you being onboarded by an intern? Please enter your village and their referral code."}
               </AppText>
 
               <AppText style={{ color: "#4B5563", fontWeight: "600", marginBottom: 8 }} language={language}>
@@ -490,7 +490,7 @@ export default function LoginScreen() {
               <AppText style={{ color: "#4B5563", fontWeight: "600", marginBottom: 8, marginTop: 10 }} language={language}>
                 {language === "te" ? "రిఫరల్ కోడ్ *" : "Referral Code *"}
               </AppText>
-              <Animated.View style={[styles.inputBox, referralBorderStyle]}>
+              <Animated.View style={[styles.inputBox, referralBorderStyle, { marginBottom: 0 }]}>
                 <Ionicons name="ticket-outline" size={20} color={focusReferral.value || referralCode ? "#1B5E20" : "#9CA3AF"} style={{ marginRight: 12 }} />
                 <TextInput
                   style={[styles.input, { fontFamily: "Mandali" }]}
@@ -506,13 +506,12 @@ export default function LoginScreen() {
                   editable={!loading}
                 />
               </Animated.View>
-              {referralError !== "" && <AppText style={styles.error} language={language}>{referralError}</AppText>}
-
-              {error !== "" && <AppText style={styles.error} language={language}>{error}</AppText>}
+              {referralError !== "" && <AppText style={[styles.error, { marginTop: 8 }]} language={language}>{referralError}</AppText>}
+              {error !== "" && <AppText style={[styles.error, { marginTop: 8 }]} language={language}>{error}</AppText>}
 
               <TouchableOpacity 
                 activeOpacity={0.8} 
-                style={[styles.button, (!village.trim() || !referralCode.trim()) && styles.disabledBtn]} 
+                style={[styles.button, { marginTop: 20 }, (!village.trim() || !referralCode.trim()) && styles.disabledBtn]} 
                 disabled={(!village.trim() || !referralCode.trim()) || loading} 
                 onPress={() => handleCompleteOnboarding(false)}
               >
@@ -521,13 +520,23 @@ export default function LoginScreen() {
                 </AppText>
               </TouchableOpacity>
 
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+                <View style={{ paddingHorizontal: 12 }}>
+                  <AppText style={{ color: '#9CA3AF', fontSize: 14, fontWeight: '600' }} language={language}>
+                    {language === "te" ? "లేదా" : "OR"}
+                  </AppText>
+                </View>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#E5E7EB' }} />
+              </View>
+
               <TouchableOpacity 
                 activeOpacity={0.7} 
-                style={{ marginTop: 24, alignItems: "center" }}
+                style={{ marginTop: 16, alignItems: "center" }}
                 onPress={() => handleCompleteOnboarding(true)}
               >
-                <AppText style={{ color: "#9CA3AF", fontSize: 15, fontWeight: "600" }} language={language}>
-                  {language === "te" ? "స్కిప్ చేయండి (Skip)" : "Skip for now"}
+                <AppText style={{ color: "#111827", fontSize: 15, fontWeight: "600", textDecorationLine: "underline" }} language={language}>
+                  {language === "te" ? "నేనే సొంతంగా యాప్ ఎక్కించుకున్నాను" : "I installed the app myself (Skip)"}
                 </AppText>
               </TouchableOpacity>
             </Animated.View>
@@ -570,7 +579,7 @@ const styles = StyleSheet.create({
   active: { color: "#1B5E20", fontWeight: "600" },
   
   title: { fontSize: 28, fontWeight: "600", color: "#1B5E20", letterSpacing: -0.5 },
-  tagline: { fontSize: 15, color: "#6B7280", marginBottom: 40, fontWeight: "500", lineHeight: 22 },
+  tagline: { fontSize: 15, color: "#6B7280", marginBottom: 30, fontWeight: "500", lineHeight: 26 },
   
   inputBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 22, borderWidth: 0.5, borderColor: "#E5E7EB", paddingHorizontal: 18, height: 60, marginBottom: 20 },
   prefix: { fontSize: 17, fontWeight: "600", color: "#1B5E20", marginRight: 8 },

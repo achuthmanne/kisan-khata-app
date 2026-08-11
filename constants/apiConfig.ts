@@ -5,7 +5,7 @@ export const getApiBaseUrl = () => {
   if (__DEV__) {
     // In dev mode, use the explicit local Wi-Fi IP address or an environment variable.
     // Expo Constants for hostUri is unreliable on physical devices in recent SDKs.
-    return process.env.EXPO_PUBLIC_API_URL || "http://172.22.46.62:3000";
+    return process.env.EXPO_PUBLIC_API_URL || "http://172.22.43.228:3000";
   }
   
   // PRODUCTION DOMAIN

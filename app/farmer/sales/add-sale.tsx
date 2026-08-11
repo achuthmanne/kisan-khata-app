@@ -2,8 +2,8 @@
 
 import { Ionicons } from "@expo/vector-icons";
 import { executeOfflineSafeRead, executeOfflineSafeWrite, executeOfflineSafeFetch } from "@/utils/offlineHelper";
-
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { syncTrackingEvent } from "@/services/trackingService";
 import firestore from "@react-native-firebase/firestore";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -219,6 +219,10 @@ export default function AddSale() {
 
       if (editId) await executeOfflineSafeWrite(ref.doc(editId as string).update(data));
       else await executeOfflineSafeWrite(ref.add(data));
+
+      if (!editId) {
+        await syncTrackingEvent("SALE_LOG");
+      }
 
       router.back();
     } catch (e) { console.log(e); }

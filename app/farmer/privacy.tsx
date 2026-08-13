@@ -133,16 +133,14 @@ export default function PrivacyPolicy() {
 
         <View style={styles.footerSection}>
           <TouchableOpacity 
-            style={[styles.contactBtn, { marginBottom: 20, backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0" }]} 
-            activeOpacity={0.8}
+            style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, marginBottom: 24 }}
+            activeOpacity={0.6}
             onPress={() => Linking.openURL("https://kisankhata.co.in/privacy-policy")}
           >
-            <Ionicons name="document-text" size={18} color="#16A34A" />
-            <View style={{ borderBottomWidth: 1, borderBottomColor: "#16A34A" }}>
-              <AppText style={[styles.contactBtnText, { color: "#16A34A" }]} language={language}>
-                {language === "te" ? "పూర్తి న్యాయపరమైన విధానం చూడండి" : "Read Full Legal Privacy Policy"}
-              </AppText>
-            </View>
+            <Ionicons name="open-outline" size={16} color="#2563EB" />
+            <AppText style={{ fontSize: 14, color: "#2563EB", fontWeight: "600", textDecorationLine: "underline" }} language={language}>
+              {language === "te" ? "పూర్తి గోప్యతా విధానాన్ని ఆన్‌లైన్‌లో చదవండి" : "Read the full Privacy Policy online"}
+            </AppText>
           </TouchableOpacity>
 
           <AppText style={styles.lastUpdatedText} language={language}>{t.lastUpdated}</AppText>

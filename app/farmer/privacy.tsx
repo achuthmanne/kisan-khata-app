@@ -135,7 +135,7 @@ export default function PrivacyPolicy() {
           <TouchableOpacity 
             style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12, marginBottom: 24 }}
             activeOpacity={0.6}
-            onPress={() => Linking.openURL("https://kisankhata.co.in/privacy-policy")}
+            onPress={() => Linking.openURL("https://www.kisankhata.co.in/privacy-policy")}
           >
             <Ionicons name="open-outline" size={16} color="#2563EB" />
             <AppText style={{ fontSize: 14, color: "#2563EB", fontWeight: "600", textDecorationLine: "underline" }} language={language}>

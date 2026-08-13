@@ -88,7 +88,7 @@ export default function OnboardingScreen() {
   };
 
   const openTerms = () => {
-    Linking.openURL("https://kisankhata.co.in/privacy-policy");
+    Linking.openURL("https://www.kisankhata.co.in/privacy-policy");
   };
 
   const renderSlide = ({ item }: { item: typeof SLIDES[0] }) => {

@@ -41,7 +41,7 @@ export default function ProfileScreen() {
   const router = useRouter();
 
   // 🔥 APP VERSION
-  const APP_VERSION = "1.0.1";
+  const APP_VERSION = "1.0.3";
 
   // --- STATE ---
   const [loading, setLoading] = useState(false);

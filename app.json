@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kisan Khata",
     "slug": "agri-snap",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "agrisnap",
@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/logo.png"
@@ -91,7 +91,16 @@
         }
       ],
       "expo-secure-store",
-      "./withFirebaseAuthFix.js"
+      "./withFirebaseAuthFix.js",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

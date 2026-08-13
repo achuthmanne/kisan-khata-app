@@ -9,7 +9,7 @@ import NetInfo from "@react-native-community/netinfo";
 import firestore from "@react-native-firebase/firestore";
 import messaging from "@react-native-firebase/messaging";
 import { useFocusEffect } from "@react-navigation/native";
-import { useFonts } from "expo-font";
+
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
 import { useRouter } from "expo-router";
@@ -277,7 +277,7 @@ export default function Dashboard() {
   const [weatherError, setWeatherError] = useState(false);
   const [activeSession, setActiveSession] = useState("");
   
-  const ADMIN_PHONE = "8121648629"; 
+  const ADMIN_PHONE = "9493959557"; 
   const [isAdmin, setIsAdmin] = useState(false);
   const [sessionModal, setSessionModal] = useState(false);
 
@@ -862,11 +862,6 @@ export default function Dashboard() {
     return "same";
   };
 
-  const [fontsLoaded] = useFonts({
-    Mandali: require("../../../assets/fonts/Mandali-Regular.ttf")
-  });
-
-  if(!fontsLoaded) return null;
 
   useEffect(() => {
     let weatherInterval: any;

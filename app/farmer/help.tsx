@@ -112,7 +112,7 @@ export default function HelpSupport() {
 
   const openWhatsApp = () => {
     // 🔥 బ్రో.. ఇక్కడ 91 పక్కన నీ ఒరిజినల్ వాట్సాప్ నంబర్ ఇవ్వు (Ex: "918121XXXXXX")
-    const phoneNumber = "918121648629"; 
+    const phoneNumber = "919493959557"; 
     const message = language === "te" ? "హలో కిసాన్ ఖాతా సపోర్ట్, నాకు ఒక సహాయం కావాలి." : "Hello Kisan Khata Support, I need some help.";
     const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
     

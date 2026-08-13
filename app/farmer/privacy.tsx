@@ -135,7 +135,7 @@ export default function PrivacyPolicy() {
           <TouchableOpacity 
             style={[styles.contactBtn, { marginBottom: 20, backgroundColor: "#F0FDF4", borderWidth: 1, borderColor: "#BBF7D0" }]} 
             activeOpacity={0.8}
-            onPress={() => Linking.openURL("https://sites.google.com/view/kisankhata-terms")}
+            onPress={() => Linking.openURL("https://kisankhata.co.in/privacy-policy")}
           >
             <Ionicons name="document-text" size={18} color="#16A34A" />
             <View style={{ borderBottomWidth: 1, borderBottomColor: "#16A34A" }}>

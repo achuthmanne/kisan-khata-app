@@ -21,7 +21,7 @@ const { width } = Dimensions.get("window");
 
 export default function AboutUs() {
   const [language, setLanguage] = useState<"te" | "en">("te");
-  const APP_VERSION = "1.0.0"; 
+  const APP_VERSION = "1.0.1";
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {

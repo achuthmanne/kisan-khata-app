@@ -449,7 +449,31 @@ export const sendInactiveNotifications = onSchedule({
       
       let selectedMsg = null;
 
-      if (daysInactive >= 5 && daysInactive < 7) {
+      if (daysInactive === 1) {
+        selectedMsg = {
+          title: "రైతు సోదరా, యాప్ ఓపెన్ చేశారా?",
+          body: "మీరు కిసాన్ ఖాతా యాప్ ని ఇన్స్టాల్ చేసుకున్నారు కానీ ఇంకా మీ లెక్కలు ప్రారంభించలేదు. ఇప్పుడే మొదటి ఎంట్రీ వేయండి!",
+          screen: "expenses"
+        };
+      } else if (daysInactive === 2) {
+        selectedMsg = {
+          title: "కూలీల హాజరు వేయడం మర్చిపోయారా?",
+          body: "కిసాన్ ఖాతాలో కూలీల అటెండెన్స్ వేయడం చాలా సులభం. ఇప్పుడే ట్రై చేయండి!",
+          screen: "mestri"
+        };
+      } else if (daysInactive === 3) {
+        selectedMsg = {
+          title: "మీ పంట ఖర్చులు ఎంత అయ్యాయి?",
+          body: "మీ వ్యవసాయ ఖర్చులను డిజిటల్ గా ట్రాక్ చేస్తే డబ్బు ఆదా అవుతుంది. కిసాన్ ఖాతా ఓపెన్ చేయండి.",
+          screen: "expenses"
+        };
+      } else if (daysInactive === 4) {
+        selectedMsg = {
+          title: "మీ తోటి రైతులు స్మార్ట్ అయ్యారు! 🚀",
+          body: "కిసాన్ ఖాతాలో మీ పంట వివరాలు నమోదు చేసి మీ సాగును స్మార్ట్ గా మార్చుకోండి.",
+          screen: "summary"
+        };
+      } else if (daysInactive >= 5 && daysInactive < 7) {
         selectedMsg = {
           title: "👋 రైతు సోదరా, బాగున్నారా?",
           body: "చాలా రోజులయ్యింది Kisan Khata తెరిచి! మీ వాతావరణం మరియు మార్కెట్ ధరలు ఒకసారి చూడండి.", // 🔥 BRAND NAME UPDATED
@@ -761,133 +785,4 @@ export const sendRankCardReminders = onSchedule({
   }
 );
 
-/* ---------------- 9. WHATSAPP CLOUD API WEBHOOK (PRODUCTION READY) ---------------- */
-export const whatsappWebhook = functions.https.onRequest(async (req, res) => {
-  // Use environment variable in production, fallback to hardcoded string for development
-  const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || "kisankhata_super_secret";
-
-  if (req.method === "GET") {
-    // 1. Meta Webhook Verification Challenge
-    const mode = req.query["hub.mode"];
-    const token = req.query["hub.verify_token"];
-    const challenge = req.query["hub.challenge"];
-
-    if (mode && token) {
-      if (mode === "subscribe" && token === VERIFY_TOKEN) {
-        console.log("✅ WhatsApp Webhook Verified successfully!");
-        res.status(200).send(challenge);
-      } else {
-        console.warn("⚠️ WhatsApp Webhook Verification Failed: Token mismatch");
-        res.status(403).send("Forbidden");
-      }
-    } else {
-      res.status(400).send("Bad Request");
-    }
-  } else if (req.method === "POST") {
-    // 2. Receiving Incoming Messages from Farmers
-    const body = req.body;
-
-    // CRITICAL: Always return a 200 OK immediately to acknowledge receipt.
-    // If not, Meta will assume failure and retry sending the same message repeatedly.
-    res.status(200).send("EVENT_RECEIVED");
-
-    try {
-      if (body.object === "whatsapp_business_account") {
-        const changes = body.entry?.[0]?.changes?.[0]?.value;
-        const messages = changes?.messages;
-        
-        if (messages && messages[0]) {
-          const message = messages[0];
-          const phoneNumID = changes.metadata?.phone_number_id;
-          const fromPhone = message.from; // The farmer's phone number
-          
-          console.log(`📩 New message received from: ${fromPhone}, Type: ${message.type}`);
-          
-          // Securely log the raw incoming message to Firestore for AI processing later
-          await admin.firestore().collection("whatsapp_logs").add({
-            phone_number_id: phoneNumID,
-            from: fromPhone,
-            message: message,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            status: "pending_ai_processing" // Indicates it's ready for the AI worker
-          });
-        }
-      }
-    } catch (error) {
-      console.error("❌ Error processing WhatsApp Webhook POST event:", error);
-    }
-  } else {
-    res.status(405).send("Method Not Allowed");
-  }
-});
-
-/* ---------------- 10. WHATSAPP AUTO-RESPONDER (NO AI) ---------------- */
-export const autoReplyWhatsApp = onDocumentCreated("whatsapp_logs/{logId}", async (event) => {
-    const snap = event.data;
-    if (!snap) return;
-    const data = snap.data();
-    if (!data || data.status === "replied") return;
-
-    const fromPhone = data.from;
-    const phoneNumID = data.phone_number_id;
-    const token = process.env.WHATSAPP_TOKEN;
-
-    if (!fromPhone || !phoneNumID || !token) {
-      console.error("Missing required data for WhatsApp auto-reply:", { fromPhone, phoneNumID, hasToken: !!token });
-      return;
-    }
-
-    try {
-      // Check if this is the first message from the user
-      const prevMessagesSnap = await admin.firestore().collection("whatsapp_logs")
-        .where("from", "==", fromPhone)
-        .limit(2)
-        .get();
-
-      const isFirstMessage = prevMessagesSnap.size <= 1;
-
-      let replyText = "";
-      if (isFirstMessage) {
-        replyText = "కిసాన్ ఖాతా (Kisan Khata) కి స్వాగతం! 🙏\nమీ రోజువారీ వ్యవసాయ ఖర్చులు, కూలీల లెక్కలు, ట్రాక్టర్ అద్దెలు ఇక్కడే చాలా సులువుగా చూసుకోవచ్చు. మీకు ఏమైనా సందేహాలు ఉంటే మాకు మెసేజ్ చేయండి.";
-      } else {
-        replyText = "నమస్తే! 🙏\nదయచేసి సోమవారం నుండి ఆదివారం వరకు, ఉదయం 9 గంటల నుండి సాయంత్రం 6 గంటల లోపు మా అఫీషియల్ కస్టమర్ కేర్ నెంబర్ 9493959557 కి కాల్ చేయండి. మా టీమ్ మీకు పూర్తి సహాయం చేస్తుంది.";
-      }
-
-      // Send the reply via Meta WhatsApp API
-      const url = `https://graph.facebook.com/v19.0/${phoneNumID}/messages`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          to: fromPhone,
-          type: "text",
-          text: { body: replyText }
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Meta API error: ${response.status} - ${errorText}`);
-      }
-
-      console.log(`✅ Auto-reply sent successfully to ${fromPhone}`);
-
-      // Update the log status
-      await snap.ref.update({
-        status: "replied",
-        reply_sent: replyText,
-        replied_at: admin.firestore.FieldValue.serverTimestamp()
-      });
-
-    } catch (error) {
-      console.error("❌ AutoReply Error:", error);
-      // Attempt to log the error status in Firestore if possible
-      await snap.ref.update({
-        status: "reply_failed"
-      });
-    }
-  });
+

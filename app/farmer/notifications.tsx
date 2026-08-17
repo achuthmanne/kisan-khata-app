@@ -120,7 +120,11 @@ export default function Notifications() {
           if (doc.userId === "all") {
             // show
           } else if (doc.state) {
-            if (!userState || normalize(doc.state) !== normalize(userState)) continue;
+            if (!userState) continue;
+            const ns = normalize(doc.state);
+            const us = normalize(userState);
+            const isT = (ns === "ts" || ns === "telangana") && (us === "ts" || us === "telangana");
+            if (ns !== us && !isT) continue;
           } else if (doc.userId && doc.userId !== phone) {
             continue;
           }
@@ -322,7 +326,7 @@ export default function Notifications() {
                 }}
               >
                 <AppText style={styles.title}>
-                  {item.title}
+                  {language === "te" && item.title_te ? item.title_te : (item.title_en || item.title)}
                 </AppText>
 
                 <AppText
@@ -330,7 +334,7 @@ export default function Notifications() {
                   ellipsizeMode="tail"
                   style={styles.message}
                 >
-                  {item.message}
+                  {language === "te" && item.message_te ? item.message_te : (item.message_en || item.message)}
                 </AppText>
 
                 {/* ⭐ FEEDBACK */}

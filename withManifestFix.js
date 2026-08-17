@@ -24,6 +24,25 @@ module.exports = function withManifestFix(config) {
       androidManifest.manifest.$['xmlns:tools'] = 'http://schemas.android.com/tools';
     }
 
+    // Add package visibility queries for Play Store (market://)
+    if (!androidManifest.manifest.queries) {
+      androidManifest.manifest.queries = [{ intent: [] }];
+    } else if (!androidManifest.manifest.queries[0].intent) {
+      androidManifest.manifest.queries[0].intent = [];
+    }
+
+    const intentArray = androidManifest.manifest.queries[0].intent;
+    const hasMarket = intentArray.some(
+      (intent) => intent.data && intent.data.some((d) => d.$['android:scheme'] === 'market')
+    );
+
+    if (!hasMarket) {
+      intentArray.push({
+        action: [{ $: { 'android:name': 'android.intent.action.VIEW' } }],
+        data: [{ $: { 'android:scheme': 'market' } }]
+      });
+    }
+
     return config;
   });
 };

@@ -247,16 +247,17 @@ export default function FarmerLayout() {
         const packageName = "com.achuth.agrisnap"; 
         const playStoreUrl = `market://details?id=${packageName}`;
         const webUrl = `https://play.google.com/store/apps/details?id=${packageName}`;
-
         try {
-          const supported = await Linking.canOpenURL(playStoreUrl);
-          if (supported) await Linking.openURL(playStoreUrl); 
-          else await Linking.openURL(webUrl); 
+          await Linking.openURL(playStoreUrl);
         } catch (error) {
-          Alert.alert(
-            language === "te" ? "లోపం" : "Error", 
-            language === "te" ? "ప్లే స్టోర్ ఓపెన్ కాలేదు." : "Could not open Play Store."
-          );
+          try {
+            await Linking.openURL(webUrl);
+          } catch (e) {
+            Alert.alert(
+              language === "te" ? "లోపం" : "Error", 
+              language === "te" ? "ప్లే స్టోర్ ఓపెన్ కాలేదు." : "Could not open Play Store."
+            );
+          }
         }
       } else {
         router.push(route as any); 

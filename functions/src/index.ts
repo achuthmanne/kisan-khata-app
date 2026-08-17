@@ -555,7 +555,8 @@ export const notifyNewScheme = onDocumentCreated(
     const schemeState = scheme.state; 
     const title = scheme.title || "కొత్త ప్రభుత్వ పథకం";
     
-    let tokens: string[] = [];
+    let tokensTe: string[] = [];
+    let tokensEn: string[] = [];
     
     const usersSnap = await admin.firestore().collection("users").get();
     
@@ -563,43 +564,83 @@ export const notifyNewScheme = onDocumentCreated(
       const userData = doc.data();
       const userState = (userData.state || "").trim().toUpperCase();
       const token = userData.fcmToken;
+      const lang = userData.language || "te";
 
       if (token) {
+        let shouldSend = false;
         if (schemeState === "BOTH") {
-          tokens.push(token);
+          shouldSend = true;
         } else if (schemeState === "AP" && userState === "AP") {
-          tokens.push(token);
+          shouldSend = true;
         } else if (schemeState === "TS" && (userState === "TS" || userState === "TELANGANA")) {
-          tokens.push(token);
+          shouldSend = true;
+        }
+
+        if (shouldSend) {
+          if (lang === "en") tokensEn.push(token);
+          else tokensTe.push(token);
         }
       }
     });
 
-    tokens = [...new Set(tokens)];
+    tokensTe = [...new Set(tokensTe)];
+    tokensEn = [...new Set(tokensEn)];
     
-    if (tokens.length === 0) {
+    if (tokensTe.length === 0 && tokensEn.length === 0) {
       console.log(`❌ No tokens found for ${schemeState} state`);
       return;
     }
 
-    console.log(`✅ Sending Scheme Notification to ${tokens.length} users in ${schemeState}`);
+    console.log(`✅ Sending Scheme Notification to ${tokensTe.length} TE users and ${tokensEn.length} EN users in ${schemeState}`);
 
-    // 🔥 Batched Sending
-    const payload = {
-        notification: {
-          title: "🎉 కొత్త ప్రభుత్వ పథకం!",
-          body: `${title} - అర్హతలు, కావాల్సిన పత్రాలు మరియు దరఖాస్తు విధానం కోసం ఇప్పుడే Kisan Khata లో చూడండి.`, // 🔥 BRAND NAME UPDATED
-        },
-        android: {
-          priority: "high" as const,
-          notification: { channelId: "default", sound: "default" },
-        },
-        data: {
-          screen: `/farmer/schemes/${schemeId}`, 
-        },
-    };
-    
-    await sendMulticastInBatches(tokens, payload);
+    // 🔥 SAVE TO IN-APP NOTIFICATIONS (Bilingual for the Badge & Notifications Screen)
+    await admin.firestore().collection("notifications").doc(`scheme_${schemeId}`).set({
+      title: "🎉 కొత్త ప్రభుత్వ పథకం!",
+      title_te: "🎉 కొత్త ప్రభుత్వ పథకం!",
+      title_en: "🎉 New Government Scheme!",
+      message: `${title} - అర్హతలు, పత్రాలు మరియు దరఖాస్తు విధానం కోసం 'ప్రభుత్వ పథకాలు' విభాగంలో చూడండి.`,
+      message_te: `${title} - అర్హతలు, పత్రాలు మరియు దరఖాస్తు విధానం కోసం 'ప్రభుత్వ పథకాలు' విభాగంలో చూడండి.`,
+      message_en: `${title} - Check eligibility, required documents, and how to apply in the 'Govt Schemes' section.`,
+      userId: schemeState === "BOTH" ? "all" : null,
+      state: schemeState !== "BOTH" ? schemeState : null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // 🔥 Batched Sending for TELUGU users
+    if (tokensTe.length > 0) {
+      const payloadTe = {
+          notification: {
+            title: "🎉 కొత్త ప్రభుత్వ పథకం!",
+            body: `${title} - అర్హతలు, పత్రాలు మరియు దరఖాస్తు విధానం కోసం యాప్ లోని 'ప్రభుత్వ పథకాలు' విభాగంలో చూడండి.`, 
+          },
+          android: {
+            priority: "high" as const,
+            notification: { channelId: "default", sound: "default" },
+          },
+          data: {
+            screen: `/farmer/schemes/${schemeId}`, 
+          },
+      };
+      await sendMulticastInBatches(tokensTe, payloadTe);
+    }
+
+    // 🔥 Batched Sending for ENGLISH users
+    if (tokensEn.length > 0) {
+      const payloadEn = {
+          notification: {
+            title: "🎉 New Government Scheme!",
+            body: `${title} - Check eligibility, documents, and application process in the 'Govt Schemes' section of the app.`, 
+          },
+          android: {
+            priority: "high" as const,
+            notification: { channelId: "default", sound: "default" },
+          },
+          data: {
+            screen: `/farmer/schemes/${schemeId}`, 
+          },
+      };
+      await sendMulticastInBatches(tokensEn, payloadEn);
+    }
   }
 );
 
@@ -785,4 +826,5 @@ export const sendRankCardReminders = onSchedule({
   }
 );
 
+export * from "./scrapeSchemes";
 

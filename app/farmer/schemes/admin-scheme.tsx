@@ -41,16 +41,61 @@ export default function AdminSchemeScreen() {
   const [applyLink, setApplyLink] = useState("");
 
   // Dynamic Array States
+  const [benefits, setBenefits] = useState<string[]>([""]);
   const [eligibility, setEligibility] = useState<string[]>([""]);
   const [documents, setDocuments] = useState<string[]>([""]);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [draftCount, setDraftCount] = useState(0);
 
   useEffect(() => {
     AsyncStorage.getItem("APP_LANG").then((l) => {
       if (l) setLanguage(l as "te" | "en");
     });
+
+    const unsubscribe = firestore().collection("draft_schemes").onSnapshot(
+      (snap) => {
+        setDraftCount(snap ? snap.size : 0);
+      },
+      (error) => {
+        console.log("Error fetching draft count:", error);
+      }
+    );
+
+    // 🔥 LOAD LOCAL DRAFT
+    const loadDraft = async () => {
+      try {
+        const saved = await AsyncStorage.getItem("ADMIN_SCHEME_FORM_DRAFT");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.title) setTitle(parsed.title);
+          if (parsed.shortDesc) setShortDesc(parsed.shortDesc);
+          if (parsed.targetState) setTargetState(parsed.targetState);
+          if (parsed.howToApply) setHowToApply(parsed.howToApply);
+          if (parsed.applyLink) setApplyLink(parsed.applyLink);
+          if (parsed.benefits?.length) setBenefits(parsed.benefits);
+          if (parsed.eligibility?.length) setEligibility(parsed.eligibility);
+          if (parsed.documents?.length) setDocuments(parsed.documents);
+        }
+      } catch (e) {
+        console.log("Error loading local draft:", e);
+      }
+    };
+    loadDraft();
+
+    return () => unsubscribe();
   }, []);
+
+  // 🔥 AUTO-SAVE DRAFT WHEN FIELDS CHANGE
+  useEffect(() => {
+    const saveDraft = async () => {
+      const draft = { title, shortDesc, targetState, howToApply, applyLink, benefits, eligibility, documents };
+      try {
+        await AsyncStorage.setItem("ADMIN_SCHEME_FORM_DRAFT", JSON.stringify(draft));
+      } catch (e) {}
+    };
+    saveDraft();
+  }, [title, shortDesc, targetState, howToApply, applyLink, benefits, eligibility, documents]);
 
   /* ---------------- IMAGE PICKER (ఇమేజ్ అప్‌లోడ్) ---------------- */
   const pickImage = async () => {
@@ -106,6 +151,7 @@ export default function AdminSchemeScreen() {
     }
     setErrors({});
 
+    const cleanBenefits = benefits.map(b => b.trim()).filter(b => b.length > 0);
     const cleanEligibility = eligibility.map(e => e.trim()).filter(e => e.length > 0);
     const cleanDocuments = documents.map((d: any) => d.trim()).filter(d => d.length > 0);
 
@@ -131,6 +177,7 @@ export default function AdminSchemeScreen() {
         state: targetState,
         howToApply: howToApply.trim(),
         applyLink: applyLink.trim(),
+        benefits: cleanBenefits,
         eligibility: cleanEligibility,
         documentsRequired: cleanDocuments,
         isActive: true,
@@ -148,6 +195,10 @@ export default function AdminSchemeScreen() {
         const updatedData = [newSchemeObj, ...parsed.data];
         await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: parsed.timestamp, data: updatedData }));
       }
+      
+      // 🔥 CLEAR LOCAL DRAFT AFTER SUCCESS
+      await AsyncStorage.removeItem("ADMIN_SCHEME_FORM_DRAFT");
+      
       setLoading(false);
       Alert.alert(
         language === "te" ? "విజయవంతం" : "Success",
@@ -178,6 +229,22 @@ export default function AdminSchemeScreen() {
         showsVerticalScrollIndicator={false}
       >
         
+        {/* AI DRAFTS NAVIGATION */}
+        <TouchableOpacity 
+          style={styles.draftNavigationBtn} 
+          onPress={() => router.push("/farmer/schemes/admin-drafts")}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="sparkles" size={20} color="#2563EB" />
+          <AppText style={styles.draftNavigationText}>
+            {language === "te" ? "AI డ్రాఫ్ట్స్ చూడండి (Approve New Schemes)" : "View AI Drafts (Approve New Schemes)"}
+          </AppText>
+          <View style={styles.badgeContainer}>
+            <AppText style={styles.badgeText}>{draftCount}</AppText>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#2563EB" />
+        </TouchableOpacity>
+
         {/* IMAGE PICKER (ఇమేజ్ అప్‌లోడ్ బాక్స్) */}
         <AppText style={styles.label}>{language === "te" ? "బ్యాнер ఇమేజ్" : "Banner Image"}</AppText>
         <TouchableOpacity 
@@ -244,6 +311,31 @@ export default function AdminSchemeScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        <View style={styles.divider} />
+
+        {/* DYNAMIC BENEFITS */}
+        <AppText style={styles.sectionLabel}>{language === "te" ? "ప్రయోజనాలు (Benefits)" : "Scheme Benefits"}</AppText>
+        {benefits.map((benefit, index) => (
+          <View key={`ben-${index}`} style={styles.dynamicRow}>
+            <View style={styles.dynamicInputBox}>
+              <TextInput
+                value={benefit}
+                onChangeText={(txt) => updateArray(setBenefits, index, txt, benefits)}
+                placeholder={`${index + 1}. ${language === "te" ? "లాభం/ప్రయోజనం నమోదు చేయండి" : "Enter benefit"}`}
+                style={styles.input}
+                cursorColor="#16A34A"
+              />
+            </View>
+            <TouchableOpacity style={styles.removeBtn} onPress={() => removeField(setBenefits, index, benefits)}>
+              <Ionicons name="trash-outline" size={20} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        ))}
+        <TouchableOpacity style={styles.addMoreBtn} onPress={() => addField(setBenefits, benefits)}>
+          <Ionicons name="add-circle-outline" size={20} color="#2563EB" />
+          <AppText style={styles.addMoreText}>{language === "te" ? "మరొకటి చేర్చండి" : "Add More"}</AppText>
+        </TouchableOpacity>
 
         <View style={styles.divider} />
 
@@ -348,6 +440,37 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 16, color: "#111827", fontWeight: "700", marginBottom: 12 },
   
   // IMAGE PICKER STYLES
+  draftNavigationBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#DBEAFE",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#BFDBFE"
+  },
+  draftNavigationText: {
+    flex: 1,
+    color: "#1E3A8A",
+    fontWeight: "bold",
+    fontSize: 15,
+    marginLeft: 8
+  },
+  badgeContainer: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginRight: 8,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  badgeText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "bold"
+  },
   imageUploadBox: {
     width: "100%",
     height: 180,

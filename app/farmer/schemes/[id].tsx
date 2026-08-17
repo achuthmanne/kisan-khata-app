@@ -24,6 +24,7 @@ import AppEmptyState from "@/components/AppEmptyState";
 /* ---------------- TRANSLATIONS ---------------- */
 const translations = {
   te: {
+    benefits: "ప్రయోజనాలు (Benefits)",
     eligibility: "అర్హతలు (Eligibility)",
     documents: "కావాల్సిన పత్రాలు",
     howToApply: "ఎలా దరఖాస్తు చేయాలి?",
@@ -32,6 +33,7 @@ const translations = {
     linkError: "లింక్ ఓపెన్ అవ్వట్లేదు. దయచేసి మళ్ళీ ప్రయత్నించండి." 
   },
   en: {
+    benefits: "Scheme Benefits",
     eligibility: "Eligibility Criteria",
     documents: "Documents Required",
     howToApply: "How to Apply?",
@@ -185,6 +187,24 @@ export default function SchemeDetailsScreen() {
         <View style={styles.section}>
           <AppText style={styles.descText} language={language}>{scheme.shortDesc}</AppText>
         </View>
+
+        {/* BENEFITS */}
+        {Array.isArray(scheme.benefits) && scheme.benefits.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.iconBg, { backgroundColor: "#FEF9C3" }]}>
+                <Ionicons name="star" size={20} color="#EAB308" />
+              </View>
+              <AppText style={styles.cardTitle} language={language}>{t.benefits}</AppText>
+            </View>
+            {scheme.benefits.map((point: string, index: number) => (
+              <View key={index} style={styles.bulletRow}>
+                <View style={[styles.bulletPoint, { backgroundColor: "#EAB308" }]} />
+                <AppText style={styles.bulletText} language={language}>{point}</AppText>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* ELIGIBILITY */}
         {Array.isArray(scheme.eligibility) && scheme.eligibility.length > 0 && (
